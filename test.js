@@ -52,6 +52,37 @@ section('PAGE');
   t('every file the page loads exists', missing.length === 0, missing.join(' '));
 })();
 
+/* ---------------- clipboard ---------------- */
+section('CLIPBOARD');
+(function () {
+  /* navigator.clipboard is refused from file://, over plain http, and
+     whenever the page is not focused. An uncaught call there rejects
+     silently while the toast still says "Copied", so every use has to go
+     through the one helper that catches and falls back. */
+  var fs = require('fs');
+  var files = fs.readdirSync(__dirname + '/js').filter(function (f) { return /\.js$/.test(f); });
+  var raw = [];
+  files.forEach(function (f) {
+    var src = fs.readFileSync(__dirname + '/js/' + f, 'utf8');
+    src.split(/\n/).forEach(function (line, i) {
+      if (line.indexOf('navigator.clipboard') < 0) return;
+      if (f === 'views.js') return;        /* the helper itself lives here */
+      raw.push(f + ':' + (i + 1));
+    });
+  });
+  t('nothing calls the clipboard directly', raw.length === 0, raw.join(' '));
+
+  var v = fs.readFileSync(__dirname + '/js/views.js', 'utf8');
+  var helper = v.slice(v.indexOf('function copy(text)'), v.indexOf('function copyWithToast'));
+  t('the helper catches a refusal', /\.catch\(/.test(helper));
+  t('the helper has a fallback for when the API is absent',
+    /execCommand/.test(helper) && /return Promise\.resolve\(fallback\(\)\)/.test(helper));
+  t('the helper resolves a boolean rather than throwing',
+    /return Promise\.resolve\(false\)/.test(helper));
+  t('success is only claimed when copying worked',
+    /ok \? 'Copied'/.test(v));
+})();
+
 /* ---------------- data integrity ---------------- */
 section('DATA');
 t('vocab loaded', TB.VOCAB.length >= 3000, TB.VOCAB.length);
