@@ -311,6 +311,46 @@ TB.Translate = (function () {
         });
     },
 
+    /* Translate a list of lines, keeping them a list.
+
+       Blank lines are preserved as blanks, so the verses of a poem survive
+       the trip. */
+    lines: function (list, from, to) {
+      var text = (list || []).map(function (l) { return String(l == null ? '' : l); });
+      var idx = [];
+      text.forEach(function (l, i) { if (l.trim()) idx.push(i); });
+      if (!idx.length) return Promise.resolve(text.map(function () { return ''; }));
+      if (from === to && from !== 'auto') return Promise.resolve(text.slice());
+
+      /* A line on its own is short and ambiguous; a numbered list gives the
+         service the surrounding context while still coming back separable. */
+      var MARK = '\n';
+      var joined = idx.map(function (i) { return text[i]; }).join(MARK);
+
+      function fanOut() {
+        return Promise.all(idx.map(function (i) {
+          return api.translate(text[i], from, to)
+            .then(function (r) { return r.text; })
+            .catch(function () { return ''; });
+        })).then(function (parts) {
+          var out = text.map(function () { return ''; });
+          idx.forEach(function (i, k) { out[i] = parts[k]; });
+          return out;
+        });
+      }
+
+      return api.translate(joined, from, to).then(function (r) {
+        var parts = String(r.text || '').split(/\r?\n/).map(function (x) { return x.trim(); })
+                      .filter(function (x) { return x; });
+        /* Only trust the one-shot result if it came back with the same number
+           of lines; otherwise ask line by line. */
+        if (parts.length !== idx.length) return fanOut();
+        var out = text.map(function () { return ''; });
+        idx.forEach(function (i, k) { out[i] = parts[k]; });
+        return out;
+      }).catch(fanOut);
+    },
+
     /* Translate into several targets at once (used by the meaning card). */
     multi: function (text, from, targets) {
       return Promise.all(targets.map(function (t) {

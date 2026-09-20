@@ -15,10 +15,11 @@ ctx.speechSynthesis = { getVoices: () => [], speak() {}, cancel() {}, addEventLi
 ctx.document = { addEventListener() {}, head: { appendChild() {} }, createElement: () => ({}) };
 vm.createContext(ctx);
 
-['data/vocab.js','data/vocab2.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
+['data/vocab.js','data/vocab2.js','data/ensound.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
  'data/phrases.js','data/lexicon.js',
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
- 'js/tutor.js','js/check.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js']
+ 'js/reader.js',
+ 'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
 const TB = ctx.TB;
@@ -119,6 +120,191 @@ section('HINDI READINGS (roman + Tamil)');
     return /[ऀ-ॿ]/.test(r) || /[ऀ-ॿ]/.test(x) || !r.trim() || !x.trim();
   });
   t('every Hindi string reads cleanly', bad.length === 0, bad.length + ' defective');
+})();
+
+/* ---------------- reading aloud ---------------- */
+section('READING ALOUD');
+(function () {
+  var rhyme = ['Twinkle twinkle little star',
+               'How I wonder what you are',
+               'Up above the world so high',
+               'Like a diamond in the sky'];
+  var prose = ['I go to school every day.',
+               'My classes start at 8:00 AM.',
+               'I study math, English, and science.',
+               'After school I do my homework.'];
+
+  t('a rhyme is recognised as verse', TB.Reader.looksLikeVerse(rhyme));
+  t('prose is not', !TB.Reader.looksLikeVerse(prose));
+  t('rhyme scheme is AABB', TB.Reader.scheme(rhyme).join('') === 'AABB',
+    TB.Reader.scheme(rhyme).join(''));
+  t('verse picks the sing-song mode', TB.Reader.modesFor(rhyme).suggested === 'rhyme');
+  t('prose picks the reading mode', TB.Reader.modesFor(prose).suggested === 'read');
+
+  /* wrapped lines, as OCR actually returns a paragraph */
+  var wrapped = ['I go to school every day.', 'My classes start at 8:00',
+                 'AM. I study math,', 'English, and science.',
+                 'During break, I eat a', 'snack and play with my',
+                 'friends. After school, I go', 'home and do my',
+                 'homework. I like school', 'because I learn many',
+                 'new things and have fun!'];
+  var flow = TB.Reader.reflow(wrapped);
+  t('wrapped prose is sewn into sentences', flow.units.length === 6, flow.units.length);
+  t('no sentence is left cut in half',
+    flow.units.every(function (u) { return /[.!?]$/.test(u); }),
+    flow.units.filter(function (u) { return !/[.!?]$/.test(u); }).join(' | '));
+  t('the words all survive the sewing',
+    flow.units.join(' ').replace(/\s+/g, ' ') === wrapped.join(' ').replace(/\s+/g, ' '));
+  t('a fragment is never translated alone',
+    flow.units.indexOf('snack and play with my') < 0);
+  t('verse is left exactly as written',
+    TB.Reader.reflow(rhyme).units.join('|') === rhyme.join('|'));
+  t('verse is not reflowed', TB.Reader.reflow(rhyme).isVerse &&
+    !TB.Reader.reflow(rhyme).reflowed);
+  t('a blank line still separates paragraphs',
+    TB.Reader.reflow(['One. Two.', '', 'Three.']).units.length === 4);
+
+  var sung = TB.Reader.plan(rhyme, 'en', 'rhyme', { rate: 0.9, pitch: 1 });
+  var spoken = TB.Reader.plan(rhyme, 'en', 'read', { rate: 0.9, pitch: 1 });
+  t('every line is spoken once', sung.filter(function (s) { return !s.silent; }).length === 4);
+  t('sing-song moves the pitch',
+    new Set(sung.map(function (s) { return s.pitch; })).size > 1);
+  t('plain reading does not', new Set(spoken.map(function (s) { return s.pitch; })).size === 1);
+  t('pitch stays in range the browser accepts',
+    sung.every(function (s) { return s.pitch >= 0.1 && s.pitch <= 2; }));
+  t('the closing line settles lowest',
+    sung[3].pitch === Math.min.apply(null, sung.map(function (s) { return s.pitch; })));
+  t('the couplet gets a longer rest', sung[1].pause > sung[0].pause);
+  t('slow mode is slower', TB.Reader.plan(prose, 'en', 'slow')[0].rate
+    < TB.Reader.plan(prose, 'en', 'read')[0].rate);
+  t('spelling gives one letter at a time',
+    TB.Reader.plan(['cat'], 'en', 'spell').filter(function (s) { return !s.silent; })
+      .map(function (s) { return s.text; }).join('') === 'cat');
+  var verses = TB.Reader.plan(['One', 'Two', '', 'Three', 'Four'], 'en', 'rhyme');
+  t('a blank line becomes a rest, not a word',
+    verses.filter(function (s) { return s.silent; }).length >= 1 &&
+    verses.filter(function (s) { return !s.silent; }).length === 4);
+  t('every step names its language',
+    sung.every(function (s) { return s.lang === 'en'; }));
+  t('a Tamil rhyme plans in Tamil',
+    TB.Reader.plan(['காகா', 'மாமா'], 'ta', 'rhyme')
+      .every(function (s) { return s.lang === 'ta'; }));
+})();
+
+/* ---------------- photo text scoring ---------------- */
+section('PHOTO TEXT');
+(function () {
+  /* The wrong language pack does not fail, it returns fluent nonsense. This
+     is the measured output of reading English with the Tamil pack. */
+  var junk = { text: '1 90 1ோ 861ோ0।1 6 ர. ரர 0ோ5888 60ார்‌ ௭1 8:00 சிரிரி,', confidence: 46 };
+  var good = { text: 'I go to school every day. My classes start at 8:00 AM.', confidence: 95 };
+  t('a good read scores above the trust line',
+    TB.OCR.plausibility(good) >= TB.OCR.TRUST, TB.OCR.plausibility(good));
+  t('nonsense scores below it',
+    TB.OCR.plausibility(junk) < TB.OCR.TRUST, TB.OCR.plausibility(junk));
+  t('and well below the good one',
+    TB.OCR.plausibility(good) - TB.OCR.plausibility(junk) > 25);
+  t('empty text scores zero', TB.OCR.plausibility({ text: '', confidence: 90 }) === 0);
+  t('every pack maps to a translate language',
+    Object.keys(TB.OCR.PACKS).every(function (p) {
+      return TB.Translate.LANGS.some(function (l) { return l.c === TB.OCR.PACKS[p].code; });
+    }));
+  t('every pack has a voice',
+    Object.keys(TB.OCR.PACKS).every(function (p) {
+      return !!TB.Speech.langTags()[TB.OCR.PACKS[p].code];
+    }));
+})();
+
+var SAMPLE = { hi: 'मैं स्कूल जाता हूँ',
+               te: 'నేను పాఠశాల', kn: 'ನಾನು ಶಾಲೆ',
+               ml: 'ഞാൻ സ്കൂളിൽ', bn: 'আমি স্কুলে',
+               gu: 'હું શાળાએ', pa: 'ਮੈਂ ਸਕੂਲ' };
+
+/* ---------------- readings for every Indian script ---------------- */
+section('READINGS (all Indian scripts)');
+(function () {
+  /* "I go to school", written in each script, must be sayable by someone who
+     reads only English letters or only Tamil ones. */
+  [['hi', 'मैं स्कूल जाता हूँ', 'maiṁ skūl jātā hūṁ'],
+   ['te', 'నేను', 'nenu'],
+   ['kn', 'ನಾನು', 'nānu'],
+   ['ml', 'ഞാൻ', 'ñān'],
+   ['bn', 'আমি', 'āmi'],
+   ['gu', 'હું', 'huṁ'],
+   ['pa', 'ਮੈਂ', 'maiṁ']]
+    .forEach(function (row) {
+      var r = TB.Translit.readings(row[1], row[0]);
+      t(row[0] + ' reads in English letters', r.roman === row[2], r.roman);
+      t(row[0] + ' reads in Tamil letters',
+        !!r.tamil && !/[ऀ-෿]/.test(r.tamil.replace(/[஀-௿]/g, '')), r.tamil);
+    });
+
+  /* the m at the start is the म; it is the LAST sound that was wrong */
+  t('a word-final nasal is nasalisation, not a labial m',
+    /ṁ$/.test(TB.Translit.romanHindi('मैं')),
+    TB.Translit.romanHindi('मैं'));
+  t('and so is a chandrabindu',
+    /ṁ$/.test(TB.Translit.romanHindi('हूँ')),
+    TB.Translit.romanHindi('हूँ'));
+  t('a nasal before a stop still takes its place',
+    TB.Translit.romanHindi('हिंदी') === 'hindī',
+    TB.Translit.romanHindi('हिंदी'));
+  t('southern short e survives',
+    TB.Translit.readings('ಶಾಲೆ', 'kn').roman === 'śāle',
+    TB.Translit.readings('ಶಾಲೆ', 'kn').roman);
+  t('Malayalam chillu is a bare consonant',
+    TB.Translit.readings('ഞാൻ', 'ml').roman === 'ñān');
+  t('nothing leaks its own script into the reading',
+    ['hi', 'te', 'kn', 'ml', 'bn', 'gu', 'pa'].every(function (l) {
+      var r = TB.Translit.readings(SAMPLE[l], l);
+      return !/[ऀ-୿ఀ-෿]/.test(r.roman + r.tamil);
+    }));
+  t('Tamil reads as itself', TB.Translit.readings('நான்', 'ta').roman === 'nāẉ'
+    || TB.Translit.readings('நான்', 'ta').roman === 'nāṉ',
+    TB.Translit.readings('நான்', 'ta').roman);
+  /* English written in Tamil letters must come from the pronunciation, never
+     from the spelling: school is ஸ்கூல், not ஸ்சூல் */
+  t('English sounds are not spelled out letter by letter',
+    TB.Translit.readings('I go to school every day.', 'en').tamil
+      === 'ஐ கோ டூ ஸ்கூல் எவரி டே.',
+    TB.Translit.readings('I go to school every day.', 'en').tamil);
+  t('a rhyme is fully covered',
+    !/[A-Za-z]/.test(TB.Translit.readings('Twinkle twinkle little star, how I wonder what you are', 'en').tamil),
+    TB.Translit.readings('Twinkle twinkle little star, how I wonder what you are', 'en').tamil);
+  t('a plural keeps its s',
+    /ஸ்$/.test(TB.Translit.readings('jumps', 'en').tamil),
+    TB.Translit.readings('jumps', 'en').tamil);
+  t('mostly-unknown English gets no line, not a half one',
+    TB.Translit.readings('Xyzzy plugh frobnicate', 'en').tamil === '');
+  t('the sound table is all Tamil',
+    Object.keys(TB.EN_SOUND_EXTRA).every(function (k) {
+      return /^[a-z]+$/.test(k) && /[஀-௿]/.test(TB.EN_SOUND_EXTRA[k])
+        && !/[A-Za-z]/.test(TB.EN_SOUND_EXTRA[k]);
+    }));
+
+  /* Every English word the app itself shows must be sayable in Tamil
+     letters, or an elder reading along hits a word in a script they cannot
+     read. Adding English content without a pronunciation fails here. */
+  (function () {
+    TB.Translit.readings('x', 'en');
+    var idx = TB.Translit.EN_SOUND, miss = {};
+    function scan(str) {
+      String(str || '').split(/([^A-Za-z']+)/).forEach(function (w) {
+        if (!/^[A-Za-z]+$/.test(w)) return;
+        var k = w.toLowerCase();
+        if (!idx[k] && !(k.slice(-1) === 's' && idx[k.slice(0, -1)])) miss[k] = 1;
+      });
+    }
+    TB.LESSONS.forEach(function (u) { u.lines.forEach(function (l) { scan(l.en); }); });
+    TB.PHRASES.forEach(function (p) { scan(p.en); });
+    TB.VOCAB.forEach(function (v) { scan(v.en); });
+    var list = Object.keys(miss);
+    t('every English word in the app can be sounded out in Tamil',
+      list.length === 0, list.slice(0, 8).join(' '));
+  })();
+
+  t('a script it cannot sound out says so, rather than guessing',
+    TB.Translit.readings('你好', 'zh-CN').can === false);
 })();
 
 /* ---------------- voices ---------------- */

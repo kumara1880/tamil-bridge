@@ -37,14 +37,22 @@ TB.Views = (function () {
   /* Any Hindi text, with both readings underneath: roman letters for
      English readers and Tamil letters for Tamil readers. Curated values from
      the vocabulary win over the generated ones when we have them. */
-  function hiRead(text) {
-    if (!text || !/[ऀ-ॿ]/.test(text)) return '';
-    /* Always generated, never the hand-written fields. Curated values drifted
-       out of step with the reader, so one source keeps every screen identical. */
-    var r = TB.Translit.romanHindi(text);
-    var t = TB.Translit.hindiToTamilScript(text);
-    return '<div class="hi-read"><span class="hi-rom">' + esc(r) + '</span>'
-         + '<span class="hi-tam"> · ' + esc(t) + '</span></div>';
+  function hiRead(text) { return readAid(text, 'hi'); }
+
+  /* The small grey line under a word or sentence: how to say it, in English
+     letters and in Tamil letters. Shown for any script the reader can sound
+     out, and simply left off when it cannot — a missing line is honest, a
+     wrong one teaches the wrong sound. */
+  function readAid(text, lang) {
+    if (!text || !String(text).trim()) return '';
+    var r;
+    try { r = TB.Translit.readings(text, lang); } catch (e) { return ''; }
+    if (!r || !r.can) return '';
+    var bits = [];
+    if (r.roman) bits.push('<span class="hi-rom">' + esc(r.roman) + '</span>');
+    if (r.tamil) bits.push('<span class="hi-tam">' + (bits.length ? ' · ' : '') + esc(r.tamil) + '</span>');
+    if (!bits.length) return '';
+    return '<div class="hi-read">' + bits.join('') + '</div>';
   }
 
   function langLabel(c) {
@@ -225,7 +233,7 @@ TB.Views = (function () {
           showRoman('#srcRoman', text, sl.value === 'auto' ? r.detected : sl.value);
           showRoman('#dstRoman', r.text, dl.value);
           var dstHi = root.querySelector('#dstHiRead');
-          if (dstHi) dstHi.innerHTML = dl.value === 'hi' ? hiRead(r.text) : '';
+          if (dstHi) dstHi.innerHTML = readAid(r.text, dl.value);
 
           TB.Store.addHistory(TB.Auth.userId(), {
             type: 'translate', from: r.detected || sl.value, to: dl.value, src: text, out: r.text
@@ -403,7 +411,7 @@ TB.Views = (function () {
           return '<div><div class="tiny muted">' + label + '</div>'
             + '<div class="' + lang + '" style="font-size:21px;font-weight:650">' + esc(val) + speak(val, lang) + '</div>'
             + (roman ? '<div class="tiny muted"><i>' + esc(roman) + '</i></div>' : '')
-            + (lang === 'hi' ? hiRead(val, roman, '') : '')
+            + readAid(val, lang)
             + (extra ? '<div class="tiny" style="color:var(--teal)">' + esc(extra) + '</div>' : '')
             + '</div>';
         }
@@ -610,7 +618,8 @@ TB.Views = (function () {
     /* `speak` is also a view name (#/speak), and registering that view
        overwrites this key. `speakBtn` is the collision-proof alias that
        later files should use. */
-    esc: esc, speak: speak, speakBtn: speak, tappable: tappable, ago: ago, hiRead: hiRead,
+    esc: esc, speak: speak, speakBtn: speak, tappable: tappable, ago: ago,
+    hiRead: hiRead, readAid: readAid,
     themeName: themeName, langLabel: langLabel,
     D: D, saveD: saveD,
     home: home, translate: translate, meaning: meaning, tutor: tutor,

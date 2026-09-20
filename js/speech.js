@@ -187,7 +187,9 @@ TB.Speech = (function () {
       });
     },
 
-    /* Speak a scripted sequence: [{text, lang, pause, before}] — the lesson voice. */
+    /* Speak a scripted sequence: [{text, lang, rate, pitch, pause}] — the lesson
+       voice, and the sing-song one. Per-step pitch is what makes a rhyme rise
+       and fall instead of reciting on one note. */
     sequence: function (steps, opts) {
       opts = opts || {};
       var i = 0;
@@ -203,7 +205,8 @@ TB.Speech = (function () {
         queueToken = token - 1;            /* let speak() take the next token */
         return api.speak(s.text, s.lang, {
           rate: s.rate != null ? s.rate : opts.rate,
-          pitch: opts.pitch,
+          pitch: s.pitch != null ? s.pitch : opts.pitch,
+          volume: s.volume != null ? s.volume : opts.volume,
           voiceName: opts.voiceNames ? opts.voiceNames[s.lang] : null
         }).then(function () {
           token = queueToken;

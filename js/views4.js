@@ -58,7 +58,7 @@
           + '<div class="tiny muted">' + label + (note ? ' · ' + note : '') + '</div>'
           + '<div class="' + (lang || '') + '" style="font-size:20px;font-weight:600;line-height:1.5">'
           + esc(value) + speak(value, lang || 'en') + '</div>'
-          + (lang === 'hi' ? V.hiRead(value) : '') + '</div>';
+          + V.readAid(value, lang) + '</div>';
       }
 
       function go() {

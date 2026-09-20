@@ -509,6 +509,21 @@ a { color: var(--blue); }
 }
 :root[data-theme="light"] .reader-line.now { color: var(--accent); }
 
+/* A line the engine was unsure of. Marked rather than hidden: it is usually
+   still readable, and hiding it would lose part of the page. */
+.reader-line.weak { opacity: .62; border-left: 2px dashed var(--line); }
+.reader-line.weak::after {
+  content: '?'; margin-left: 8px; font-size: 11px; color: var(--muted);
+  vertical-align: super;
+}
+
+/* Original line above its translation, so a verse keeps its shape. */
+.tr-pair {
+  padding: 8px 11px; border-radius: 8px; margin-bottom: 4px;
+  border-left: 2px solid var(--line-soft); line-height: 1.6;
+}
+.tr-pair:hover { background: var(--panel-2); }
+
 @media (max-width: 760px) {
   .trace-wrap { grid-template-columns: 1fr; }
   .trace-model { font-size: 96px; }

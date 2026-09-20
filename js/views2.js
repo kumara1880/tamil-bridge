@@ -3,6 +3,7 @@
 (function () {
   var V = TB.Views;
   var esc = V.esc, speak = V.speak, tappable = V.tappable, ago = V.ago;
+  var speakBtn = V.speakBtn, hiRead = V.hiRead, readAid = V.readAid;
   var themeName = V.themeName, langLabel = V.langLabel, D = V.D, saveD = V.saveD;
 
   /* =============================================================== LEARN */
@@ -281,10 +282,10 @@
 
   /* =============================================================== PHOTO */
   V.photo = {
-    title: 'Photo Translate', sub: 'Reads text from a photo and translates it',
+    title: 'Photo Translate', sub: 'Reads text from a photo, reads it aloud, and translates it',
     html: function () {
       var packs = Object.keys(TB.OCR.PACKS).map(function (p) {
-        return '<option value="' + p + '"' + (p === 'eng' ? ' selected' : '') + '>' + esc(TB.OCR.PACKS[p].ta) + ' (' + esc(TB.OCR.PACKS[p].en) + ')</option>';
+        return '<option value="' + p + '">' + esc(TB.OCR.PACKS[p].en) + ' — ' + esc(TB.OCR.PACKS[p].ta) + '</option>';
       }).join('');
       var targets = TB.Translate.LANGS.filter(function (l) { return l.c !== 'auto'; })
         .map(function (l) { return '<option value="' + l.c + '"' + (l.c === 'ta' ? ' selected' : '') + '>' + esc(l.n) + '</option>'; }).join('');
@@ -292,29 +293,43 @@
       return '<div class="view">'
         + '<div class="card">'
         +   '<div class="grid g2 mb">'
-        +     '<div class="field" style="margin:0"><label>Language in the photo</label><select id="ocrLang" multiple size="5">' + packs + '</select>'
-        +       '<div class="hint">Hold Ctrl to pick more than one.</div></div>'
-        +     '<div class="field" style="margin:0"><label>Translate into</label><select id="ocrTarget">' + targets + '</select></div>'
+        +     '<div class="field" style="margin:0"><label>Language in the photo</label>'
+        +       '<select id="ocrLang"><option value="auto" selected>Detect automatically</option>' + packs + '</select>'
+        +       '<div class="hint">Leave this on automatic unless it gets it wrong.</div></div>'
+        +     '<div class="field" style="margin:0"><label>Translate into</label><select id="ocrTarget">' + targets + '</select>'
+        +       '<div class="hint">Change this any time — the picture is not read again.</div></div>'
         +   '</div>'
         +   '<div class="drop" id="drop">'
-        +     '<div style="font-size:34px">📷</div>'
-        +     '<div style="font-weight:650;margin-top:6px">Choose an image, or drop one here</div>'
-        +     '<div class="tiny muted">JPG · PNG · WEBP — you can also use the camera</div>'
-        +     '<input id="file" type="file" accept="image/*" capture="environment" style="display:none">'
+        +     '<div style="font-size:34px">🖼️</div>'
+        +     '<div style="font-weight:650;margin-top:6px">Choose a picture, or drop one here</div>'
+        +     '<div class="tiny muted">JPG · PNG · WEBP</div>'
         +   '</div>'
+        /* Two separate inputs. The gallery one must NOT carry `capture`: with
+           it, a phone opens the camera and refuses to let you pick a picture
+           you already have, so the only way to read a saved rhyme was to
+           photograph the screen it was on — which is how a clean page of
+           English came back as "¥ / IV 2 | 2 i oe". */
+        +   '<input id="file" type="file" accept="image/*" style="display:none">'
+        +   '<input id="cam" type="file" accept="image/*" capture="environment" style="display:none">'
+        +   '<div class="row mt"><button class="btn btn-sm" id="pickBtn" type="button">🖼️ Choose a picture</button>'
+        +     '<button class="btn btn-sm" id="camBtn" type="button">📷 Take a photo</button></div>'
         +   '<div id="ocrProg" style="display:none;margin-top:12px"><div class="bar"><i id="ocrBar" style="width:0"></i></div>'
         +     '<div class="tiny muted mt" id="ocrStat"></div></div>'
         + '</div>'
         + '<div id="ocrOut"></div>'
-        + '<div class="tiny muted">Language files download the first time you use this (needs internet). '
+        + '<div class="tiny muted">Language files download the first time you use each one (needs internet). '
         + 'Engine: Tesseract.js — open source, free.</div>'
         + '</div>';
     },
     mount: function (root) {
-      var drop = root.querySelector('#drop'), file = root.querySelector('#file');
+      var drop = root.querySelector('#drop');
+      var file = root.querySelector('#file'), cam = root.querySelector('#cam');
       var out = root.querySelector('#ocrOut');
+      var lastFile = null, lastRes = null;
 
       drop.addEventListener('click', function () { file.click(); });
+      root.querySelector('#pickBtn').addEventListener('click', function () { file.click(); });
+      root.querySelector('#camBtn').addEventListener('click', function () { cam.click(); });
       ['dragenter', 'dragover'].forEach(function (ev) {
         drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
       });
@@ -324,137 +339,263 @@
       drop.addEventListener('drop', function (e) {
         if (e.dataTransfer.files && e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]);
       });
-      file.addEventListener('change', function () { if (file.files[0]) handle(file.files[0]); });
+      [file, cam].forEach(function (inp) {
+        inp.addEventListener('change', function () { if (inp.files[0]) handle(inp.files[0]); });
+      });
 
-      function handle(f) {
+      /* Changing the target language re-translates what was already read.
+         Reading the picture again would be slow and would change nothing. */
+      root.querySelector('#ocrTarget').addEventListener('change', function () {
+        if (lastRes) translateInto(lastRes, this.value);
+      });
+
+      function handle(f, forcePack) {
         if (!/^image\//.test(f.type)) { TB.App.toast('Images only.', 'err'); return; }
-        var langs = Array.prototype.slice.call(root.querySelector('#ocrLang').selectedOptions).map(function (o) { return o.value; });
-        if (!langs.length) langs = ['eng'];
+        lastFile = f;
+        var chosen = forcePack || root.querySelector('#ocrLang').value;
+        var packs = chosen === 'auto' ? [] : [chosen];
         var target = root.querySelector('#ocrTarget').value;
 
         var prog = root.querySelector('#ocrProg');
         prog.style.display = '';
         out.innerHTML = '';
+        TB.Speech.stop();
 
-        TB.OCR.read(f, langs, function (label, pct) {
+        TB.OCR.read(f, packs, function (label, pct) {
           root.querySelector('#ocrBar').style.width = pct + '%';
           root.querySelector('#ocrStat').textContent = label + ' ' + pct + '%';
         }).then(function (res) {
           prog.style.display = 'none';
           if (!res.text) {
             out.innerHTML = '<div class="card"><div class="msg msg-warn">No text was found. '
-              + 'Try a sharper, straight-on photo.</div></div>';
+              + 'Try a sharper, straight-on photo with the page filling the frame.</div></div>';
             return;
           }
-          var srcLang = TB.OCR.packToLang(langs[0]);
-          out.innerHTML = '<div class="card"><div class="card-head"><div><h3>Text found</h3>'
-            + '<div class="card-sub">Confidence ' + res.confidence + '% · ' + res.lines.length + ' lines</div></div>'
-            + '<div class="spacer"></div>' + speak(res.text, srcLang) + '</div>'
-            /* read-aloud player: line by line, in the language's own voice */
-            + '<div class="row mb"><button class="btn btn-primary btn-sm" id="readAloud" type="button">▶ Read aloud</button>'
-            + '<button class="btn btn-sm" id="readSlow" type="button">🐢 Slowly</button>'
-            + '<span class="tiny muted" id="readStat"></span></div>'
-            + '<div id="readBody">'
-            + res.lines.map(function (l, i) {
-                return '<div class="reader-line" data-line="' + i + '">' + tappable(l.text, srcLang) + '</div>';
-              }).join('')
-            + '</div>'
-            + '<div class="row mt"><button class="btn btn-sm" id="ocrCopy" type="button">Copy</button>'
-            + '<button class="btn btn-sm" id="ocrTutor" type="button">🧠 Explain</button></div></div>'
-            + '<div class="card"><div class="card-head"><div><h3>Translation — ' + esc(TB.Translate.langName(target)) + '</h3></div>'
-            + '<div class="spacer"></div><span id="ocrTrSpeak"></span></div>'
-            + '<div class="diffbox" id="ocrTr"><span class="spin"></span></div></div>';
-
-          /* ---- read-aloud ---- */
-          var reading = null;
-          function stopReading() {
-            if (reading) { reading.cancel(); reading = null; }
-            out.querySelectorAll('.reader-line').forEach(function (el) { el.classList.remove('now'); });
-            var b = out.querySelector('#readAloud');
-            if (b) b.textContent = '▶ Read aloud';
-            var st = out.querySelector('#readStat');
-            if (st) st.textContent = '';
-          }
-
-          function readAll(rate) {
-            stopReading();
-            var lines = res.lines.filter(function (l) { return l.text.trim(); });
-            if (!lines.length) return;
-            if (TB.Speech.missing(srcLang)) {
-              TB.App.toast(TB.Speech.missingVoiceMessage(srcLang), 'err');
-              return;
-            }
-            var prefs = D().prefs;
-            var names = { ta: prefs.voiceTa, en: prefs.voiceEn, hi: prefs.voiceHi };
-            var btn = out.querySelector('#readAloud');
-            btn.textContent = '⏹ Stop';
-
-            var steps = lines.map(function (l) {
-              /* a line ending a couplet gets a longer rest, which is what makes
-                 a rhyme sound like a rhyme rather than a list */
-              return { text: l.text, lang: srcLang, rate: rate,
-                       pause: /[.!?;:।]$/.test(l.text.trim()) ? 620 : 380 };
-            });
-
-            reading = TB.Speech.sequence(steps, {
-              rate: rate, pitch: prefs.pitch,
-              voiceNames: names,
-              onStep: function (step, i) {
-                out.querySelectorAll('.reader-line').forEach(function (el) { el.classList.remove('now'); });
-                var el = out.querySelector('.reader-line[data-line="' + res.lines.indexOf(lines[i]) + '"]');
-                if (el) {
-                  el.classList.add('now');
-                  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                }
-                var st = out.querySelector('#readStat');
-                if (st) st.textContent = 'Line ' + (i + 1) + ' of ' + lines.length;
-              }
-            });
-            reading.then(stopReading);
-          }
-
-          out.querySelector('#readAloud').addEventListener('click', function () {
-            if (reading) stopReading();
-            else readAll(D().prefs.rate || 0.85);
-          });
-          out.querySelector('#readSlow').addEventListener('click', function () { readAll(0.55); });
-
-          /* tap a single line to hear just that line */
-          out.querySelectorAll('.reader-line').forEach(function (el) {
-            el.addEventListener('click', function (e) {
-              if (e.target.closest('[data-word]')) return;   /* word tap wins */
-              stopReading();
-              var i = +el.getAttribute('data-line');
-              out.querySelectorAll('.reader-line').forEach(function (x) { x.classList.remove('now'); });
-              el.classList.add('now');
-              TB.Speech.speak(res.lines[i].text, srcLang, { rate: 0.7 })
-                .then(function () { el.classList.remove('now'); });
-            });
-          });
-
-          out.querySelector('#ocrCopy').addEventListener('click', function () {
-            navigator.clipboard && navigator.clipboard.writeText(res.text);
-            TB.App.toast('Copied', 'ok');
-          });
-          out.querySelector('#ocrTutor').addEventListener('click', function () {
-            TB.App.pending = { text: res.lines[0] ? res.lines[0].text : res.text };
-            location.hash = '#/tutor';
-          });
-
-          TB.Translate.translate(res.text, srcLang, target).then(function (r) {
-            out.querySelector('#ocrTr').innerHTML = tappable(r.text, target);
-            out.querySelector('#ocrTrSpeak').innerHTML = speak(r.text, target);
-            TB.Store.addHistory(TB.Auth.userId(), {
-              type: 'ocr', from: srcLang, to: target,
-              src: res.text.slice(0, 400), out: r.text.slice(0, 400)
-            });
-            TB.App.refreshChips();
-          }).catch(function (e) {
-            out.querySelector('#ocrTr').innerHTML = '<span style="color:var(--red)">' + esc(e.message) + '</span>';
-          });
+          lastRes = res;
+          render(res, target);
         }).catch(function (e) {
           prog.style.display = 'none';
           out.innerHTML = '<div class="card"><div class="msg msg-err">' + esc(e.message) + '</div></div>';
+        });
+      }
+
+      /* ----------------------------------------------------------------
+         One reader, used for the photo's own words and again for the
+         translation. Whatever language the lines are in, they are read in
+         that language's voice and can be chanted, slowed or spelled out.
+         ---------------------------------------------------------------- */
+      function readerHtml(id, lines, lang) {
+        var modes = TB.Reader.modesFor(lines);
+        return '<div class="row mb" data-modes="' + id + '">'
+          + modes.list.map(function (m) {
+              return '<button class="pill' + (m.id === modes.suggested ? ' on' : '') + '" data-mode="' + m.id
+                   + '" title="' + esc(m.hint) + '" type="button">' + esc(m.label) + '</button>';
+            }).join('')
+          + '</div>'
+          + '<div class="row mb"><button class="btn btn-primary btn-sm" data-play="' + id + '" type="button">▶ Play</button>'
+          + '<span class="tiny muted" data-stat="' + id + '">'
+          + esc(TB.Reader.MODES[modes.suggested].hint)
+          + ' · ' + esc(TB.Translate.langName(lang)) + ' voice</span></div>'
+          + (TB.Speech.missing(lang)
+              ? '<div class="msg msg-warn tiny">' + esc(TB.Speech.missingVoiceMessage(lang)) + '</div>' : '');
+      }
+
+      function mountReader(id, lines, lang) {
+        var modes = TB.Reader.modesFor(lines);
+        var mode = modes.suggested;
+        var reading = null;
+        var playBtn = out.querySelector('[data-play="' + id + '"]');
+        var statEl = out.querySelector('[data-stat="' + id + '"]');
+        var modeBar = out.querySelector('[data-modes="' + id + '"]');
+        if (!playBtn) return;
+
+        function lineEls() { return out.querySelectorAll('[data-read="' + id + '"]'); }
+
+        function stop() {
+          if (reading) { reading.cancel(); reading = null; }
+          lineEls().forEach(function (el) { el.classList.remove('now'); });
+          playBtn.textContent = '▶ Play';
+        }
+
+        function play() {
+          stop();
+          if (TB.Speech.missing(lang)) {
+            TB.App.toast(TB.Speech.missingVoiceMessage(lang), 'err');
+            return;
+          }
+          var prefs = D().prefs;
+          var steps = TB.Reader.plan(lines, lang, mode,
+                                     { rate: prefs.rate || 0.9, pitch: prefs.pitch || 1 });
+          if (!steps.length) return;
+          playBtn.textContent = '⏹ Stop';
+
+          /* which source line each step came from, so the right one lights up */
+          var owner = [], cursor = 0;
+          steps.forEach(function (s) {
+            if (s.silent || !String(s.text).trim()) { owner.push(-1); return; }
+            while (cursor < lines.length && String(lines[cursor]).trim() !== String(s.text).trim()) cursor++;
+            owner.push(cursor < lines.length ? cursor : -1);
+            if (cursor < lines.length && mode !== 'spell') cursor++;
+          });
+
+          reading = TB.Speech.sequence(steps, {
+            rate: prefs.rate, pitch: prefs.pitch,
+            voiceNames: { ta: prefs.voiceTa, en: prefs.voiceEn, hi: prefs.voiceHi },
+            onStep: function (step, i) {
+              var li = owner[i];
+              lineEls().forEach(function (el) { el.classList.remove('now'); });
+              if (li >= 0) {
+                var el = out.querySelector('[data-read="' + id + '"][data-line="' + li + '"]');
+                if (el) { el.classList.add('now'); el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+              }
+            }
+          });
+          reading.then(stop);
+        }
+
+        modeBar.addEventListener('click', function (e) {
+          var b = e.target.closest('[data-mode]');
+          if (!b) return;
+          stop();
+          mode = b.getAttribute('data-mode');
+          modeBar.querySelectorAll('.pill').forEach(function (x) { x.classList.remove('on'); });
+          b.classList.add('on');
+          statEl.textContent = TB.Reader.MODES[mode].hint + ' · ' + TB.Translate.langName(lang) + ' voice';
+        });
+        playBtn.addEventListener('click', function () { if (reading) stop(); else play(); });
+
+        lineEls().forEach(function (el) {
+          el.addEventListener('click', function (e) {
+            if (e.target.closest('[data-word]')) return;   /* word tap wins */
+            stop();
+            var i = +el.getAttribute('data-line');
+            el.classList.add('now');
+            TB.Speech.speak(lines[i], lang, { rate: 0.7 })
+              .then(function () { el.classList.remove('now'); });
+          });
+        });
+
+        return { stop: stop };
+      }
+
+      /* ------------------------------------------------------ the result */
+      function render(res, target) {
+        var srcLang = res.lang;
+        var raw = res.lines.map(function (l) { return l.text; });
+        /* A poem's line breaks are the poem. A paragraph's are just where the
+           page ran out, and translating those fragments gives fragments. */
+        var flow = TB.Reader.reflow(raw);
+        var lines = flow.units;
+        res.units = lines;
+        var modes = TB.Reader.modesFor(lines);
+        var otherPacks = Object.keys(TB.OCR.PACKS).map(function (p) {
+          return '<option value="' + p + '"' + (p === res.pack ? ' selected' : '') + '>'
+               + esc(TB.OCR.PACKS[p].en) + '</option>';
+        }).join('');
+
+        out.innerHTML =
+          /* A wrong language pack does not fail, it returns fluent nonsense at
+             a low score. So the score is shown and acted on, rather than
+             printed quietly next to the nonsense. */
+          (res.lowConfidence
+            ? '<div class="card"><div class="msg msg-warn"><b>This may not be right.</b> '
+              + 'The text scored ' + res.score + ' out of 100' + (res.autoDetected
+                ? ', and ' + esc(TB.OCR.packLabel(res.pack)) + ' was the best of '
+                  + res.tried.length + ' languages tried.'
+                : ' as ' + esc(TB.OCR.packLabel(res.pack)) + '.')
+              + ' If the words below are nonsense, the picture is in another language — '
+              + 'pick it here and it will read again.'
+              + '<div class="row mt"><select id="ocrRetryLang" style="max-width:220px">' + otherPacks + '</select>'
+              + '<button class="btn btn-sm" id="ocrRetry" type="button">Read again</button></div></div></div>'
+            : '')
+
+          + '<div class="card"><div class="card-head"><div><h3>Text found</h3>'
+          + '<div class="card-sub">'
+          + esc(TB.OCR.packLabel(res.pack)) + (res.autoDetected ? ' (detected)' : '')
+          + ' · ' + res.lines.length + ' lines · score ' + res.score + '/100'
+          + (modes.isVerse ? ' · read as a rhyme'
+                           : (flow.reflowed ? ' · joined into ' + lines.length + ' sentences' : ''))
+          + '</div></div><div class="spacer"></div>' + speakBtn(res.text, srcLang) + '</div>'
+          + readerHtml('src', lines, srcLang)
+          + '<div id="readBody">'
+          + lines.map(function (l, i) {
+              if (!l.trim()) return '<div style="height:10px"></div>';
+              return '<div class="reader-line" data-read="src" data-line="' + i + '">'
+                   + tappable(l, srcLang) + readAid(l, srcLang) + '</div>';
+            }).join('')
+          + '</div>'
+          + '<div class="row mt"><button class="btn btn-sm" id="ocrCopy" type="button">Copy</button>'
+          + '<button class="btn btn-sm" id="ocrTutor" type="button">🧠 Explain</button></div></div>'
+          + '<div id="ocrTrCard"></div>';
+
+        var retry = out.querySelector('#ocrRetry');
+        if (retry) {
+          retry.addEventListener('click', function () {
+            if (lastFile) handle(lastFile, out.querySelector('#ocrRetryLang').value);
+          });
+        }
+        mountReader('src', lines, srcLang);
+
+        out.querySelector('#ocrCopy').addEventListener('click', function () {
+          navigator.clipboard && navigator.clipboard.writeText(res.text);
+          TB.App.toast('Copied', 'ok');
+        });
+        out.querySelector('#ocrTutor').addEventListener('click', function () {
+          TB.App.pending = { text: lines[0] || res.text };
+          location.hash = '#/tutor';
+        });
+
+        translateInto(res, target);
+      }
+
+      /* --------------------------------------------- into any language */
+      function translateInto(res, target) {
+        var card = out.querySelector('#ocrTrCard');
+        if (!card) return;
+        var srcLang = res.lang;
+        var lines = res.units || res.lines.map(function (l) { return l.text; });
+        var name = TB.Translate.langName(target);
+
+        if (target === srcLang) {
+          card.innerHTML = '<div class="card"><div class="tiny muted">The picture is already in '
+            + esc(name) + '. Pick another language above to see the meaning.</div></div>';
+          return;
+        }
+
+        card.innerHTML = '<div class="card"><div class="card-head"><div><h3>Meaning in ' + esc(name) + '</h3>'
+          + '<div class="card-sub">Line by line, so a verse keeps its shape</div></div></div>'
+          + '<div id="ocrTr"><span class="spin"></span> Translating into ' + esc(name) + '…</div></div>';
+
+        TB.Translate.lines(lines, srcLang, target).then(function (tr) {
+          var rows = tr.map(function (t, i) {
+            if (!String(lines[i]).trim()) return '<div style="height:10px"></div>';
+            return '<div class="tr-pair reader-line" data-read="tr" data-line="' + i + '">'
+              + '<div class="tiny muted">' + esc(lines[i]) + '</div>'
+              + '<div>' + tappable(t, target) + '</div>'
+              /* however the target is written, say how to read it */
+              + readAid(t, target)
+              + '</div>';
+          }).join('');
+          var whole = tr.filter(function (x) { return x && String(x).trim(); }).join('\n');
+
+          card.innerHTML = '<div class="card"><div class="card-head"><div><h3>Meaning in ' + esc(name) + '</h3>'
+            + '<div class="card-sub">Line by line, so a verse keeps its shape</div></div>'
+            + '<div class="spacer"></div>' + speakBtn(whole, target) + '</div>'
+            /* the translation can be read aloud too, in its own language —
+               this is what makes it any language to any */
+            + readerHtml('tr', tr, target)
+            + rows + '</div>';
+
+          mountReader('tr', tr, target);
+
+          TB.Store.addHistory(TB.Auth.userId(), {
+            type: 'ocr', from: srcLang, to: target,
+            src: res.text.slice(0, 400), out: whole.slice(0, 400)
+          });
+          TB.App.refreshChips();
+        }).catch(function (e) {
+          var box = out.querySelector('#ocrTr');
+          if (box) box.innerHTML = '<span style="color:var(--red)">' + esc(e.message) + '</span>';
         });
       }
     }
