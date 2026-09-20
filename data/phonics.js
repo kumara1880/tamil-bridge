@@ -191,7 +191,7 @@ TB.PHONICS = {
           { hi: 'क्ष', hiR: 'kṣa', ta: 'க்ஷ', note: 'A conjunct letter' },
           { hi: 'त्र', hiR: 'tra', ta: 'த்ர', note: 'A conjunct letter' },
           { hi: 'ज्ञ', hiR: 'jña', ta: 'க்ஞ', note: 'A conjunct letter, usually said "gy"' },
-          { hi: 'ड़', hiR: 'ṛa', ta: 'ட³', note: 'A flapped d — not in Tamil', hard: true },
+          { hi: 'ड़', hiR: 'ṛa', ta: 'ர', note: 'A flapped r: curl the tongue back and tap once. Not a d.', hard: true },
           { hi: 'ज़', hiR: 'za', ta: 'ஜ(z)', note: 'A borrowed sound (z)', hard: true },
           { hi: 'फ़', hiR: 'fa', ta: 'ஃப', note: 'A borrowed sound (f)', hard: true }
         ]

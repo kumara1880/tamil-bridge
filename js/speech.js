@@ -100,6 +100,12 @@ TB.Speech = (function () {
     speak: function (text, lang, opts) {
       opts = opts || {};
       if (!api.supported() || !text) return Promise.resolve(false);
+      /* Reading Hindi aloud in an English voice produces nonsense and teaches
+         the wrong pronunciation, so refuse rather than substitute. The caller
+         surfaces missingVoiceMessage(lang). */
+      if (api.missing(lang) && !opts.force) {
+        return Promise.resolve({ noVoice: true, lang: lang });
+      }
       var myToken = ++queueToken;
       try { window.speechSynthesis.cancel(); } catch (e) {}
 

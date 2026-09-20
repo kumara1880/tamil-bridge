@@ -147,8 +147,8 @@ TB.ALPHABET = {};
       { ch: 'ख़', r: 'x̱a', ta: 'க்ஹ',  en: 'kh (Persian)', hard: true },
       { ch: 'ग़', r: 'ġa', ta: 'க',     en: 'gh (Persian)', hard: true },
       { ch: 'ज़', r: 'za', ta: 'ஜ(z)',  en: 'z', hard: true },
-      { ch: 'ड़', r: 'ṛa', ta: 'ட³',    en: 'flapped d', hard: true },
-      { ch: 'ढ़', r: 'ṛha', ta: 'ட³ஹ',  en: 'flapped dh', hard: true },
+      { ch: 'ड़', r: 'ṛa', ta: 'ர',     en: 'flapped r — tongue curls back and taps', hard: true },
+      { ch: 'ढ़', r: 'ṛha', ta: 'ர்ஹ',  en: 'flapped r with breath', hard: true },
       { ch: 'फ़', r: 'fa', ta: 'ஃப',    en: 'f', hard: true }] }
   ];
 

@@ -37,10 +37,12 @@ TB.Views = (function () {
   /* Any Hindi text, with both readings underneath: roman letters for
      English readers and Tamil letters for Tamil readers. Curated values from
      the vocabulary win over the generated ones when we have them. */
-  function hiRead(text, roman, tamil) {
+  function hiRead(text) {
     if (!text || !/[ऀ-ॿ]/.test(text)) return '';
-    var r = roman || TB.Translit.romanHindi(text);
-    var t = tamil || TB.Translit.hindiToTamilScript(text);
+    /* Always generated, never the hand-written fields. Curated values drifted
+       out of step with the reader, so one source keeps every screen identical. */
+    var r = TB.Translit.romanHindi(text);
+    var t = TB.Translit.hindiToTamilScript(text);
     return '<div class="hi-read"><span class="hi-rom">' + esc(r) + '</span>'
          + '<span class="hi-tam"> · ' + esc(t) + '</span></div>';
   }
