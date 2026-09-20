@@ -1,0 +1,19 @@
+# Render blueprint — free tier only.
+# Note: Render's own free Postgres expires after 30 days, so this project uses
+# MongoDB Atlas M0 instead (free forever). Set MONGODB_URI in the dashboard.
+services:
+  - type: web
+    name: tamil-bridge-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false        # paste your Atlas connection string in the dashboard
+      - key: ALLOWED_ORIGIN
+        sync: false        # e.g. https://tamil-bridge.vercel.app
