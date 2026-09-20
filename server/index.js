@@ -23,6 +23,10 @@ const { MongoClient } = require('mongodb');
 
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || '';
+
+/* What the server is really using, filled in by connect(). Reported by
+   /api/health so the app can warn people before they trust it with data. */
+let STORE = { kind: 'starting', durable: false, reason: '' };
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const ALLOWED = (process.env.ALLOWED_ORIGIN || '*').split(',').map(s => s.trim());
 const TOKEN_TTL = '180d';
@@ -65,6 +69,8 @@ async function connect() {
   if (!MONGODB_URI) {
     users = memoryCollection();
     blobs = memoryCollection();
+    STORE = { kind: 'memory', durable: false,
+              reason: 'MONGODB_URI is not set on this service.' };
     return 'memory';
   }
   const client = new MongoClient(MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
@@ -74,6 +80,7 @@ async function connect() {
   blobs = db.collection('userdata');
   await users.createIndex({ email: 1 }, { unique: true, sparse: true });
   await users.createIndex({ phone: 1 }, { unique: true, sparse: true });
+  STORE = { kind: 'mongodb', durable: true, reason: '' };
   return 'mongodb';
 }
 
@@ -141,7 +148,9 @@ app.get('/', (_req, res) => {
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    store: MONGODB_URI ? 'mongodb' : 'memory (data is not persisted)',
+    store: STORE.durable ? 'mongodb' : 'memory (data is not persisted)',
+    durable: STORE.durable,
+    reason: STORE.reason,
     time: new Date().toISOString()
   });
 });
@@ -253,5 +262,8 @@ connect()
     console.error('Starting anyway with an in-memory store so the service stays up.');
     users = memoryCollection();
     blobs = memoryCollection();
+    STORE = { kind: 'memory', durable: false,
+              reason: 'MONGODB_URI is set but the database refused the connection: '
+                      + err.message };
     app.listen(PORT, () => console.log(`Tamil Bridge API listening on ${PORT} (store: memory/fallback)`));
   });

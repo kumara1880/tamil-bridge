@@ -89,12 +89,16 @@ TB.Sync = (function () {
 
     clear: function () { api.setToken(''); },
 
-    /* Wakes a sleeping Render instance; resolves false rather than throwing. */
+    /* Wakes a sleeping Render instance; resolves null rather than throwing.
+       The body says whether the server can actually keep an account across a
+       restart, which matters more than whether it answered. */
+    health: function () {
+      if (!base) return Promise.resolve(null);
+      return req('/api/health', {}, 75000).catch(function () { return null; });
+    },
+
     ping: function () {
-      if (!base) return Promise.resolve(false);
-      return req('/api/health', {}, 75000)
-        .then(function () { return true; })
-        .catch(function () { return false; });
+      return api.health().then(function (h) { return !!(h && h.ok); });
     },
 
     signUp: function (name, identifier, password) {

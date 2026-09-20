@@ -981,6 +981,7 @@
       +   '<div class="row"><button class="btn btn-sm" id="sApiSave" type="button">Save</button>'
       +   '<button class="btn btn-sm" id="sApiTest" type="button">Test connection</button>'
       +   '<span id="sApiStat" class="tiny muted"></span></div>'
+      +   '<div id="sStore" class="mt"></div>'
       +   '<div class="tiny muted mt">Render’s free tier sleeps after 15 minutes idle — the first request can take up to a minute.</div>'
       + '</div>'
 
@@ -1033,16 +1034,51 @@
         TB.Sync.setBase(root.querySelector('#sApi').value.trim());
         TB.App.toast('Saved', 'ok');
       });
-      root.querySelector('#sApiTest').addEventListener('click', function () {
-        var st = root.querySelector('#sApiStat');
-        TB.Sync.setBase(root.querySelector('#sApi').value.trim());
-        if (!TB.Sync.configured()) { st.textContent = 'No address set — running in local mode.'; return; }
-        st.innerHTML = '<span class="spin"></span> Testing… (a sleeping service can take a minute to wake)';
-        TB.Sync.ping().then(function (ok) {
-          st.textContent = ok ? '✓ Connected' : '✗ ' + (TB.Sync.lastError() || 'Could not connect');
-          st.style.color = ok ? 'var(--green)' : 'var(--red)';
+      /* A server that answers but keeps accounts in memory loses every one of
+         them the next time Render restarts it, which on the free tier is
+         often. Say so plainly, and say exactly how to fix it. */
+      function showStore(h) {
+        var box = root.querySelector('#sStore');
+        if (!box) return;
+        if (!h) { box.innerHTML = ''; return; }
+        if (h.durable) {
+          box.innerHTML = '<div class="msg msg-ok">Accounts are saved in a database. '
+            + 'Signing in on another device will bring your history with you.</div>';
+          return;
+        }
+        box.innerHTML = '<div class="msg msg-warn"><b>The server is not saving accounts yet.</b><br>'
+          + esc(h.reason || 'It is using temporary memory.')
+          + ' Anything it holds disappears when the service restarts. '
+          + 'Your learning history is safe either way — it lives in this browser.'
+          + '<div class="tiny mt">To make it permanent, free and forever:<br>'
+          + '1. Create a free account at <b>mongodb.com/cloud/atlas/register</b><br>'
+          + '2. Build a cluster and choose the <b>M0 Free</b> tier (no card needed)<br>'
+          + '3. Database Access → add a user with a password<br>'
+          + '4. Network Access → Add IP Address → <b>Allow access from anywhere</b><br>'
+          + '5. Connect → Drivers → copy the connection string<br>'
+          + '6. In Render → your service → Environment → add <b>MONGODB_URI</b> with that string, '
+          + 'replacing &lt;password&gt; with the password from step 3</div></div>';
+      }
+
+      function checkStore(statusEl) {
+        if (!TB.Sync.configured()) { showStore(null); return; }
+        if (statusEl) statusEl.innerHTML = '<span class="spin"></span> Testing… (a sleeping service can take a minute to wake)';
+        TB.Sync.health().then(function (h) {
+          if (statusEl) {
+            statusEl.textContent = h ? '✓ Connected' : '✗ ' + (TB.Sync.lastError() || 'Could not connect');
+            statusEl.style.color = h ? 'var(--green)' : 'var(--red)';
+          }
+          showStore(h);
         });
+      }
+
+      root.querySelector('#sApiTest').addEventListener('click', function () {
+        TB.Sync.setBase(root.querySelector('#sApi').value.trim());
+        var st = root.querySelector('#sApiStat');
+        if (!TB.Sync.configured()) { st.textContent = 'No address set — running in local mode.'; showStore(null); return; }
+        checkStore(st);
       });
+      checkStore(null);
 
       root.querySelector('#sExport').addEventListener('click', function () {
         var blob = new Blob([TB.Store.exportAll(TB.Auth.userId())], { type: 'application/json' });
