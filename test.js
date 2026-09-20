@@ -30,6 +30,28 @@ const t = (name, cond, extra) => {
 };
 const section = s => console.log('\n' + s);
 
+/* ---------------- the page itself ---------------- */
+section('PAGE');
+(function () {
+  /* Three times a file changed while its cache tag did not, so browsers
+     kept serving the old one and a shipped fix looked broken. The tags are
+     content hashes now, and this fails if any of them is stale. */
+  var stamp = require('./tools/stamp.js');
+  var html = require('fs').readFileSync(__dirname + '/index.html', 'utf8');
+  var r = stamp.restamp(html);
+  t('every cache tag matches its file', r.stale.length === 0,
+    r.stale.map(function (x) { return x.file; }).join(' '));
+
+  var refs = (html.match(/(?:src|href)="(?!https?:)[^"]+"/g) || [])
+    .map(function (m) { return m.replace(/^[a-z]+="/, '').replace(/"$/, '').split('?')[0]; });
+  var missing = refs.filter(function (f) {
+    /* an inline data: icon is not a file on disk */
+    return f && !/^#/.test(f) && !/^data:/.test(f)
+      && !require('fs').existsSync(__dirname + '/' + f);
+  });
+  t('every file the page loads exists', missing.length === 0, missing.join(' '));
+})();
+
 /* ---------------- data integrity ---------------- */
 section('DATA');
 t('vocab loaded', TB.VOCAB.length >= 3000, TB.VOCAB.length);
@@ -198,6 +220,27 @@ section('PHOTO TEXT');
      is the measured output of reading English with the Tamil pack. */
   var junk = { text: '1 90 1ோ 861ோ0।1 6 ர. ரர 0ோ5888 60ார்‌ ௭1 8:00 சிரிரி,', confidence: 46 };
   var good = { text: 'I go to school every day. My classes start at 8:00 AM.', confidence: 95 };
+  /* Indic writing is largely combining marks and zero-width joiners. Counting
+     those as noise once crushed a correct Tamil read to 9 out of 100 at
+     confidence 71, so the app warned about its own right answer. */
+  var tamil = { text: 'நான்‌ தினமும்‌\nபள்ளிக்கு செல்கிறேன்‌.', confidence: 71 };
+  var hindi = { text: 'मैं हर रोज़ विद्यालय जाता हूँ।', confidence: 88 };
+  var wrongOnTamil = { text: 'HITEOT )60T(LOLD\nLieTerfl& @& GFF 60H Cm er.', confidence: 9 };
+  t('a correct Tamil read is trusted',
+    TB.OCR.plausibility(tamil) >= TB.OCR.TRUST, TB.OCR.plausibility(tamil));
+  t('a correct Hindi read is trusted',
+    TB.OCR.plausibility(hindi) >= TB.OCR.TRUST, TB.OCR.plausibility(hindi));
+  t('the wrong pack on a Tamil photo is not',
+    TB.OCR.plausibility(wrongOnTamil) < TB.OCR.TRUST, TB.OCR.plausibility(wrongOnTamil));
+  t('combining marks count as writing',
+    TB.OCR.plausibility(tamil) > TB.OCR.plausibility({ text: tamil.text, confidence: 40 }));
+  t('a zero-width joiner is not treated as noise',
+    TB.OCR.plausibility({ text: 'நான்‌', confidence: 80 })
+      === TB.OCR.plausibility({ text: 'நான்', confidence: 80 }));
+  t('every right read outscores every wrong one',
+    Math.min(TB.OCR.plausibility(tamil), TB.OCR.plausibility(hindi))
+      > Math.max(TB.OCR.plausibility(wrongOnTamil), TB.OCR.plausibility(junk)));
+
   t('a good read scores above the trust line',
     TB.OCR.plausibility(good) >= TB.OCR.TRUST, TB.OCR.plausibility(good));
   t('nonsense scores below it',
@@ -302,6 +345,45 @@ section('READINGS (all Indian scripts)');
     t('every English word in the app can be sounded out in Tamil',
       list.length === 0, list.slice(0, 8).join(' '));
   })();
+
+  /* A reading exists so that someone who cannot read the script can say the
+     word. A single character of the original leaking through defeats that,
+     so every script is swept with real sentences. */
+  (function () {
+    var SWEEP = {
+      hi: ['मैं हर रोज़ विद्यालय जाता हूँ।', 'करोड़ रुपये', 'अंग्रेज़ी पढ़ना'],
+      bn: ['আমি প্রতিদিন স্কুলে যাই।', 'ড় ঢ় য়'],
+      gu: ['હું દરરોજ શાળાએ જાઉં છું.'],
+      pa: ['ਮੈਂ ਹਰ ਰੋਜ਼ ਸਕੂਲ ਜਾਂਦਾ ਹਾਂ।', 'ਇੱਕ ਕਰੋੜ'],
+      or: ['ମୁଁ ପ୍ରତିଦିନ ବିଦ୍ୟାଳୟ ଯାଏ।'],
+      te: ['నేను ప్రతిరోజూ పాఠశాలకు వెళ్తాను.'],
+      kn: ['ನಾನು ಪ್ರತಿದಿನ ಶಾಲೆಗೆ ಹೋಗುತ್ತೇನೆ.'],
+      ml: ['ഞാൻ എല്ലാ ദിവസവും സ്കൂളിൽ പോകുന്നു.', 'എന്റെ പേര്']
+    };
+    var leaks = [];
+    Object.keys(SWEEP).forEach(function (l) {
+      SWEEP[l].forEach(function (x) {
+        var r = TB.Translit.readings(x, l);
+        if (!r.can) { leaks.push(l + ':unreadable'); return; }
+        if (/[ऀ-୿ఀ-෿]/.test(r.roman + r.tamil)) leaks.push(l + ':' + x.slice(0, 10));
+      });
+    });
+    t('no script leaks into its own reading', leaks.length === 0, leaks.join(' '));
+  })();
+
+  /* क़ can be written as one character or as two. Both are real, and both
+     must read the same, or the same word reads differently depending on
+     which keyboard typed it. */
+  t('precomposed and decomposed nukta read alike',
+    TB.Translit.romanHindi('क़लम ख़ुशी ग़लत फ़ोन')
+      === TB.Translit.romanHindi('क़लम ख़ुशी ग़लत फ़ोन'),
+    TB.Translit.romanHindi('क़लम'));
+  t('and they read correctly',
+    TB.Translit.romanHindi('क़लम') === 'qalam',
+    TB.Translit.romanHindi('क़लम'));
+  t('Gurmukhi addak doubles the consonant it precedes',
+    TB.Translit.readings('ਇੱਕ', 'pa').roman === 'ikk',
+    TB.Translit.readings('ਇੱਕ', 'pa').roman);
 
   t('a script it cannot sound out says so, rather than guessing',
     TB.Translit.readings('你好', 'zh-CN').can === false);

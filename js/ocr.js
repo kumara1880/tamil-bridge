@@ -21,10 +21,10 @@ TB.OCR = (function () {
   var LANG_PATH = 'https://tessdata.projectnaptha.com/4.0.0';
   var loading = null;
 
-  /* A result at or above this score is believed without a second opinion.
-     Measured: a correct pack scores 94-96 on ordinary printed text, a wrong
-     one scores in the 40s. */
-  var TRUST = 78;
+  /* A result at or above this score is believed without asking another
+     pack. Measured on real images: a correct pack scores 70-91, a wrong one
+     0-31. 62 sits in the gap, and the gap is wide. */
+  var TRUST = 62;
 
   /* OCR pack -> { label, translateCode, script } */
   var PACKS = {
@@ -61,6 +61,14 @@ TB.OCR = (function () {
   /* Tried in this order when nothing is known about the photo. English first
      because it is both the commonest and the fastest to rule out. */
   var AUTO_ORDER = ['eng', 'tam', 'hin'];
+  var REMEMBER = 'tb.ocr.lastPack';
+
+  function lastPack() {
+    try { return localStorage.getItem(REMEMBER) || ''; } catch (e) { return ''; }
+  }
+  function rememberPack(p) {
+    try { localStorage.setItem(REMEMBER, p); } catch (e) {}
+  }
 
   function loadTesseract() {
     if (window.Tesseract) return Promise.resolve(window.Tesseract);
@@ -182,17 +190,24 @@ TB.OCR = (function () {
     };
   }
 
-  /* Tesseract reports a confidence even when it is hallucinating, so score the
-     text itself as well: real writing is mostly letters of one script, with
-     spaces between words and few loose symbols. */
+  /* Tesseract reports a confidence even when it is hallucinating, so score
+     the text itself as well. Real writing is mostly letters — and, in an
+     Indic script, the marks that ride on them, which are as much part of
+     the word as the letters are. A wrong language pack returns something
+     that is mostly digits and loose symbols instead. */
   function plausibility(r) {
-    var t = r.text || '';
-    if (!t) return 0;
-    var letters = (t.match(/[\p{L}\p{N}]/gu) || []).length;
-    var junk = (t.match(/[^\p{L}\p{N}\s.,!?;:'"()\-–—/&%@#*+=₹$£€।॥]/gu) || []).length;
-    var ratio = letters / t.length;
-    var penalty = Math.min(40, (junk / Math.max(1, t.length)) * 220);
-    return Math.max(0, Math.round(r.confidence * (0.45 + 0.55 * ratio) - penalty));
+    var t = (r && r.text) || '';
+    if (!t.trim()) return 0;
+    /* zero-width joiners hold Indic clusters together; they are neither
+       writing nor noise, so they are not counted either way */
+    var body = t.replace(/[‌‍]/g, '');
+    var nonSpace = body.replace(/\s/g, '').length;
+    if (!nonSpace) return 0;
+    var writing = (body.match(/[\p{L}\p{M}]/gu) || []).length;
+    var junk = (body.match(/[^\p{L}\p{M}\p{N}\s.,!?;:'"()\-–—/&%@#*+=₹$£€।॥]/gu) || []).length;
+    var textiness = writing / nonSpace;
+    var penalty = Math.min(35, (junk / nonSpace) * 180);
+    return Math.max(0, Math.round((r.confidence || 0) * (0.35 + 0.65 * textiness) - penalty));
   }
 
   function recognise(Tesseract, src, pack, onProgress) {
@@ -208,6 +223,8 @@ TB.OCR = (function () {
 
   var api = {
     PACKS: PACKS,
+    lastPack: lastPack,
+    forgetPack: function () { rememberPack(''); },
     TRUST: TRUST,
     packLabel: function (p) { return PACKS[p] ? PACKS[p].en : p; },
     packToLang: function (p) { return PACKS[p] ? PACKS[p].code : 'en'; },
@@ -230,8 +247,11 @@ TB.OCR = (function () {
       var asked = (packs || []).filter(function (p) { return PACKS[p]; });
       var auto = !asked.length || (packs || []).indexOf('auto') >= 0;
 
-      /* Order to try: what was asked for, then the common scripts. */
+      /* Order to try: what was asked for, then whatever worked last time,
+         then the common scripts. */
       var queue = asked.slice();
+      var recent = lastPack();
+      if (auto && recent && PACKS[recent] && queue.indexOf(recent) < 0) queue.push(recent);
       AUTO_ORDER.forEach(function (p) { if (queue.indexOf(p) < 0) queue.push(p); });
       if (!auto) queue = asked.concat(queue.filter(function (p) {
         return AUTO_ORDER.indexOf(p) >= 0 && asked.indexOf(p) < 0;
@@ -270,6 +290,7 @@ TB.OCR = (function () {
 
           return next().then(function (r) {
             if (!r) throw new Error('Could not read this image. Try a sharper, straight-on photo.');
+            if (r.score >= TRUST) rememberPack(r.pack);
             r.tried = tried;
             r.autoDetected = auto;
             r.preview = prepared.src;

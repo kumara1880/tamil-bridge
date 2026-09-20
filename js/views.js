@@ -55,6 +55,43 @@ TB.Views = (function () {
     return '<div class="hi-read">' + bits.join('') + '</div>';
   }
 
+  /* Copy text, and say honestly whether it worked. */
+  function copy(text) {
+    var t = String(text == null ? '' : text);
+    if (!t) return Promise.resolve(false);
+
+    function fallback() {
+      /* works from file:// and over plain http, where the clipboard API is
+         either missing or refused */
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = t;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand && document.execCommand('copy');
+        document.body.removeChild(ta);
+        return !!ok;
+      } catch (e) { return false; }
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(t)
+        .then(function () { return true; })
+        .catch(function () { return fallback(); });
+    }
+    return Promise.resolve(fallback());
+  }
+
+  function copyWithToast(text) {
+    return copy(text).then(function (ok) {
+      TB.App.toast(ok ? 'Copied' : 'Could not copy — select the text and copy it yourself.',
+                   ok ? 'ok' : 'err');
+      return ok;
+    });
+  }
+
   function langLabel(c) {
     return { ta: 'Tamil', en: 'English', hi: 'Hindi' }[c] || TB.Translate.langName(c);
   }
@@ -291,8 +328,7 @@ TB.Views = (function () {
 
       root.querySelector('#srcClear').addEventListener('click', function () { src.value = ''; run(); src.focus(); });
       root.querySelector('#dstCopy').addEventListener('click', function () {
-        navigator.clipboard && navigator.clipboard.writeText(dst.textContent);
-        TB.App.toast('Copied', 'ok');
+        copyWithToast(dst.textContent);
       });
       root.querySelector('#toTutor').addEventListener('click', function () {
         TB.App.pending = { text: src.value };
@@ -365,9 +401,9 @@ TB.Views = (function () {
         h += '</div></div>';
 
         h += '<div class="grid g3">';
-        h += trBox('English', t.en, 'en', '', c.enTa ? c.enTa + (c.vocab && c.vocab.enIpa ? ' · ' + c.vocab.enIpa : '') : '');
-        h += trBox('Hindi', t.hi, 'hi', c.romanised && c.romanised.hi, c.hiTa);
-        h += trBox('Tamil', t.ta, 'ta', c.romanised && c.romanised.ta, c.taR);
+        h += trBox('English', t.en, 'en', c.vocab && c.vocab.enIpa);
+        h += trBox('Hindi', t.hi, 'hi');
+        h += trBox('Tamil', t.ta, 'ta');
         h += '</div>';
 
         if (c.tip) h += '<div class="explain tip">💡 ' + esc(c.tip) + '</div>';
@@ -406,13 +442,13 @@ TB.Views = (function () {
         h += '</div>';
         return h;
 
-        function trBox(label, val, lang, roman, extra) {
+        /* readAid is the only source of the reading; ipa is not a reading. */
+        function trBox(label, val, lang, ipa) {
           if (!val) return '<div><div class="tiny muted">' + label + '</div><div class="muted">—</div></div>';
           return '<div><div class="tiny muted">' + label + '</div>'
             + '<div class="' + lang + '" style="font-size:21px;font-weight:650">' + esc(val) + speak(val, lang) + '</div>'
-            + (roman ? '<div class="tiny muted"><i>' + esc(roman) + '</i></div>' : '')
             + readAid(val, lang)
-            + (extra ? '<div class="tiny" style="color:var(--teal)">' + esc(extra) + '</div>' : '')
+            + (ipa ? '<div class="tiny" style="color:var(--teal)">' + esc(ipa) + '</div>' : '')
             + '</div>';
         }
       }
@@ -619,7 +655,7 @@ TB.Views = (function () {
        overwrites this key. `speakBtn` is the collision-proof alias that
        later files should use. */
     esc: esc, speak: speak, speakBtn: speak, tappable: tappable, ago: ago,
-    hiRead: hiRead, readAid: readAid,
+    hiRead: hiRead, readAid: readAid, copy: copy, copyWithToast: copyWithToast,
     themeName: themeName, langLabel: langLabel,
     D: D, saveD: saveD,
     home: home, translate: translate, meaning: meaning, tutor: tutor,

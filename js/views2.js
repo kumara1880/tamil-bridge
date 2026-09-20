@@ -512,9 +512,11 @@
           + '<div class="card"><div class="card-head"><div><h3>Text found</h3>'
           + '<div class="card-sub">'
           + esc(TB.OCR.packLabel(res.pack)) + (res.autoDetected ? ' (detected)' : '')
-          + ' · ' + res.lines.length + ' lines · score ' + res.score + '/100'
+          + ' · ' + res.lines.length + (res.lines.length === 1 ? ' line' : ' lines')
+          + ' · score ' + res.score + '/100'
           + (modes.isVerse ? ' · read as a rhyme'
-                           : (flow.reflowed ? ' · joined into ' + lines.length + ' sentences' : ''))
+                           : (flow.reflowed ? ' · joined into ' + lines.length
+                               + (lines.length === 1 ? ' sentence' : ' sentences') : ''))
           + '</div></div><div class="spacer"></div>' + speakBtn(res.text, srcLang) + '</div>'
           + readerHtml('src', lines, srcLang)
           + '<div id="readBody">'
@@ -537,8 +539,7 @@
         mountReader('src', lines, srcLang);
 
         out.querySelector('#ocrCopy').addEventListener('click', function () {
-          navigator.clipboard && navigator.clipboard.writeText(res.text);
-          TB.App.toast('Copied', 'ok');
+          V.copyWithToast(res.text);
         });
         out.querySelector('#ocrTutor').addEventListener('click', function () {
           TB.App.pending = { text: lines[0] || res.text };
