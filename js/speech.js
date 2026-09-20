@@ -10,10 +10,55 @@ TB.Speech = (function () {
   var listeners = [];
   var queueToken = 0;
 
+  /* Preferred BCP-47 tags per language, most specific first. A bare code like
+     "te" rarely matches an installed voice — the voice is registered as
+     "te-IN" — so every language the app can translate into gets its region.
+     The three study languages lead with the accent a learner in India should
+     be hearing. */
   var LANGS = {
     ta: ['ta-IN', 'ta-LK', 'ta'],
     en: ['en-IN', 'en-GB', 'en-US', 'en'],
-    hi: ['hi-IN', 'hi']
+    hi: ['hi-IN', 'hi'],
+
+    /* other Indian languages */
+    te: ['te-IN', 'te'], kn: ['kn-IN', 'kn'], ml: ['ml-IN', 'ml'],
+    mr: ['mr-IN', 'mr'], bn: ['bn-IN', 'bn-BD', 'bn'], gu: ['gu-IN', 'gu'],
+    pa: ['pa-IN', 'pa-Guru-IN', 'pa'], or: ['or-IN', 'or'], as: ['as-IN', 'as'],
+    ur: ['ur-IN', 'ur-PK', 'ur'], sa: ['sa-IN', 'hi-IN'], ne: ['ne-NP', 'ne'],
+    si: ['si-LK', 'si'], sd: ['sd-PK', 'sd'],
+
+    /* the rest, by region */
+    ar: ['ar-SA', 'ar-EG', 'ar'], fa: ['fa-IR', 'fa'], he: ['he-IL', 'he'],
+    tr: ['tr-TR', 'tr'], ru: ['ru-RU', 'ru'], uk: ['uk-UA', 'uk'],
+    pl: ['pl-PL', 'pl'], de: ['de-DE', 'de-AT', 'de'], fr: ['fr-FR', 'fr-CA', 'fr'],
+    es: ['es-ES', 'es-MX', 'es-US', 'es'], pt: ['pt-BR', 'pt-PT', 'pt'],
+    it: ['it-IT', 'it'], nl: ['nl-NL', 'nl-BE', 'nl'], sv: ['sv-SE', 'sv'],
+    no: ['nb-NO', 'no-NO', 'no'], da: ['da-DK', 'da'], fi: ['fi-FI', 'fi'],
+    el: ['el-GR', 'el'], cs: ['cs-CZ', 'cs'], ro: ['ro-RO', 'ro'],
+    hu: ['hu-HU', 'hu'], bg: ['bg-BG', 'bg'], sr: ['sr-RS', 'sr'],
+    hr: ['hr-HR', 'hr'], sk: ['sk-SK', 'sk'], sl: ['sl-SI', 'sl'],
+    lt: ['lt-LT', 'lt'], lv: ['lv-LV', 'lv'], et: ['et-EE', 'et'],
+    'zh-CN': ['zh-CN', 'zh-Hans-CN', 'zh'], 'zh-TW': ['zh-TW', 'zh-Hant-TW', 'zh'],
+    ja: ['ja-JP', 'ja'], ko: ['ko-KR', 'ko'], th: ['th-TH', 'th'],
+    vi: ['vi-VN', 'vi'], id: ['id-ID', 'id'], ms: ['ms-MY', 'ms'],
+    fil: ['fil-PH', 'tl-PH', 'fil'], my: ['my-MM', 'my'], km: ['km-KH', 'km'],
+    lo: ['lo-LA', 'lo'], sw: ['sw-KE', 'sw-TZ', 'sw'], am: ['am-ET', 'am'],
+    af: ['af-ZA', 'af'], sq: ['sq-AL', 'sq'], hy: ['hy-AM', 'hy'],
+    az: ['az-AZ', 'az'], eu: ['eu-ES', 'eu'], be: ['be-BY', 'be'],
+    ca: ['ca-ES', 'ca'], gl: ['gl-ES', 'gl'], ka: ['ka-GE', 'ka'],
+    is: ['is-IS', 'is'], ga: ['ga-IE', 'ga'], cy: ['cy-GB', 'cy'],
+    kk: ['kk-KZ', 'kk'], ky: ['ky-KG', 'ky'], mk: ['mk-MK', 'mk'],
+    mt: ['mt-MT', 'mt'], mn: ['mn-MN', 'mn'], ps: ['ps-AF', 'ps'],
+    gd: ['gd-GB', 'gd'], so: ['so-SO', 'so'], tg: ['tg-TJ', 'tg'],
+    tt: ['tt-RU', 'tt'], tk: ['tk-TM', 'tk'], uz: ['uz-UZ', 'uz'],
+    zu: ['zu-ZA', 'zu'], xh: ['xh-ZA', 'xh'], yo: ['yo-NG', 'yo'],
+    ig: ['ig-NG', 'ig'], ha: ['ha-NG', 'ha'], ny: ['ny-MW', 'ny'],
+    st: ['st-ZA', 'st'], sn: ['sn-ZW', 'sn'], mg: ['mg-MG', 'mg'],
+    mi: ['mi-NZ', 'mi'], sm: ['sm-WS', 'sm'], haw: ['haw-US', 'haw'],
+    ht: ['ht-HT', 'ht'], jw: ['jv-ID', 'jw'], su: ['su-ID', 'su'],
+    ceb: ['ceb-PH', 'ceb'], la: ['la', 'it-IT'], eo: ['eo'],
+    lb: ['lb-LU', 'lb'], fy: ['fy-NL', 'fy'], co: ['co-FR', 'it-IT'],
+    ku: ['ku-TR', 'ku'], yi: ['yi', 'he-IL']
   };
 
   function loadVoices() {
@@ -80,6 +125,9 @@ TB.Speech = (function () {
 
   function bcp47(lang) { return (LANGS[lang] && LANGS[lang][0]) || lang; }
 
+  /* exposed so the test suite can confirm every translate language is covered */
+  function langTags() { return LANGS; }
+
   var api = {
     supported: function () { return 'speechSynthesis' in window; },
     recognitionSupported: function () {
@@ -92,6 +140,8 @@ TB.Speech = (function () {
     },
     onReady: onReady,
     pickVoice: pickVoice,
+    langTags: langTags,
+    bcp47: bcp47,
 
     /* True when the OS has no voice at all for this language. */
     missing: function (lang) { return voices.length > 0 && !pickVoice(lang); },
@@ -286,7 +336,8 @@ TB.Speech = (function () {
        exact steps to install one. Reading aloud in the wrong voice would
        teach the wrong pronunciation, so we say so rather than fake it. */
     missingVoiceMessage: function (lang) {
-      var name = { ta: 'Tamil', en: 'English', hi: 'Hindi' }[lang] || lang;
+      var name = (window.TB && TB.Translate && TB.Translate.langName)
+        ? TB.Translate.langName(lang) : lang;
       return 'No ' + name + ' voice is installed on this device, so it cannot be read aloud '
            + 'correctly. Windows: Settings → Time & language → Language & region → '
            + 'Add a language → ' + name + ', and tick "Speech". Android/iOS: install the '

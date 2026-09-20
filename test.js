@@ -15,9 +15,10 @@ ctx.speechSynthesis = { getVoices: () => [], speak() {}, cancel() {}, addEventLi
 ctx.document = { addEventListener() {}, head: { appendChild() {} }, createElement: () => ({}) };
 vm.createContext(ctx);
 
-['data/vocab.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lexicon.js',
+['data/vocab.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
+ 'data/phrases.js','data/lexicon.js',
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/translate.js',
- 'js/tutor.js','js/check.js','js/dict.js','js/srs.js']
+ 'js/tutor.js','js/check.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
 const TB = ctx.TB;
@@ -42,11 +43,104 @@ t('Tamil grid 18x12', TB.ALPHABET.ta.grid.length === 18 && TB.ALPHABET.ta.grid.e
 t('Hindi barakhadi 33x11', TB.ALPHABET.hi.grid.length === 33 && TB.ALPHABET.hi.grid.every(r => r.cells.length === 11));
 t('English 26 letters', TB.ALPHABET.en.letters.length === 26);
 t('44 English phonemes', TB.PHONICS.en.groups.reduce((n, g) => n + g.items.length, 0) === 44);
-t('10 lessons / 60 sentences',
-  TB.LESSONS.length === 10 && TB.LESSONS.reduce((n, u) => n + u.lines.length, 0) === 60);
+/* a floor, not a fixed count, so adding lessons never breaks the suite */
+t('lesson units', TB.LESSONS.length >= 22, TB.LESSONS.length);
+t('lesson sentences', TB.LESSONS.reduce((n, u) => n + u.lines.length, 0) >= 130,
+  TB.LESSONS.reduce((n, u) => n + u.lines.length, 0));
+t('lesson ids are unique',
+  new Set(TB.LESSONS.map(u => u.id)).size === TB.LESSONS.length);
 t('every lesson line is trilingual', TB.LESSONS.every(u => u.lines.every(l => l.ta && l.en && l.hi)));
 t('every quiz answer index is valid',
   TB.LESSONS.every(u => u.quiz.every(q => q.a >= 0 && q.a < q.opts.length && q.why)));
+
+/* ---------------- Hindi readings ---------------- */
+section('HINDI READINGS (roman + Tamil)');
+[['करोड़', 'karor', 'கரோர்'],
+ ['किताब', 'kitāb', 'கிதாப்'],
+ ['सड़क', 'sarak', 'ஸரக்'],
+ ['खिड़की', 'khirkī', 'கிர்கீ'],
+ ['डॉक्टर', 'ḍākṭar', 'டாக்டர்'],
+ ['पाँच', 'pāñc', 'பாஞ்ச்'],
+ ['आँख', 'āṅkh', 'ஆங்க்'],
+ ['बेटा', 'beṭā', 'பேட்டா'],
+ ['ठंडा', 'ṭhaṇḍā', 'டண்டா'],
+ ['नमस्ते', 'namaste', 'நமஸ்தே']]
+  .forEach(function (row) {
+    t('roman ' + row[0], TB.Translit.romanHindi(row[0]) === row[1], TB.Translit.romanHindi(row[0]));
+    t('tamil ' + row[0], TB.Translit.hindiToTamilScript(row[0]) === row[2], TB.Translit.hindiToTamilScript(row[0]));
+  });
+/* nothing anywhere in the app may leak raw Devanagari into a reading */
+(function () {
+  var all = [];
+  TB.VOCAB.forEach(function (v) { all.push(v.hi); });
+  TB.LESSONS.forEach(function (u) { u.lines.forEach(function (l) { all.push(l.hi); }); });
+  (TB.PHRASES || []).forEach(function (p) { all.push(p.hi); });
+  var bad = all.filter(function (h) {
+    if (!h || !/[ऀ-ॿ]/.test(h)) return false;
+    var r = TB.Translit.romanHindi(h), x = TB.Translit.hindiToTamilScript(h);
+    return /[ऀ-ॿ]/.test(r) || /[ऀ-ॿ]/.test(x) || !r.trim() || !x.trim();
+  });
+  t('every Hindi string reads cleanly', bad.length === 0, bad.length + ' defective');
+})();
+
+/* ---------------- voices ---------------- */
+section('VOICES');
+(function () {
+  var tags = TB.Speech.langTags();
+  var codes = TB.Translate.LANGS.filter(function (l) { return l.c !== 'auto'; });
+  var missing = codes.filter(function (l) { return !tags[l.c]; });
+  t('every translate language has voice tags', missing.length === 0,
+    missing.map(function (l) { return l.c; }).join(','));
+  t('study languages lead with the Indian accent',
+    tags.ta[0] === 'ta-IN' && tags.hi[0] === 'hi-IN' && tags.en[0] === 'en-IN');
+})();
+
+/* ---------------- conjugation ---------------- */
+section('CONJUGATION');
+(function () {
+  var kar = TB.Conjugate.hindi('करना', 'm');
+  var jaa = TB.Conjugate.hindi('जाना', 'm');
+  var past = kar.tenses.filter(function (x) { return x.id === 'past'; })[0];
+  var jpast = jaa.tenses.filter(function (x) { return x.id === 'past'; })[0];
+  t('transitive verb takes the ergative', past.rows[0].pron === 'मैंने');
+  t('ergative freezes the verb',
+    past.rows.every(function (r) { return r.form === past.rows[0].form; }));
+  t('intransitive verb never takes it', jpast.rows[0].pron === 'मैं');
+  t('intransitive still agrees', jpast.rows[0].form !== jpast.rows[4].form);
+  var forms = 0, broken = 0;
+  TB.Conjugate.COMMON_HI.forEach(function (v) {
+    ['m', 'f'].forEach(function (g) {
+      var c = TB.Conjugate.hindi(v, g);
+      c.tenses.forEach(function (x) { x.rows.forEach(function (r) {
+        forms++; if (!r.form || !r.pron) broken++;
+      }); });
+    });
+  });
+  t('all Hindi forms generate (' + forms + ')', broken === 0, broken + ' broken');
+  var e = TB.Conjugate.english('go', 'she');
+  t('English irregular past', e.forms.past === 'went' && e.forms.participle === 'gone');
+  t('English consonant doubling', TB.Conjugate.enForms('sit').ing === 'sitting');
+  t('English -y to -ies', TB.Conjugate.enForms('study').third === 'studies');
+  t('English has 12 tenses', e.tenses.length === 12);
+})();
+
+/* ---------------- numbers ---------------- */
+section('NUMBERS');
+[[15, 'பதினைந்து'],
+ [1000, 'ஆயிரம்'],
+ [5000, 'ஐயாயிரம்'],
+ [100000, 'ஒரு லட்சம்']]
+  .forEach(function (row) { t('tamil ' + row[0], TB.Numbers.ta(row[0]) === row[1], TB.Numbers.ta(row[0])); });
+t('lakh not hundred-thousand', TB.Numbers.describe(100000).enIndian === 'one lakh');
+t('both systems shown', TB.Numbers.describe(100000).en === 'one hundred thousand');
+t('indian digit grouping', TB.Numbers.indianGroups(1234567) === '12,34,567');
+
+/* ---------------- phrasebook ---------------- */
+section('PHRASEBOOK');
+t('phrases present', TB.PHRASES.length >= 200, TB.PHRASES.length);
+t('every phrase is trilingual', TB.PHRASES.every(function (p) { return p.en && p.hi && p.ta; }));
+t('every phrase has a known group',
+  TB.PHRASES.every(function (p) { return TB.PHRASE_GROUPS.some(function (g) { return g.id === p.g; }); }));
 
 /* ---------------- transliteration ---------------- */
 section('TRANSLITERATION');
