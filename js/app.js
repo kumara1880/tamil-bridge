@@ -126,7 +126,7 @@ TB.App = (function () {
   /* -------------------------------------------------------------- router */
   var ROUTES = {
     home: 'home', learn: 'learn', phrases: 'phrases', practice: 'practice', translate: 'translate',
-    meaning: 'meaning', numbers: 'numbers', tutor: 'tutor', photo: 'photo',
+    meaning: 'meaning', numbers: 'numbers', tutor: 'tutor', conjugate: 'conjugate', photo: 'photo',
     speak: 'speak', write: 'write',
     alphabet: 'alphabet', phonics: 'phonics', vocab: 'vocab',
     history: 'history', settings: 'settings'

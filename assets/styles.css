@@ -542,3 +542,15 @@ a { color: var(--blue); }
 .ph-en { font-size: 16px; font-weight: 650; }
 .ph-hi { font-size: 19px; margin-top: 3px; }
 .ph-actions { display: flex; gap: 2px; flex: none; }
+
+/* ------------------------------------------------------- conjugation */
+.conj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 9px; }
+.conj-cell {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 11px;
+}
+.conj-en { font-size: 11px; color: var(--text-mute); }
+.conj-hi { font-size: 17px; font-weight: 600; margin-top: 2px; }
+.conj-line { font-size: 16px; padding: 3px 0; }
+.conj-line.neg { color: var(--text-dim); }
+.conj-line.q   { color: var(--blue); }
