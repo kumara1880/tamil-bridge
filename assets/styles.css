@@ -519,3 +519,18 @@ a { color: var(--blue); }
 .tok .t-p.ta { font-family: var(--tamil); color: var(--text-mute); font-size: 11px; margin-top: 2px; }
 .tok .t-m.hi { font-family: var(--deva); color: var(--text); font-size: 13px; }
 .tok .t-w { font-size: 15px; font-weight: 650; }
+
+/* password field with a show/hide eye */
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 42px !important; }
+.pw-eye {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: 0; font-size: 16px; line-height: 1;
+  padding: 6px 8px; border-radius: 7px; opacity: .65;
+}
+.pw-eye:hover { opacity: 1; background: var(--panel-2); }
+
+/* Hindi reading aid: roman letters, then Tamil letters */
+.hi-read { font-size: 12px; margin-top: 2px; line-height: 1.5; }
+.hi-rom { color: var(--teal); font-style: italic; }
+.hi-tam { font-family: var(--tamil); color: var(--text-dim); }

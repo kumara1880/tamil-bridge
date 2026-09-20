@@ -34,6 +34,17 @@ TB.Views = (function () {
     if (dy < 30) return dy + ' d ago';
     return new Date(ts).toLocaleDateString('ta-IN');
   }
+  /* Any Hindi text, with both readings underneath: roman letters for
+     English readers and Tamil letters for Tamil readers. Curated values from
+     the vocabulary win over the generated ones when we have them. */
+  function hiRead(text, roman, tamil) {
+    if (!text || !/[ऀ-ॿ]/.test(text)) return '';
+    var r = roman || TB.Translit.romanHindi(text);
+    var t = tamil || TB.Translit.hindiToTamilScript(text);
+    return '<div class="hi-read"><span class="hi-rom">' + esc(r) + '</span>'
+         + '<span class="hi-tam"> · ' + esc(t) + '</span></div>';
+  }
+
   function langLabel(c) {
     return { ta: 'Tamil', en: 'English', hi: 'Hindi' }[c] || TB.Translate.langName(c);
   }
@@ -160,6 +171,7 @@ TB.Views = (function () {
       +   '<div style="flex:1"></div><span class="tiny muted" id="provider"></span></div>'
       +   '<div class="tr-out" id="dstText"></div>'
       +   '<div class="tr-roman" id="dstRoman" style="display:none"></div>'
+      +   '<div id="dstHiRead" style="padding:0 14px 8px"></div>'
       +   '<div class="tr-foot"><button class="speak-btn" id="dstSpeak" type="button">🔊</button>'
       +     '<button class="btn btn-sm btn-ghost" id="dstCopy" type="button">Copy</button>'
       +     '<div class="spacer"></div>'
@@ -209,6 +221,8 @@ TB.Views = (function () {
           }
           showRoman('#srcRoman', text, sl.value === 'auto' ? r.detected : sl.value);
           showRoman('#dstRoman', r.text, dl.value);
+          var dstHi = root.querySelector('#dstHiRead');
+          if (dstHi) dstHi.innerHTML = dl.value === 'hi' ? hiRead(r.text) : '';
 
           TB.Store.addHistory(TB.Auth.userId(), {
             type: 'translate', from: r.detected || sl.value, to: dl.value, src: text, out: r.text
@@ -386,6 +400,7 @@ TB.Views = (function () {
           return '<div><div class="tiny muted">' + label + '</div>'
             + '<div class="' + lang + '" style="font-size:21px;font-weight:650">' + esc(val) + speak(val, lang) + '</div>'
             + (roman ? '<div class="tiny muted"><i>' + esc(roman) + '</i></div>' : '')
+            + (lang === 'hi' ? hiRead(val, roman, '') : '')
             + (extra ? '<div class="tiny" style="color:var(--teal)">' + esc(extra) + '</div>' : '')
             + '</div>';
         }
@@ -592,7 +607,7 @@ TB.Views = (function () {
     /* `speak` is also a view name (#/speak), and registering that view
        overwrites this key. `speakBtn` is the collision-proof alias that
        later files should use. */
-    esc: esc, speak: speak, speakBtn: speak, tappable: tappable, ago: ago,
+    esc: esc, speak: speak, speakBtn: speak, tappable: tappable, ago: ago, hiRead: hiRead,
     themeName: themeName, langLabel: langLabel,
     D: D, saveD: saveD,
     home: home, translate: translate, meaning: meaning, tutor: tutor,

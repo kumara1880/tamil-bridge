@@ -153,15 +153,24 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
     if (!isEmail(identifier) && !isPhone(identifier)) {
       return res.status(400).json({ error: 'Enter a valid email address or phone number.' });
     }
-    if (!password || String(password).length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-    }
+    /* Same rules the browser enforces — a client check is a convenience, not
+       a guarantee, so the server applies them too. */
+    const pw = String(password || '');
+    if (pw.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (!/[a-zA-Z]/.test(pw)) return res.status(400).json({ error: 'Password must contain at least one letter.' });
+    if (!/\d/.test(pw)) return res.status(400).json({ error: 'Password must contain at least one number.' });
 
     const email = isEmail(identifier) ? String(identifier).trim().toLowerCase() : null;
     const phone = isPhone(identifier) ? normalisePhone(identifier) : null;
 
     const existing = await users.findOne(email ? { email } : { phone });
-    if (existing) return res.status(409).json({ error: 'That email or number is already registered.' });
+    if (existing) {
+      return res.status(409).json({
+        error: email
+          ? 'That email address is already registered. Please sign in instead.'
+          : 'That phone number is already registered. Please sign in instead.'
+      });
+    }
 
     const user = {
       _id: crypto.randomUUID(),
@@ -170,7 +179,16 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
       hash: await bcrypt.hash(String(password), 12),
       createdAt: Date.now()
     };
-    await users.insertOne(user);
+    try {
+      await users.insertOne(user);
+    } catch (dup) {
+      /* The unique index is the real guard. Two simultaneous signups with the
+         same address both pass the findOne check above, but only one inserts. */
+      if (dup && dup.code === 11000) {
+        return res.status(409).json({ error: 'That email or number is already registered. Please sign in instead.' });
+      }
+      throw dup;
+    }
     res.json({ token: sign(user), user: publicUser(user) });
   } catch (e) {
     console.error('signup', e);

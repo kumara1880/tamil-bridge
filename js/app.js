@@ -60,7 +60,8 @@ TB.App = (function () {
     function box(l, v, lg) {
       if (!v) return '<div><div class="tiny muted">' + l + '</div><div class="muted">—</div></div>';
       return '<div><div class="tiny muted">' + l + '</div><div class="' + lg + '" style="font-size:18px;font-weight:650">'
-        + TB.Views.esc(v) + TB.Views.speak(v, lg) + '</div></div>';
+        + TB.Views.esc(v) + TB.Views.speak(v, lg) + '</div>'
+        + (lg === 'hi' ? TB.Views.hiRead(v) : '') + '</div>';
     }
 
     function close() { host.innerHTML = ''; }
@@ -103,6 +104,17 @@ TB.App = (function () {
     document.getElementById('whoSub').textContent = u.email || u.phone || '';
   }
 
+  /* Three text sizes. Elders learning an unfamiliar script need bigger type,
+     and the layout is sized in rem, so one root variable scales everything. */
+  var SIZES = ['normal', 'large', 'largest'];
+  function applyTextSize(size) {
+    var px = { normal: 15, large: 17.5, largest: 20 }[size] || 15;
+    document.documentElement.style.fontSize = px + 'px';
+    document.documentElement.setAttribute('data-size', size);
+    var b = document.getElementById('textBtn');
+    if (b) b.textContent = { normal: 'A+', large: 'A++', largest: 'A·' }[size] || 'A+';
+  }
+
   function applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     var b = document.getElementById('themeBtn');
@@ -114,7 +126,8 @@ TB.App = (function () {
   /* -------------------------------------------------------------- router */
   var ROUTES = {
     home: 'home', learn: 'learn', practice: 'practice', translate: 'translate',
-    meaning: 'meaning', tutor: 'tutor', photo: 'photo', speak: 'speak', write: 'write',
+    meaning: 'meaning', numbers: 'numbers', tutor: 'tutor', photo: 'photo',
+    speak: 'speak', write: 'write',
     alphabet: 'alphabet', phonics: 'phonics', vocab: 'vocab',
     history: 'history', settings: 'settings'
   };
@@ -180,6 +193,15 @@ TB.App = (function () {
 
     window.addEventListener('hashchange', render);
 
+    document.getElementById('textBtn').addEventListener('click', function () {
+      var d = TB.Store.data(TB.Auth.userId());
+      var next = SIZES[(SIZES.indexOf(d.prefs.textSize || 'normal') + 1) % SIZES.length];
+      d.prefs.textSize = next;
+      TB.Store.saveData(TB.Auth.userId(), d);
+      applyTextSize(next);
+      toast('Text size: ' + next);
+    });
+
     document.getElementById('themeBtn').addEventListener('click', function () {
       var d = TB.Store.data(TB.Auth.userId());
       d.prefs.theme = d.prefs.theme === 'dark' ? 'light' : 'dark';
@@ -224,13 +246,44 @@ TB.App = (function () {
       tabIn.classList.toggle('on', m === 'in');
       tabUp.classList.toggle('on', m === 'up');
       document.getElementById('nameField').style.display = m === 'up' ? '' : 'none';
-      document.getElementById('pwHint').style.display = m === 'up' ? '' : 'none';
+      var ph = document.getElementById('pwHint');
+      ph.style.display = m === 'up' ? '' : 'none';
+      if (m === 'up') ph.innerHTML = 'At least 8 characters, with a letter and a number.';
       document.getElementById('authGo').textContent = m === 'up' ? 'Create account' : 'Sign in';
       document.getElementById('fPw').setAttribute('autocomplete', m === 'up' ? 'new-password' : 'current-password');
       msg.innerHTML = '';
     }
     tabIn.addEventListener('click', function () { setMode('in'); });
     tabUp.addEventListener('click', function () { setMode('up'); });
+
+    /* show / hide the password */
+    var pwInput = document.getElementById('fPw');
+    var pwEye = document.getElementById('pwEye');
+    if (pwEye) {
+      pwEye.addEventListener('click', function () {
+        var shown = pwInput.type === 'text';
+        pwInput.type = shown ? 'password' : 'text';
+        pwEye.textContent = shown ? '👁' : '🙈';
+        pwEye.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+        pwEye.title = pwEye.getAttribute('aria-label');
+        pwInput.focus();
+      });
+    }
+
+    /* while creating an account, show which rules are still unmet */
+    pwInput.addEventListener('input', function () {
+      if (mode !== 'up') return;
+      var v = pwInput.value;
+      var rules = [
+        { ok: v.length >= 8, text: '8+ characters' },
+        { ok: /[a-zA-Z]/.test(v), text: 'a letter' },
+        { ok: /\d/.test(v), text: 'a number' }
+      ];
+      document.getElementById('pwHint').innerHTML = rules.map(function (r) {
+        return '<span style="color:' + (r.ok ? 'var(--green)' : 'var(--text-mute)') + '">'
+             + (r.ok ? '✓' : '○') + ' ' + r.text + '</span>';
+      }).join(' &nbsp; ');
+    });
 
     var note = document.getElementById('privacyNote');
     note.innerHTML = TB.Sync.configured()
@@ -347,6 +400,7 @@ TB.App = (function () {
     document.getElementById('app').classList.add('on');
     var d = TB.Store.data(TB.Auth.userId());
     applyTheme(d.prefs.theme || 'dark');
+    applyTextSize(d.prefs.textSize || 'normal');
     paintUser();
     TB.buildIndexes();
     TB.Translit.rebuild();
@@ -388,6 +442,7 @@ TB.App = (function () {
     if (restored) enter();
     else {
       applyTheme('dark');
+      applyTextSize('normal');
       document.getElementById('fId').focus();
     }
   }

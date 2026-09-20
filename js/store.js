@@ -48,7 +48,7 @@ TB.Store = (function () {
       stats: { xp: 0, streak: 0, lastActive: null, practiced: 0, translated: 0 },
       prefs: {
         theme: 'dark', rate: 0.85, pitch: 1, voiceTa: '', voiceEn: '', voiceHi: '',
-        autoSpeak: true, showRoman: true, target: 'ta'
+        autoSpeak: true, showRoman: true, target: 'ta', textSize: 'normal'
       }
     };
   }

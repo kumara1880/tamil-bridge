@@ -117,6 +117,7 @@
       h += '<div style="padding:12px 0;border-top:1px solid var(--line-soft)">';
       h += '<div style="font-size:18px;font-weight:600">' + tappable(l.en, 'en') + speak(l.en, 'en') + '</div>';
       h += '<div class="hi" style="font-size:17px;margin-top:3px">' + tappable(l.hi, 'hi') + speak(l.hi, 'hi') + '</div>';
+      h += V.hiRead(l.hi);
       h += '<div class="w-gloss" style="margin-top:4px">' + tappable(l.ta, 'ta') + speak(l.ta, 'ta') + '</div>';
       if (l.gloss && l.gloss.length) {
         h += '<div class="tok-line" style="margin:8px 0 0">';
@@ -218,7 +219,7 @@
           +   '<div class="tiny muted">' + langLabel(qLang) + ' → ' + langLabel(aLang) + '</div>'
           +   '<div class="prompt ' + qLang + '">' + esc(q) + speak(q, qLang) + '</div>'
           +   (qLang === 'ta' ? '<div class="tiny muted"><i>' + esc(w.taR) + '</i></div>' : '')
-          +   (qLang === 'hi' ? '<div class="tiny muted"><i>' + esc(w.hiR) + '</i></div>' : '')
+          +   (qLang === 'hi' ? V.hiRead(w.hi, w.hiR, w.hiTa) : '')
           +   (qLang === 'en' && w.enIpa ? '<div class="tiny" style="color:var(--teal)">' + esc(w.enIpa) + '</div>' : '')
           +   (shown
               ? '<div class="answer ' + aLang + '">' + esc(a) + speak(a, aLang) + '</div>'
@@ -794,7 +795,7 @@
               + '<div class="row"><div class="w-en">' + esc(w.en) + '</div><div class="spacer" style="flex:1"></div>' + speak(w.en, 'en') + '</div>'
               + '<div class="w-ipa">' + esc(w.enIpa || '') + ' · ' + esc(w.enTa || '') + '</div>'
               + '<div class="row" style="margin-top:7px"><div class="w-hi">' + esc(w.hi) + '</div><div class="spacer" style="flex:1"></div>' + speak(w.hi, 'hi') + '</div>'
-              + '<div class="w-r">' + esc(w.hiR) + ' · ' + esc(w.hiTa || '') + '</div>'
+              + V.hiRead(w.hi, w.hiR, w.hiTa)
               + '<div class="w-gloss">' + esc(w.ta) + speak(w.ta, 'ta')
               + '<span class="w-r"> ' + esc(w.taR) + '</span></div>'
               + (w.tip ? '<div class="tiny muted" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line-soft)">💡 ' + esc(w.tip) + '</div>' : '')
