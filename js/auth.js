@@ -106,9 +106,9 @@ TB.Auth = (function () {
   function isPhone(v) { return /^\+?[\d\s\-()]{8,16}$/.test(String(v).trim()) && String(v).replace(/\D/g, '').length >= 8; }
 
   function passwordIssue(pw) {
-    if (!pw || pw.length < 8) return 'கடவுச்சொல் குறைந்தது 8 எழுத்துகள் இருக்க வேண்டும்.';
-    if (!/[a-zA-Z]/.test(pw)) return 'கடவுச்சொல்லில் குறைந்தது ஒரு எழுத்து இருக்க வேண்டும்.';
-    if (!/\d/.test(pw)) return 'கடவுச்சொல்லில் குறைந்தது ஒரு எண் இருக்க வேண்டும்.';
+    if (!pw || pw.length < 8) return 'Password must be at least 8 characters.';
+    if (!/[a-zA-Z]/.test(pw)) return 'Password must contain at least one letter.';
+    if (!/\d/.test(pw)) return 'Password must contain at least one number.';
     return null;
   }
 
@@ -122,17 +122,17 @@ TB.Auth = (function () {
       identifier = String(identifier || '').trim();
       name = String(name || '').trim();
 
-      if (!name) return Promise.reject(new Error('உங்கள் பெயரை உள்ளிடவும்.'));
+      if (!name) return Promise.reject(new Error('Please enter your name.'));
       if (!isEmail(identifier) && !isPhone(identifier)) {
-        return Promise.reject(new Error('சரியான மின்னஞ்சல் அல்லது தொலைபேசி எண்ணை உள்ளிடவும்.'));
+        return Promise.reject(new Error('Enter a valid email address or phone number.'));
       }
       var pwIssue = passwordIssue(password);
       if (pwIssue) return Promise.reject(new Error(pwIssue));
       if (TB.Store.findUser(identifier)) {
-        return Promise.reject(new Error('இந்த முகவரி/எண் ஏற்கனவே பதிவு செய்யப்பட்டுள்ளது. உள்நுழையவும்.'));
+        return Promise.reject(new Error('That email or number is already registered. Please sign in.'));
       }
       if (!TB.Store.available()) {
-        return Promise.reject(new Error('உலாவியின் சேமிப்பு முடக்கப்பட்டுள்ளது. தனிப்பட்ட பயன்முறையை (private mode) அணைக்கவும்.'));
+        return Promise.reject(new Error('Browser storage is disabled. Please turn off private/incognito mode.'));
       }
 
       var salt = randomSalt();
@@ -155,7 +155,7 @@ TB.Auth = (function () {
 
     signIn: function (identifier, password, remember) {
       var user = TB.Store.findUser(identifier);
-      if (!user) return Promise.reject(new Error('இந்த முகவரி/எண்ணுக்கு கணக்கு இல்லை. புதிதாகப் பதிவு செய்யுங்கள்.'));
+      if (!user) return Promise.reject(new Error('No account found for that email or number. Create one first.'));
       return derive(password, user.salt, user.iter || ITER).then(function (res) {
         var ok = res.hash === user.hash;
         /* A record created with one KDF must still verify if the other path is taken. */
@@ -164,7 +164,7 @@ TB.Auth = (function () {
           var alt = fallbackDerive(enc.encode(password), enc.encode(user.salt), user.iter || ITER);
           ok = alt.hash === user.hash;
         }
-        if (!ok) throw new Error('கடவுச்சொல் தவறு. மீண்டும் முயற்சிக்கவும்.');
+        if (!ok) throw new Error('Incorrect password. Please try again.');
         if (remember !== false) TB.Store.setSession(user.id);
         current = user;
         TB.Store.touchStreak(user.id);
@@ -192,7 +192,7 @@ TB.Auth = (function () {
     userId: function () { return current ? current.id : null; },
 
     changePassword: function (oldPw, newPw) {
-      if (!current) return Promise.reject(new Error('முதலில் உள்நுழையவும்.'));
+      if (!current) return Promise.reject(new Error('Please sign in first.'));
       var issue = passwordIssue(newPw);
       if (issue) return Promise.reject(new Error(issue));
       return api.signIn(current.email || current.phone, oldPw, false).then(function () {
@@ -206,15 +206,15 @@ TB.Auth = (function () {
     },
 
     updateProfile: function (name, identifier) {
-      if (!current) return Promise.reject(new Error('முதலில் உள்நுழையவும்.'));
+      if (!current) return Promise.reject(new Error('Please sign in first.'));
       identifier = String(identifier || '').trim();
       if (identifier) {
         if (!isEmail(identifier) && !isPhone(identifier)) {
-          return Promise.reject(new Error('சரியான மின்னஞ்சல் அல்லது தொலைபேசி எண்ணை உள்ளிடவும்.'));
+          return Promise.reject(new Error('Enter a valid email address or phone number.'));
         }
         var clash = TB.Store.findUser(identifier);
         if (clash && clash.id !== current.id) {
-          return Promise.reject(new Error('இந்த முகவரி/எண் வேறொரு கணக்கில் உள்ளது.'));
+          return Promise.reject(new Error('That email or number belongs to another account.'));
         }
         if (isEmail(identifier)) { current.email = identifier.toLowerCase(); }
         else { current.phone = identifier; }

@@ -153,7 +153,7 @@ TB.Speech = (function () {
       opts = opts || {};
       var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!Rec) {
-        return Promise.reject(new Error('இந்த உலாவியில் குரல் அங்கீகாரம் இல்லை. Chrome அல்லது Edge பயன்படுத்தவும்.'));
+        return Promise.reject(new Error('This browser has no speech recognition. Please use Chrome or Edge.'));
       }
       return new Promise(function (resolve, reject) {
         var r = new Rec();
@@ -183,12 +183,12 @@ TB.Speech = (function () {
           if (settled) return;
           settled = true;
           var msg = {
-            'no-speech': 'குரல் கேட்கவில்லை. மீண்டும் முயற்சிக்கவும்.',
-            'not-allowed': 'மைக்ரோஃபோன் அனுமதி மறுக்கப்பட்டது. உலாவி அமைப்பில் அனுமதிக்கவும்.',
-            'service-not-allowed': 'குரல் சேவை கிடைக்கவில்லை. இணைய இணைப்பைச் சரிபார்க்கவும்.',
-            'audio-capture': 'மைக்ரோஃபோன் கண்டறியப்படவில்லை.',
-            'network': 'இணைய இணைப்பு தேவை (குரல் அங்கீகாரத்திற்கு).'
-          }[ev.error] || ('பிழை: ' + ev.error);
+            'no-speech': 'No speech detected. Please try again.',
+            'not-allowed': 'Microphone access was denied. Allow it in your browser settings.',
+            'service-not-allowed': 'Speech service unavailable. Check your internet connection.',
+            'audio-capture': 'No microphone found.',
+            'network': 'Speech recognition needs an internet connection.'
+          }[ev.error] || ('Error: ' + ev.error);
           reject(new Error(msg));
         };
         r.onend = function () {
@@ -257,10 +257,10 @@ TB.Speech = (function () {
 
     /* Tamil feedback text for a score. */
     feedback: function (score) {
-      if (score >= 90) return { ta: 'அருமை! உச்சரிப்பு மிகச் சரியாக உள்ளது.', tone: 'great' };
-      if (score >= 75) return { ta: 'நன்று! கிட்டத்தட்ட சரி — மீண்டும் ஒருமுறை முயற்சியுங்கள்.', tone: 'good' };
-      if (score >= 50) return { ta: 'பரவாயில்லை. சிவப்பு நிற சொற்களை மெதுவாகச் சொல்லிப் பாருங்கள்.', tone: 'ok' };
-      return { ta: 'மீண்டும் முயற்சிக்கவும். முதலில் ஒலியைக் கேட்டு, பிறகு பின்பற்றுங்கள்.', tone: 'retry' };
+      if (score >= 90) return { ta: 'Excellent — that pronunciation is spot on.', tone: 'great' };
+      if (score >= 75) return { ta: 'Good — very close. Try once more.', tone: 'good' };
+      if (score >= 50) return { ta: 'Not bad. Say the words marked in red more slowly.', tone: 'ok' };
+      return { ta: 'Try again. Listen to the audio first, then copy it.', tone: 'retry' };
     }
   };
 

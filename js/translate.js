@@ -304,8 +304,8 @@ TB.Translate = (function () {
         .catch(function (err) {
           if (off) return store(off);
           var e = new Error(navigator.onLine === false
-            ? 'இணைய இணைப்பு இல்லை. ஆஃப்லைன் அகராதியில் இந்தச் சொல் இல்லை.'
-            : 'மொழிபெயர்ப்பு சேவையை அணுக முடியவில்லை. சிறிது நேரம் கழித்து முயற்சிக்கவும்.');
+            ? 'No internet connection, and this word is not in the offline dictionary.'
+            : 'Could not reach the translation service. Please try again shortly.');
           e.offlineHit = off;
           throw e;
         });

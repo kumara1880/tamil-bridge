@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="தமிழ் வழியாக ஆங்கிலம் & இந்தி கற்க — குரல் ஆசிரியர், வாக்கிய விளக்கம், படம் மொழிபெயர்ப்பு, அகராதி. முற்றிலும் இலவசம்.">
+<meta name="description" content="Learn English and Hindi as a Tamil speaker — voice teaching, sentence explanation, photo translation and a dictionary. Completely free.">
 <meta name="theme-color" content="#0d1117">
-<title>Tamil Bridge — தமிழ் பாலம்</title>
+<title>Tamil Bridge — Learn through Tamil</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23f0883e'/><text y='72' x='50' text-anchor='middle' font-size='62' font-family='sans-serif' fill='%231a1004'>த</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/styles.css?v=2">
 </head>
 <body>
 
@@ -21,41 +21,41 @@
       <div class="brand-mark">த</div>
       <div>
         <h1>Tamil Bridge</h1>
-        <span>தமிழ் வழியாக ஆங்கிலம் &amp; இந்தி</span>
+        <span>English &amp; Hindi for Tamil speakers</span>
       </div>
     </div>
 
     <div class="auth-tabs">
-      <button id="tabIn" class="on" type="button">உள்நுழை</button>
-      <button id="tabUp" type="button">புதிய கணக்கு</button>
+      <button id="tabIn" class="on" type="button">Sign in</button>
+      <button id="tabUp" type="button">Create account</button>
     </div>
 
     <div id="authMsg"></div>
 
     <form id="authForm" autocomplete="on">
       <div class="field" id="nameField" style="display:none">
-        <label for="fName">பெயர்</label>
-        <input id="fName" type="text" autocomplete="name" placeholder="உங்கள் பெயர்">
+        <label for="fName">Name</label>
+        <input id="fName" type="text" autocomplete="name" placeholder="Your name">
       </div>
 
       <div class="field">
-        <label for="fId">மின்னஞ்சல் அல்லது தொலைபேசி எண்</label>
+        <label for="fId">Email or phone number</label>
         <input id="fId" type="text" autocomplete="username" placeholder="name@mail.com  /  9876543210" required>
-        <div class="hint">இரண்டில் எதை வேண்டுமானாலும் பயன்படுத்தலாம்.</div>
+        <div class="hint">Use whichever you prefer.</div>
       </div>
 
       <div class="field">
-        <label for="fPw">கடவுச்சொல்</label>
-        <input id="fPw" type="password" autocomplete="current-password" placeholder="குறைந்தது 8 எழுத்துகள்" required>
-        <div class="hint" id="pwHint" style="display:none">எழுத்து + எண் கலந்து குறைந்தது 8 எழுத்துகள்.</div>
+        <label for="fPw">Password</label>
+        <input id="fPw" type="password" autocomplete="current-password" placeholder="At least 8 characters" required>
+        <div class="hint" id="pwHint" style="display:none">At least 8 characters, with a letter and a number.</div>
       </div>
 
       <label class="row tiny muted" style="margin:4px 0 14px;cursor:pointer">
         <input id="fRemember" type="checkbox" checked style="width:auto;margin:0">
-        இந்தச் சாதனத்தில் உள்நுழைந்தே இரு
+        Keep me signed in on this device
       </label>
 
-      <button class="btn btn-primary btn-wide" id="authGo" type="submit">உள்நுழை</button>
+      <button class="btn btn-primary btn-wide" id="authGo" type="submit">Sign in</button>
     </form>
 
     <div class="privacy-note" id="privacyNote"></div>
@@ -68,31 +68,32 @@
     <div class="side-head">
       <div class="brand">
         <div class="brand-mark">த</div>
-        <div><h1 style="font-size:16px">Tamil Bridge</h1><span>தமிழ் பாலம்</span></div>
+        <div><h1 style="font-size:16px">Tamil Bridge</h1><span>Learn through Tamil</span></div>
       </div>
     </div>
 
     <nav class="nav" id="nav">
-      <div class="nav-group">முகப்பு</div>
-      <a href="#/home"      data-v="home"><span class="ic">🏠</span> முகப்பு</a>
-      <a href="#/learn"     data-v="learn"><span class="ic">📘</span> பாடங்கள்</a>
-      <a href="#/practice"  data-v="practice"><span class="ic">🎯</span> பயிற்சி <span class="badge" id="dueBadge" style="display:none">0</span></a>
+      <div class="nav-group">Home</div>
+      <a href="#/home"      data-v="home"><span class="ic">🏠</span> Home</a>
+      <a href="#/learn"     data-v="learn"><span class="ic">📘</span> Lessons</a>
+      <a href="#/practice"  data-v="practice"><span class="ic">🎯</span> Practice <span class="badge" id="dueBadge" style="display:none">0</span></a>
 
-      <div class="nav-group">கருவிகள்</div>
-      <a href="#/translate" data-v="translate"><span class="ic">🔤</span> மொழிபெயர்ப்பு</a>
-      <a href="#/meaning"   data-v="meaning"><span class="ic">📖</span> அர்த்தம்</a>
-      <a href="#/tutor"     data-v="tutor"><span class="ic">🧠</span> வாக்கிய விளக்கம்</a>
-      <a href="#/photo"     data-v="photo"><span class="ic">📷</span> படம் மொழிபெயர்ப்பு</a>
-      <a href="#/speak"     data-v="speak"><span class="ic">🎤</span> உச்சரிப்பு</a>
+      <div class="nav-group">Tools</div>
+      <a href="#/translate" data-v="translate"><span class="ic">🔤</span> Translate</a>
+      <a href="#/meaning"   data-v="meaning"><span class="ic">📖</span> Meaning</a>
+      <a href="#/tutor"     data-v="tutor"><span class="ic">🧠</span> Sentence Explainer</a>
+      <a href="#/photo"     data-v="photo"><span class="ic">📷</span> Photo Translate</a>
+      <a href="#/speak"     data-v="speak"><span class="ic">🎤</span> Pronunciation</a>
+      <a href="#/write"     data-v="write"><span class="ic">✏️</span> Writing</a>
 
-      <div class="nav-group">கற்றல் வளங்கள்</div>
-      <a href="#/alphabet"  data-v="alphabet"><span class="ic">🔡</span> எழுத்துகள்</a>
-      <a href="#/phonics"   data-v="phonics"><span class="ic">🔊</span> ஒலிகள்</a>
-      <a href="#/vocab"     data-v="vocab"><span class="ic">📚</span> சொற்கள்</a>
+      <div class="nav-group">Learn</div>
+      <a href="#/alphabet"  data-v="alphabet"><span class="ic">🔡</span> Alphabet</a>
+      <a href="#/phonics"   data-v="phonics"><span class="ic">🔊</span> Sounds</a>
+      <a href="#/vocab"     data-v="vocab"><span class="ic">📚</span> Vocabulary</a>
 
-      <div class="nav-group">கணக்கு</div>
-      <a href="#/history"   data-v="history"><span class="ic">🕘</span> வரலாறு</a>
-      <a href="#/settings"  data-v="settings"><span class="ic">⚙️</span> அமைப்புகள்</a>
+      <div class="nav-group">Account</div>
+      <a href="#/history"   data-v="history"><span class="ic">🕘</span> History</a>
+      <a href="#/settings"  data-v="settings"><span class="ic">⚙️</span> Settings</a>
     </nav>
 
     <div class="side-foot">
@@ -103,7 +104,7 @@
           <div class="who-sub" id="whoSub">—</div>
         </div>
       </div>
-      <button class="btn btn-sm btn-wide" id="signOut" type="button" style="margin-top:7px">வெளியேறு</button>
+      <button class="btn btn-sm btn-wide" id="signOut" type="button" style="margin-top:7px">Sign out</button>
     </div>
   </aside>
 
@@ -111,14 +112,13 @@
     <header class="topbar">
       <button class="btn btn-icon menu-btn" id="menuBtn" type="button">☰</button>
       <div>
-        <h2 id="viewTitle">முகப்பு</h2>
+        <h2 id="viewTitle">Home</h2>
         <div class="sub" id="viewSub"></div>
       </div>
       <div class="spacer"></div>
-      <span class="chip" id="streakChip" title="தொடர் நாட்கள்">🔥 0</span>
-      <span class="chip accent" id="xpChip" title="புள்ளிகள்">0 XP</span>
-      <button class="btn btn-sm" id="langBtn" type="button" title="Interface language">EN</button>
-      <button class="btn btn-icon" id="themeBtn" type="button" title="தீம் மாற்று">🌙</button>
+      <span class="chip" id="streakChip" title="Day streak">🔥 0</span>
+      <span class="chip accent" id="xpChip" title="Points">0 XP</span>
+      <button class="btn btn-icon" id="themeBtn" type="button" title="Toggle theme">🌙</button>
     </header>
 
     <main id="viewRoot"></main>
@@ -129,27 +129,27 @@
 <div id="modalRoot"></div>
 
 <!-- data -->
-<script src="data/vocab.js"></script>
-<script src="data/alphabet.js"></script>
-<script src="data/phonics.js"></script>
-<script src="data/lessons.js"></script>
-<script src="data/lexicon.js"></script>
+<script src="data/vocab.js?v=2"></script>
+<script src="data/alphabet.js?v=2"></script>
+<script src="data/phonics.js?v=2"></script>
+<script src="data/lessons.js?v=2"></script>
+<script src="data/lexicon.js?v=2"></script>
 <!-- engine -->
-<script src="js/store.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/speech.js"></script>
-<script src="js/translit.js"></script>
-<script src="js/translate.js"></script>
-<script src="js/tutor.js"></script>
-<script src="js/check.js"></script>
-<script src="js/dict.js"></script>
-<script src="js/srs.js"></script>
-<script src="js/ocr.js"></script>
-<script src="js/sync.js"></script>
-<script src="js/i18n.js"></script>
+<script src="js/store.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/speech.js?v=2"></script>
+<script src="js/translit.js?v=2"></script>
+<script src="js/translate.js?v=2"></script>
+<script src="js/tutor.js?v=2"></script>
+<script src="js/check.js?v=2"></script>
+<script src="js/dict.js?v=2"></script>
+<script src="js/srs.js?v=2"></script>
+<script src="js/ocr.js?v=2"></script>
+<script src="js/sync.js?v=2"></script>
 <!-- ui -->
-<script src="js/views.js"></script>
-<script src="js/views2.js"></script>
-<script src="js/app.js"></script>
+<script src="js/views.js?v=2"></script>
+<script src="js/views2.js?v=2"></script>
+<script src="js/views3.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
 </body>
 </html>

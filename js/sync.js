@@ -58,7 +58,7 @@ TB.Sync = (function () {
     }, function (e) {
       clearTimeout(timer);
       online = false;
-      lastError = e.name === 'AbortError' ? 'சேவையகம் பதிலளிக்கவில்லை (Render இலவசச் சேவை உறங்கியிருக்கலாம்).' : e.message;
+      lastError = e.name === 'AbortError' ? 'The server did not respond (a free Render service may be asleep).' : e.message;
       throw e;
     });
   }

@@ -9,10 +9,10 @@ TB.Tutor = (function () {
 
   /* ------------------------------------------------------------- helpers */
   var POS_TA = {
-    pron: 'பிரதிப்பெயர்', noun: 'பெயர்ச்சொல்', verb: 'வினைச்சொல்', aux: 'துணைவினை',
-    adj: 'பெயரடை', adv: 'வினையடை', prep: 'முன்னிடைச்சொல்', conj: 'இணைப்புச்சொல்',
-    det: 'சுட்டுச்சொல்', num: 'எண்ணுப்பெயர்', wh: 'வினாச்சொல்', part: 'இடைச்சொல்',
-    intj: 'வியப்புச்சொல்', unknown: 'தெரியவில்லை'
+    pron: 'pronoun', noun: 'noun', verb: 'verb', aux: 'auxiliary',
+    adj: 'adjective', adv: 'adverb', prep: 'preposition', conj: 'conjunction',
+    det: 'determiner', num: 'number', wh: 'question word', part: 'particle',
+    intj: 'interjection', unknown: 'unknown'
   };
   var POS_EN = {
     pron: 'pronoun', noun: 'noun', verb: 'verb', aux: 'auxiliary', adj: 'adjective',
@@ -142,35 +142,35 @@ TB.Tutor = (function () {
       var next = at(i + 1), next2 = at(i + 2);
 
       if (inList(w, MODALS) && (w === 'will' || w === 'shall')) {
-        if (next === 'have' && isPastPart(next2)) return mk('future perfect', 'எதிர்கால நிறைவு', 'will have + V3', 'நாளைக்குள் முடிந்திருக்கும் செயல்.');
-        if (next === 'be' && isVing(next2)) return mk('future continuous', 'எதிர்கால தொடர்', 'will be + V-ing', 'எதிர்காலத்தில் தொடர்ந்து நடக்கும் செயல்.');
-        return mk('future simple', 'எதிர்காலம்', 'will + அடிப்படை வினை', 'இனிமேல் நடக்கப் போகும் செயல். will-க்குப் பின் வினை எப்போதும் அடிப்படை வடிவம்.');
+        if (next === 'have' && isPastPart(next2)) return mk('future perfect', 'Future perfect', 'will have + V3', 'An action that will already be finished by some future point.');
+        if (next === 'be' && isVing(next2)) return mk('future continuous', 'Future continuous', 'will be + V-ing', 'An action that will be ongoing in the future.');
+        return mk('future simple', 'Future simple', 'will + base verb', 'Something that will happen later. After “will” the verb is always in its base form.');
       }
       if (inList(w, MODALS)) {
-        return mk('modal', 'துணைவினை (modal)', w + ' + அடிப்படை வினை', 'இயலுமை / அனுமதி / கடமையைக் காட்டுகிறது. modal-க்குப் பின் வினை மாறாது.');
+        return mk('modal', 'Modal', w + ' + base verb', 'Shows ability, permission or obligation. The verb never changes after a modal.');
       }
       if (w === 'have' || w === 'has') {
-        if (next === 'been' && isVing(next2)) return mk('present perfect continuous', 'நிகழ்கால நிறைவுத் தொடர்', 'have/has been + V-ing', 'சிறிது காலமாகத் தொடர்ந்து நடக்கும் செயல்.');
-        if (isPastPart(next)) return mk('present perfect', 'நிகழ்கால நிறைவு', 'have/has + V3', 'முடிந்த செயல் — ஆனால் இப்போதைய நிலையோடு தொடர்புடையது.');
+        if (next === 'been' && isVing(next2)) return mk('present perfect continuous', 'Present perfect continuous', 'have/has been + V-ing', 'An action that started earlier and is still going on.');
+        if (isPastPart(next)) return mk('present perfect', 'Present perfect', 'have/has + V3', 'A finished action that still matters right now.');
       }
       if (w === 'had') {
-        if (next === 'been' && isVing(next2)) return mk('past perfect continuous', 'இறந்தகால நிறைவுத் தொடர்', 'had been + V-ing', 'கடந்த காலத்தில் ஒரு புள்ளிக்கு முன் தொடர்ந்த செயல்.');
-        if (isPastPart(next)) return mk('past perfect', 'இறந்தகால நிறைவு', 'had + V3', 'கடந்த காலத்தில் இன்னொரு செயலுக்கு முன்பே முடிந்த செயல்.');
+        if (next === 'been' && isVing(next2)) return mk('past perfect continuous', 'Past perfect continuous', 'had been + V-ing', 'An action that had been going on before a point in the past.');
+        if (isPastPart(next)) return mk('past perfect', 'Past perfect', 'had + V3', 'An action already finished before another past action.');
       }
       if (w === 'am' || w === 'is' || w === 'are') {
-        if (next === 'being' && isPastPart(next2)) return mk('present passive continuous', 'நிகழ்கால செயப்பாட்டு வினை', 'is being + V3', 'செயலைப் பெறுபவரை முன்னிலைப்படுத்துகிறது.');
-        if (isVing(next)) return mk('present continuous', 'நிகழ்கால தொடர்', 'am/is/are + V-ing', 'இப்போது நடந்து கொண்டிருக்கும் செயல். தமிழ் "-கொண்டிருக்கிறேன்" போன்றது.');
-        if (isPastPart(next) && TB.IRREG_REV[next]) return mk('present passive', 'நிகழ்கால செயப்பாட்டு வினை', 'is + V3', 'செயலைச் செய்பவரை விட, செயலைப் பெறுபவர் முக்கியம்.');
-        return mk('present simple (be)', 'நிகழ்காலம் — இருப்பு வினை', 'am/is/are + நிலை', '"இருக்கிறது / ஆகும்" எனப் பொருள். தமிழில் இது பெரும்பாலும் விடுபடும் — ஆங்கிலத்தில் கட்டாயம்.');
+        if (next === 'being' && isPastPart(next2)) return mk('present passive continuous', 'Present passive continuous', 'is being + V3', 'Puts the receiver of the action first.');
+        if (isVing(next)) return mk('present continuous', 'Present continuous', 'am/is/are + V-ing', 'Happening right now. Like Tamil “-கொண்டிருக்கிறேன்”.');
+        if (isPastPart(next) && TB.IRREG_REV[next]) return mk('present passive', 'Present passive', 'is + V3', 'The receiver of the action matters more than the doer.');
+        return mk('present simple (be)', 'Present simple (be)', 'am/is/are + state', 'Means “is / are”. Tamil usually drops this word — English never does.');
       }
       if (w === 'was' || w === 'were') {
-        if (isVing(next)) return mk('past continuous', 'இறந்தகால தொடர்', 'was/were + V-ing', 'கடந்த காலத்தில் தொடர்ந்து நடந்த செயல்.');
-        if (isPastPart(next) && TB.IRREG_REV[next]) return mk('past passive', 'இறந்தகால செயப்பாட்டு வினை', 'was/were + V3', 'கடந்த காலச் செயப்பாட்டு வினை.');
-        return mk('past simple (be)', 'இறந்தகாலம் — இருப்பு வினை', 'was/were + நிலை', 'கடந்த கால நிலையைக் குறிக்கிறது.');
+        if (isVing(next)) return mk('past continuous', 'Past continuous', 'was/were + V-ing', 'An action that was ongoing in the past.');
+        if (isPastPart(next) && TB.IRREG_REV[next]) return mk('past passive', 'Past passive', 'was/were + V3', 'Past tense, with the receiver of the action first.');
+        return mk('past simple (be)', 'Past simple (be)', 'was/were + state', 'Describes a state in the past.');
       }
       if (inList(w, DO)) {
-        if (w === 'did') return mk('past simple', 'இறந்தகாலம்', 'did + அடிப்படை வினை', 'did ஏற்கனவே காலத்தைக் காட்டுவதால், முதன்மை வினை அடிப்படை வடிவத்தில் இருக்கும்.');
-        return mk('present simple', 'நிகழ்காலம்', 'do/does + அடிப்படை வினை', 'கேள்வி அல்லது மறுப்பு வடிவம்.');
+        if (w === 'did') return mk('past simple', 'Past simple', 'did + base verb', '“did” already carries the tense, so the main verb stays in its base form.');
+        return mk('present simple', 'Present simple', 'do/does + base verb', 'Used for questions and negatives.');
       }
     }
 
@@ -179,15 +179,15 @@ TB.Tutor = (function () {
       var t = chain[j];
       if (t.pos === 'verb') {
         if (t.form === 'past' || isPastSimple(t.w)) {
-          return mk('past simple', 'இறந்தகாலம்', 'வினை + -ed (அல்லது ஒழுங்கற்ற வடிவம்)', 'கடந்த காலத்தில் முடிந்த செயல்.');
+          return mk('past simple', 'Past simple', 'verb + -ed (or an irregular form)', 'A completed action in the past.');
         }
         if (t.form === '3sg' || /s$/.test(t.w)) {
-          return mk('present simple', 'நிகழ்காலம்', 'வினை + -s (he/she/it)', 'வழக்கமான, தினசரி நடக்கும் செயல். he/she/it-உடன் -s கட்டாயம்.');
+          return mk('present simple', 'Present simple', 'verb + -s (he/she/it)', 'A habit or routine. With he/she/it the -s is compulsory.');
         }
-        return mk('present simple', 'நிகழ்காலம்', 'அடிப்படை வினை', 'வழக்கமான அல்லது பொதுவான உண்மை.');
+        return mk('present simple', 'Present simple', 'base verb', 'A habit, or a general truth.');
       }
     }
-    return mk('unclear', 'காலம் தெளிவாக இல்லை', '—', 'முழு வாக்கியமாக இல்லாததால் காலத்தைத் தீர்மானிக்க முடியவில்லை.');
+    return mk('unclear', 'Tense unclear', '—', 'Not a complete sentence, so the tense cannot be determined.');
 
     function mk(en, ta, formula, why) { return { en: en, ta: ta, formula: formula, why: why }; }
   }
@@ -203,23 +203,23 @@ TB.Tutor = (function () {
     var type, taType, note;
     if (hasQMark || first && (first.pos === 'wh' || (first.pos === 'aux' && !inList(firstW, ['not'])))) {
       if (first && first.pos === 'wh') {
-        type = 'wh-question'; taType = 'வினாச்சொல் கேள்வி';
-        note = 'கேள்விச் சொல் (' + firstW + ') முதலில், பிறகு துணைவினை, பிறகு எழுவாய். தமிழில் கேள்விச் சொல் நடுவில் வரலாம் — ஆங்கிலத்தில் முதலில்.';
+        type = 'wh-question'; taType = 'Wh- question';
+        note = 'Question word (' + firstW + ') first, then the auxiliary, then the subject. In Tamil the question word can sit in the middle — in English it comes first.';
       } else {
-        type = 'yes/no question'; taType = 'ஆம்/இல்லை கேள்வி';
-        note = 'துணைவினை (is / do / can …) முதலில் வந்தால் அது ஆம்/இல்லை கேள்வி. தமிழில் "-ஆ" சேர்ப்பது போல.';
+        type = 'yes/no question'; taType = 'Yes / no question';
+        note = 'An auxiliary (is / do / can …) at the front makes a yes/no question — like adding “-ஆ” in Tamil.';
       }
     } else if (first && first.pos === 'verb' && !tags.some(function (t) { return t.pos === 'pron' && ['i','you','he','she','it','we','they'].indexOf(t.w) >= 0; })) {
-      type = 'imperative'; taType = 'ஏவல் வாக்கியம்';
-      note = 'எழுவாய் இல்லாமல் வினையில் தொடங்கினால் அது கட்டளை/வேண்டுகோள். (நீங்கள் என்பது மறைமுகம்.)';
+      type = 'imperative'; taType = 'Command';
+      note = 'Starting with a verb and no subject makes a command or request. The subject “you” is understood.';
     } else if (/!\s*$/.test(raw)) {
-      type = 'exclamation'; taType = 'வியப்பு வாக்கியம்';
-      note = 'உணர்ச்சியை வெளிப்படுத்தும் வாக்கியம்.';
+      type = 'exclamation'; taType = 'Exclamation';
+      note = 'A sentence expressing strong feeling.';
     } else {
-      type = 'statement'; taType = 'செய்தி வாக்கியம்';
-      note = 'சாதாரண தகவல் வாக்கியம்.';
+      type = 'statement'; taType = 'Statement';
+      note = 'An ordinary statement of fact.';
     }
-    if (hasNeg) { type += ' (negative)'; taType += ' — மறுப்பு'; note += ' "not / n’t" சேர்வதால் இது மறுப்பு வடிவம்.'; }
+    if (hasNeg) { type += ' (negative)'; taType += ' — negative'; note += ' “not / n’t” makes it negative.'; }
     return { en: type, ta: taType, note: note };
   }
 
@@ -270,11 +270,11 @@ TB.Tutor = (function () {
     var reordered = [svo.subjectText, svo.objectText, svo.verbText]
       .filter(function (s) { return s && s.trim(); }).join('  ');
     return {
-      english: 'எழுவாய் → வினை → செயப்படுபொருள் (SVO)',
-      tamil: 'எழுவாய் → செயப்படுபொருள் → வினை (SOV)',
+      english: 'English: Subject → Verb → Object (SVO)',
+      tamil: 'Tamil & Hindi: Subject → Object → Verb (SOV)',
       reordered: reordered,
-      explain: 'ஆங்கிலத்தில் வினை நடுவில் வரும்; தமிழிலும் இந்தியிலும் வினை **கடைசியில்** வரும். '
-             + 'மொழிபெயர்க்கும்போது வினையைக் கடைசிக்கு நகர்த்துங்கள் — இதுவே மிகப் பெரிய வேறுபாடு.'
+      explain: 'In English the verb sits in the middle; in Tamil and Hindi the verb comes **last**. '
+             + 'When translating, move the verb to the end — this is the single biggest difference.'
     };
   }
 
@@ -296,15 +296,15 @@ TB.Tutor = (function () {
     var hasArticle = tags.some(function (t) { return ['a', 'an', 'the'].indexOf(t.w) >= 0; });
     var hasSingularNoun = tags.some(function (t) { return t.pos === 'noun' && !/s$/.test(t.w) && !t.proper; });
     if (!hasArticle && hasSingularNoun) {
-      tips.push('தமிழில் "a / an / the" இல்லை — அதனால் இவற்றை மறப்பது பொதுவான பிழை. இந்த வாக்கியத்தில் சேர்க்க வேண்டுமா எனப் பாருங்கள்.');
+      tips.push('Tamil has no “a / an / the”, so these are easy to forget. Check whether this sentence needs one.');
     }
     var subj3sg = svo.subject.some(function (t) { return ['he', 'she', 'it'].indexOf(t.w) >= 0; });
     var mainV = svo.verb[svo.verb.length - 1];
     if (subj3sg && mainV && mainV.pos === 'verb' && !/s$/.test(mainV.w) && svo.verb.length === 1) {
-      tips.push('எச்சரிக்கை: எழுவாய் he/she/it — எனவே வினையில் "-s" தேவை ("' + mainV.w + '" → "' + mainV.w + 's").');
+      tips.push('The subject is he/she/it, so the verb needs “-s” ("' + mainV.w + '" → "' + mainV.w + 's").');
     }
     if (tense.en.indexOf('future') === 0 && mainV && /s$/.test(mainV.w)) {
-      tips.push('"will"-க்குப் பின் வினை எப்போதும் அடிப்படை வடிவம் — "-s" சேர்க்கக் கூடாது.');
+      tips.push('After “will” the verb stays in its base form — never add “-s”.');
     }
 
     return {
@@ -339,21 +339,21 @@ TB.Tutor = (function () {
     var joined = words.join(' ');
     var tense;
     if (/(गा|गी|गे)$/.test(last) || /(गा|गी|गे)\s/.test(joined + ' ')) {
-      tense = { en: 'future', ta: 'எதிர்காலம்', formula: 'வினை + -गा / -गी / -गे', why: 'பாலினத்திற்கேற்ப -गा (ஆண்), -गी (பெண்), -गे (பன்மை/மரியாதை).' };
+      tense = { en: 'future', ta: 'Future', formula: 'verb + -गा / -गी / -गे', why: 'The ending follows gender: -गा (m), -गी (f), -गे (plural or polite).' };
     } else if (/(रहा|रही|रहे)/.test(joined)) {
-      tense = { en: 'continuous', ta: 'தொடர் காலம்', formula: 'வினை + रहा/रही/रहे + है/हूँ/हैं', why: 'ஆங்கில "-ing" போன்றது. ஆண்/பெண் வேறுபாடு உண்டு.' };
+      tense = { en: 'continuous', ta: 'Continuous', formula: 'verb + रहा/रही/रहे + है/हूँ/हैं', why: 'Like English “-ing”, but it changes with gender.' };
     } else if (/(था|थी|थे)/.test(joined)) {
-      tense = { en: 'past', ta: 'இறந்தகாலம்', formula: 'வினை + था / थी / थे', why: 'கடந்த கால நிலை அல்லது பழக்கம்.' };
+      tense = { en: 'past', ta: 'Past', formula: 'verb + था / थी / थे', why: 'A state or habit in the past.' };
     } else if (/(ता|ती|ते)\s+(है|हैं|हूँ|हो)/.test(joined) || /(ता|ती|ते)$/.test(words[words.length - 2] || '')) {
-      tense = { en: 'present habitual', ta: 'நிகழ்காலம் (வழக்கம்)', formula: 'வினை + ता/ती/ते + है/हैं/हूँ', why: 'தினசரி நடக்கும் செயல்.' };
+      tense = { en: 'present habitual', ta: 'Present habitual', formula: 'verb + ता/ती/ते + है/हैं/हूँ', why: 'Something done regularly.' };
     } else if (/(या|यी|ये|आ|ीं)$/.test(last) && !/(है|हैं|हूँ|हो)$/.test(last)) {
-      tense = { en: 'past perfective', ta: 'இறந்தகாலம் (முடிவுற்ற)', formula: 'வினை + या / यी / ये', why: 'முடிந்த செயல். செயப்படுபொருள் இருந்தால் எழுவாயுடன் "ने" சேரும்.' };
+      tense = { en: 'past perfective', ta: 'Past (completed)', formula: 'verb + या / यी / ये', why: 'A completed action. With an object, the subject takes “ने”.' };
     } else if (/(है|हैं|हूँ|हो)/.test(joined)) {
-      tense = { en: 'present (be)', ta: 'நிகழ்காலம் — இருப்பு', formula: 'பெயர்/பெயரடை + है / हैं / हूँ', why: 'ஆங்கில am/is/are போன்றது.' };
+      tense = { en: 'present (be)', ta: 'Present (be)', formula: 'noun/adjective + है / हैं / हूँ', why: 'Same job as English am/is/are.' };
     } else if (/(या|यी|ये)$/.test(last)) {
-      tense = { en: 'past perfective', ta: 'இறந்தகாலம் (முடிவுற்ற)', formula: 'வினை + या / यी / ये', why: 'முடிந்த செயல். செயப்படுபொருள் இருந்தால் எழுவாயுடன் "ने" சேரும்.' };
+      tense = { en: 'past perfective', ta: 'Past (completed)', formula: 'verb + या / यी / ये', why: 'A completed action. With an object, the subject takes “ने”.' };
     } else {
-      tense = { en: 'unclear', ta: 'காலம் தெளிவாக இல்லை', formula: '—', why: 'துணைவினை காணப்படவில்லை.' };
+      tense = { en: 'unclear', ta: 'Tense unclear', formula: '—', why: 'No auxiliary verb found.' };
     }
 
     var isQ = /\?/.test(sentence) || tags.some(function (t) { return t.pos === 'wh'; }) || /^क्या\b/.test(sentence.trim());
@@ -363,15 +363,15 @@ TB.Tutor = (function () {
       .map(function (t) { return t.w + ' = ' + t.ta; });
 
     var tips = [
-      'இந்தியும் தமிழும் ஒரே சொல் வரிசை (SOV) — வினை கடைசியில். இது தமிழருக்கு மிகப் பெரிய சாதகம்.',
-      'இந்தியில் ஒவ்வொரு பெயர்ச்சொல்லுக்கும் பாலினம் உண்டு; வினையும் அதற்கேற்ப மாறும். தமிழில் இந்தச் சிக்கல் இல்லை.'
+      'Hindi and Tamil share the same word order (SOV) — verb last. That is a big head start for Tamil speakers.',
+      'Every Hindi noun has a gender, and the verb changes to match. Tamil has no such rule.'
     ];
-    if (postp.length) tips.push('பின்னிடைச்சொற்கள் (தமிழ் வேற்றுமை உருபு போல): ' + postp.join(', '));
+    if (postp.length) tips.push('Postpositions (like Tamil case endings): ' + postp.join(', '));
 
     return {
       lang: 'hi', source: sentence, tokens: tokens, tags: tags, tense: tense,
-      type: { en: isQ ? 'question' : 'statement', ta: isQ ? 'கேள்வி' : 'செய்தி வாக்கியம்',
-              note: hasNeg ? 'मत/नहीं இருப்பதால் மறுப்பு வடிவம்.' : 'சாதாரண வாக்கியம்.' },
+      type: { en: isQ ? 'question' : 'statement', ta: isQ ? 'Question' : 'Statement',
+              note: hasNeg ? 'Negative — it contains मत/नहीं.' : 'An ordinary statement.' },
       svo: null, order: null,
       unknown: tags.filter(function (t) { return t.pos !== 'punct' && !t.ta; }).map(function (t) { return t.w; }),
       tips: tips,
@@ -475,15 +475,15 @@ TB.Tutor = (function () {
     var tense;
     if (verbTag && verbTag.tense) {
       var map = {
-        present: { en: 'present', ta: 'நிகழ்காலம்', formula: 'வினை + கிற் + விகுதி', why: 'ஆங்கிலத்தில் present simple அல்லது present continuous ஆக மாறும் — சூழலைப் பொறுத்து.' },
-        past: { en: 'past', ta: 'இறந்தகாலம்', formula: 'வினை + த்/ந்/இன் + விகுதி', why: 'ஆங்கிலத்தில் past simple (-ed அல்லது ஒழுங்கற்ற வடிவம்).' },
-        future: { en: 'future', ta: 'எதிர்காலம்', formula: 'வினை + வ்/ப் + விகுதி', why: 'ஆங்கிலத்தில் "will + அடிப்படை வினை".' },
-        negative: { en: 'negative', ta: 'மறுப்பு', formula: 'வினை + வில்லை', why: 'ஆங்கிலத்தில் "do not / did not + அடிப்படை வினை".' },
-        'negative-future': { en: 'negative future', ta: 'எதிர்கால மறுப்பு', formula: 'வினை + மாட்டேன்', why: 'ஆங்கிலத்தில் "will not + அடிப்படை வினை".' }
+        present: { en: 'present', ta: 'Present', formula: 'verb + கிற் + ending', why: 'Becomes present simple or present continuous in English, depending on context.' },
+        past: { en: 'past', ta: 'Past', formula: 'verb + த்/ந்/இன் + ending', why: 'Past simple in English (-ed, or an irregular form).' },
+        future: { en: 'future', ta: 'Future', formula: 'verb + வ்/ப் + ending', why: 'In English: “will + base verb”.' },
+        negative: { en: 'negative', ta: 'Negative', formula: 'verb + வில்லை', why: 'In English: “do not / did not + base verb”.' },
+        'negative-future': { en: 'negative future', ta: 'Negative future', formula: 'verb + மாட்டேன்', why: 'In English: “will not + base verb”.' }
       };
       tense = map[verbTag.tense] || map.present;
     } else {
-      tense = { en: 'unclear', ta: 'காலம் தெளிவாக இல்லை', formula: '—', why: 'வினைச்சொல் கண்டறியப்படவில்லை.' };
+      tense = { en: 'unclear', ta: 'Tense unclear', formula: '—', why: 'No verb was recognised.' };
     }
 
     var isQ = /[?]/.test(sentence) || /(ஆ|ா)\s*[?]?$/.test(sentence.trim()) ||
@@ -492,23 +492,23 @@ TB.Tutor = (function () {
     var cases = [];
     tags.forEach(function (t) {
       t.morph.forEach(function (m) {
-        if (m.type === 'வேற்றுமை உருபு') cases.push(t.raw + ' → ' + m.suffix + ' (' + m.meaning + ') = ஆங்கிலம் "' + m.en + '"');
+        if (m.type === 'வேற்றுமை உருபு') cases.push(t.raw + ' → ' + m.suffix + ' (' + m.meaning + ') = English "' + m.en + '"');
       });
     });
 
-    var tips = ['தமிழ் SOV — வினை கடைசியில். ஆங்கிலம் SVO — வினை நடுவில். மொழிபெயர்க்கும்போது வினையை நடுவுக்கு நகர்த்த வேண்டும்.'];
-    if (cases.length) tips.push('வேற்றுமை உருபுகள் ஆங்கிலத்தில் **முன்னால்** வரும் முன்னிடைச்சொல் ஆகும்: ' + cases.join(' | '));
-    tips.push('ஆங்கிலத்தில் மொழிபெயர்க்கும்போது "a / an / the" சேர்க்க மறக்காதீர்கள் — தமிழில் அவை இல்லை.');
+    var tips = ['Tamil is SOV — verb last. English is SVO — verb in the middle. When translating, move the verb into the middle.'];
+    if (cases.length) tips.push('Tamil case endings become English prepositions, which go **before** the noun: ' + cases.join(' | '));
+    tips.push('When translating into English, remember to add “a / an / the” — Tamil has no articles.');
 
     return {
       lang: 'ta', source: sentence, tokens: tokens, tags: tags, tense: tense,
-      type: { en: isQ ? 'question' : 'statement', ta: isQ ? 'கேள்வி' : 'செய்தி வாக்கியம்', note: '' },
+      type: { en: isQ ? 'question' : 'statement', ta: isQ ? 'Question' : 'Statement', note: '' },
       svo: null,
       order: {
-        english: 'ஆங்கிலம்: எழுவாய் → வினை → செயப்படுபொருள்',
-        tamil: 'தமிழ்: எழுவாய் → செயப்படுபொருள் → வினை',
+        english: 'English: Subject → Verb → Object',
+        tamil: 'Tamil: Subject → Object → Verb',
         reordered: '',
-        explain: 'தமிழ் வாக்கியத்தை ஆங்கிலமாக்கும்போது கடைசி வினையை எழுவாய்க்குப் பின் கொண்டு வரவும்.'
+        explain: 'To turn a Tamil sentence into English, bring the final verb forward, just after the subject.'
       },
       unknown: tags.filter(function (t) { return t.pos !== 'punct' && !t.en; }).map(function (t) { return t.w; }),
       tips: tips,
@@ -516,8 +516,8 @@ TB.Tutor = (function () {
     };
 
     function tenseTa(t) {
-      return { present: 'நிகழ்காலம்', past: 'இறந்தகாலம்', future: 'எதிர்காலம்',
-               negative: 'மறுப்பு', 'negative-future': 'எதிர்கால மறுப்பு' }[t] || t;
+      return { present: 'present', past: 'past', future: 'future',
+               negative: 'negative', 'negative-future': 'negative future' }[t] || t;
     }
   }
 
@@ -541,14 +541,14 @@ TB.Tutor = (function () {
     /* Build a spoken lesson from an analysis: Tamil narration + target audio. */
     voiceScript: function (a, translations) {
       var steps = [];
-      var langName = { en: 'ஆங்கில', hi: 'இந்தி', ta: 'தமிழ்' }[a.lang] || '';
-      steps.push({ text: 'இந்த ' + langName + ' வாக்கியத்தைப் பார்ப்போம்.', lang: 'ta', pause: 350 });
+      var langName = { en: 'English', hi: 'Hindi', ta: 'Tamil' }[a.lang] || '';
+      steps.push({ text: 'Let us look at this ' + langName + ' sentence.', lang: 'en', pause: 350 });
       steps.push({ text: a.source, lang: a.lang, rate: 0.7, pause: 500 });
-      steps.push({ text: 'இது ' + a.type.ta + '. காலம்: ' + a.tense.ta + '.', lang: 'ta', pause: 400 });
+      steps.push({ text: 'This is a ' + a.type.ta + '. Tense: ' + a.tense.ta + '.', lang: 'en', pause: 400 });
 
       var content = a.tags.filter(function (t) { return t.pos !== 'punct'; });
       if (content.length <= 12) {
-        steps.push({ text: 'இப்போது சொல்லுக்குச் சொல் பார்ப்போம்.', lang: 'ta', pause: 300 });
+        steps.push({ text: 'Now word by word.', lang: 'en', pause: 300 });
         content.forEach(function (t) {
           var meaning = a.lang === 'en' ? t.ta : (a.lang === 'hi' ? t.ta : t.en);
           if (!meaning) return;
@@ -560,13 +560,13 @@ TB.Tutor = (function () {
       if (translations) {
         Object.keys(translations).forEach(function (L) {
           if (L === a.lang || !translations[L]) return;
-          var nm = { ta: 'தமிழில்', en: 'ஆங்கிலத்தில்', hi: 'இந்தியில்' }[L] || L;
-          steps.push({ text: nm, lang: 'ta', pause: 200 });
+          var nm = { ta: 'In Tamil', en: 'In English', hi: 'In Hindi' }[L] || L;
+          steps.push({ text: nm, lang: 'en', pause: 200 });
           steps.push({ text: translations[L], lang: L, rate: 0.75, pause: 400 });
         });
       }
 
-      steps.push({ text: 'இப்போது நீங்கள் சொல்லிப் பாருங்கள்.', lang: 'ta', pause: 200 });
+      steps.push({ text: 'Now you try saying it.', lang: 'en', pause: 200 });
       steps.push({ text: a.source, lang: a.lang, rate: 0.6, pause: 200 });
       return steps;
     }

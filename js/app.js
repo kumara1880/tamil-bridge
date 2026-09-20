@@ -9,7 +9,7 @@ TB.App = (function () {
     var wrap = document.getElementById('toasts');
     var el = document.createElement('div');
     el.className = 'toast' + (kind ? ' ' + kind : '');
-    el.textContent = TB.I18N.t(msg);
+    el.textContent = msg;
     wrap.appendChild(el);
     setTimeout(function () {
       el.style.opacity = '0';
@@ -21,11 +21,11 @@ TB.App = (function () {
   function confirmBox(title, body, onYes) {
     var host = document.getElementById('modalRoot');
     host.innerHTML = '<div class="modal-bg"><div class="modal">'
-      + '<h3 style="margin:0 0 6px">' + TB.Views.esc(TB.I18N.t(title)) + '</h3>'
-      + '<p class="small muted">' + TB.Views.esc(TB.I18N.t(body)) + '</p>'
+      + '<h3 style="margin:0 0 6px">' + TB.Views.esc(title) + '</h3>'
+      + '<p class="small muted">' + TB.Views.esc(body) + '</p>'
       + '<div class="row" style="justify-content:flex-end;margin-top:14px">'
-      + '<button class="btn" id="mNo" type="button">வேண்டாம்</button>'
-      + '<button class="btn btn-primary" id="mYes" type="button">ஆம்</button></div>'
+      + '<button class="btn" id="mNo" type="button">Cancel</button>'
+      + '<button class="btn btn-primary" id="mYes" type="button">Yes</button></div>'
       + '</div></div>';
     function close() { host.innerHTML = ''; }
     host.querySelector('#mNo').addEventListener('click', close);
@@ -33,7 +33,6 @@ TB.App = (function () {
       if (e.target === this) close();
     });
     host.querySelector('#mYes').addEventListener('click', function () { close(); onYes(); });
-    TB.I18N.apply(host);
   }
 
   /* --------------------------------------------------------- word popup */
@@ -50,11 +49,11 @@ TB.App = (function () {
       + '<div id="wBody" class="mt">'
       + (quick
           ? '<div class="grid g3">'
-            + box('தமிழ்', quick.ta, 'ta') + box('English', quick.en, 'en') + box('हिंदी', quick.hi, 'hi')
+            + box('English', quick.en, 'en') + box('Hindi', quick.hi, 'hi') + box('Tamil', quick.ta, 'ta')
             + '</div>' + (quick.note ? '<div class="tiny muted mt">' + TB.Views.esc(quick.note) + '</div>' : '')
-          : '<span class="spin"></span> தேடுகிறது…')
+          : '<span class="spin"></span> Searching…')
       + '</div>'
-      + '<button class="btn btn-sm mt" id="wFull" type="button">முழு விவரம் →</button>'
+      + '<button class="btn btn-sm mt" id="wFull" type="button">Full details →</button>'
       + '</div></div>';
 
     function box(l, v, lg) {
@@ -70,16 +69,15 @@ TB.App = (function () {
       close(); TB.App.pending = { word: clean }; location.hash = '#/meaning';
     });
 
-    TB.I18N.apply(host);
     if (!quick) {
       TB.Dict.lookup(clean, lang).then(function (c) {
         var b = host.querySelector('#wBody');
         if (!b) return;
         var t = c.translations || {};
-        b.innerHTML = '<div class="grid g3">' + box('தமிழ்', t.ta, 'ta') + box('English', t.en, 'en') + box('हिंदी', t.hi, 'hi') + '</div>';
+        b.innerHTML = '<div class="grid g3">' + box('English', t.en, 'en') + box('Hindi', t.hi, 'hi') + box('Tamil', t.ta, 'ta') + '</div>';
       }).catch(function () {
         var b = host.querySelector('#wBody');
-        if (b) b.innerHTML = '<span class="muted small">அர்த்தம் கிடைக்கவில்லை (இணையம் தேவைப்படலாம்).</span>';
+        if (b) b.innerHTML = '<span class="muted small">No meaning found (may need internet).</span>';
       });
     }
   }
@@ -115,7 +113,7 @@ TB.App = (function () {
   /* -------------------------------------------------------------- router */
   var ROUTES = {
     home: 'home', learn: 'learn', practice: 'practice', translate: 'translate',
-    meaning: 'meaning', tutor: 'tutor', photo: 'photo', speak: 'speak',
+    meaning: 'meaning', tutor: 'tutor', photo: 'photo', speak: 'speak', write: 'write',
     alphabet: 'alphabet', phonics: 'phonics', vocab: 'vocab',
     history: 'history', settings: 'settings'
   };
@@ -142,9 +140,6 @@ TB.App = (function () {
 
     root.innerHTML = v.html(r.param);
     try { v.mount(root, r.param); } catch (e) { console.error('mount', r.view, e); }
-    document.getElementById('viewTitle').textContent = TB.I18N.t(v.title);
-    document.getElementById('viewSub').textContent = TB.I18N.t(v.sub || '');
-    TB.I18N.apply(document.body);
     refreshChips();
     window.scrollTo(0, 0);
     document.getElementById('side').classList.remove('open');
@@ -180,15 +175,6 @@ TB.App = (function () {
 
     window.addEventListener('hashchange', render);
 
-    document.getElementById('langBtn').addEventListener('click', function () {
-      var d = TB.Store.data(TB.Auth.userId());
-      d.prefs.ui = d.prefs.ui === 'en' ? 'ta' : 'en';
-      TB.Store.saveData(TB.Auth.userId(), d);
-      TB.I18N.set(d.prefs.ui);
-      this.textContent = d.prefs.ui === 'en' ? 'த' : 'EN';
-      render();
-    });
-
     document.getElementById('themeBtn').addEventListener('click', function () {
       var d = TB.Store.data(TB.Auth.userId());
       d.prefs.theme = d.prefs.theme === 'dark' ? 'light' : 'dark';
@@ -197,7 +183,7 @@ TB.App = (function () {
     });
 
     document.getElementById('signOut').addEventListener('click', function () {
-      confirmBox('வெளியேறவா?', 'உங்கள் தரவு இந்தச் சாதனத்தில் பாதுகாப்பாக இருக்கும்.', function () {
+      confirmBox('Sign out?', 'Your data stays safe on this device.', function () {
         TB.Auth.signOut();
         TB.Sync.clear();
         location.reload();
@@ -234,7 +220,7 @@ TB.App = (function () {
       tabUp.classList.toggle('on', m === 'up');
       document.getElementById('nameField').style.display = m === 'up' ? '' : 'none';
       document.getElementById('pwHint').style.display = m === 'up' ? '' : 'none';
-      document.getElementById('authGo').textContent = m === 'up' ? 'கணக்கை உருவாக்கு' : 'உள்நுழை';
+      document.getElementById('authGo').textContent = m === 'up' ? 'Create account' : 'Sign in';
       document.getElementById('fPw').setAttribute('autocomplete', m === 'up' ? 'new-password' : 'current-password');
       msg.innerHTML = '';
     }
@@ -243,11 +229,11 @@ TB.App = (function () {
 
     var note = document.getElementById('privacyNote');
     note.innerHTML = TB.Sync.configured()
-      ? '🔒 உங்கள் கடவுச்சொல் சேமிக்கப்படுவதில்லை — PBKDF2 மூலம் மறைகுறியாக்கப்படுகிறது. '
-        + 'ஒத்திசைவு இயக்கப்பட்டுள்ளது: <span class="mono">' + TB.Views.esc(TB.Sync.baseUrl()) + '</span>'
-      : '🔒 இந்தக் கணக்கு <b>இந்தச் சாதனத்தில் மட்டும்</b> உள்ளது — சேவையகம் இல்லை, கட்டணம் இல்லை, '
-        + 'உங்கள் தரவு எங்கும் அனுப்பப்படுவதில்லை. கடவுச்சொல் PBKDF2 மூலம் மறைகுறியாக்கப்பட்டே சேமிக்கப்படுகிறது. '
-        + 'வேறு சாதனத்திலும் வேண்டுமானால் அமைப்புகளில் ஒத்திசைவை இயக்கலாம்.';
+      ? '🔒 Your password is never stored — only a PBKDF2 hash of it. '
+        + 'Sync is enabled: <span class="mono">' + TB.Views.esc(TB.Sync.baseUrl()) + '</span>'
+      : '🔒 This account lives <b>on this device only</b> — no server, no cost, '
+        + 'nothing is sent anywhere. Your password is stored only as a PBKDF2 hash. '
+        + 'To use the same account on another device, turn on Sync in Settings.';
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -260,7 +246,7 @@ TB.App = (function () {
       msg.innerHTML = '';
       btn.disabled = true;
       var label = btn.textContent;
-      btn.innerHTML = '<span class="spin"></span> சற்று காத்திருங்கள்…';
+      btn.innerHTML = '<span class="spin"></span> Please wait…';
 
       var local = mode === 'up'
         ? TB.Auth.signUp(name, id, pw)
@@ -274,7 +260,7 @@ TB.App = (function () {
             .then(function (remoteData) {
               var d = TB.Store.data(user.id);
               TB.Store.saveData(user.id, TB.Sync.merge(d, remoteData));
-              toast('ஒத்திசைக்கப்பட்டது', 'ok');
+              toast('Synced', 'ok');
               render();
             })
             .catch(function () { /* offline or asleep: local mode is fine */ });
@@ -293,8 +279,6 @@ TB.App = (function () {
     document.getElementById('app').classList.add('on');
     var d = TB.Store.data(TB.Auth.userId());
     applyTheme(d.prefs.theme || 'dark');
-    TB.I18N.set(d.prefs.ui || 'ta');
-    document.getElementById('langBtn').textContent = (d.prefs.ui === 'en') ? 'த' : 'EN';
     paintUser();
     TB.buildIndexes();
     TB.Translit.rebuild();
@@ -319,8 +303,8 @@ TB.App = (function () {
 
     if (!TB.Store.available()) {
       document.getElementById('authMsg').innerHTML =
-        '<div class="msg msg-err">உலாவியின் சேமிப்பு (localStorage) முடக்கப்பட்டுள்ளது. '
-        + 'தனிப்பட்ட/இரகசிய பயன்முறையை அணைத்துவிட்டு மீண்டும் முயற்சிக்கவும்.</div>';
+        '<div class="msg msg-err">Browser storage (localStorage) is disabled. '
+        + 'Turn off private/incognito mode and try again.</div>';
     }
 
     TB.buildIndexes();

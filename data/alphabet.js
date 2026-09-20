@@ -11,39 +11,39 @@ TB.ALPHABET = {};
 /* ==================================================================== TAMIL */
 (function () {
   var vowels = [
-    { ch: 'அ', r: 'a',  sign: '',   kind: 'குறில்', en: 'a as in about' },
-    { ch: 'ஆ', r: 'ā',  sign: 'ா', kind: 'நெடில்', en: 'aa as in father' },
-    { ch: 'இ', r: 'i',  sign: 'ி', kind: 'குறில்', en: 'i as in sit' },
-    { ch: 'ஈ', r: 'ī',  sign: 'ீ', kind: 'நெடில்', en: 'ee as in see' },
-    { ch: 'உ', r: 'u',  sign: 'ு', kind: 'குறில்', en: 'u as in put' },
-    { ch: 'ஊ', r: 'ū',  sign: 'ூ', kind: 'நெடில்', en: 'oo as in food' },
-    { ch: 'எ', r: 'e',  sign: 'ெ', kind: 'குறில்', en: 'e as in bed' },
-    { ch: 'ஏ', r: 'ē',  sign: 'ே', kind: 'நெடில்', en: 'ay as in day' },
-    { ch: 'ஐ', r: 'ai', sign: 'ை', kind: 'நெடில்', en: 'i as in my' },
-    { ch: 'ஒ', r: 'o',  sign: 'ொ', kind: 'குறில்', en: 'o as in hot' },
-    { ch: 'ஓ', r: 'ō',  sign: 'ோ', kind: 'நெடில்', en: 'o as in go' },
-    { ch: 'ஔ', r: 'au', sign: 'ௌ', kind: 'நெடில்', en: 'ow as in now' }
+    { ch: 'அ', r: 'a',  sign: '',   kind: 'short', en: 'a as in about' },
+    { ch: 'ஆ', r: 'ā',  sign: 'ா', kind: 'long', en: 'aa as in father' },
+    { ch: 'இ', r: 'i',  sign: 'ி', kind: 'short', en: 'i as in sit' },
+    { ch: 'ஈ', r: 'ī',  sign: 'ீ', kind: 'long', en: 'ee as in see' },
+    { ch: 'உ', r: 'u',  sign: 'ு', kind: 'short', en: 'u as in put' },
+    { ch: 'ஊ', r: 'ū',  sign: 'ூ', kind: 'long', en: 'oo as in food' },
+    { ch: 'எ', r: 'e',  sign: 'ெ', kind: 'short', en: 'e as in bed' },
+    { ch: 'ஏ', r: 'ē',  sign: 'ே', kind: 'long', en: 'ay as in day' },
+    { ch: 'ஐ', r: 'ai', sign: 'ை', kind: 'long', en: 'i as in my' },
+    { ch: 'ஒ', r: 'o',  sign: 'ொ', kind: 'short', en: 'o as in hot' },
+    { ch: 'ஓ', r: 'ō',  sign: 'ோ', kind: 'long', en: 'o as in go' },
+    { ch: 'ஔ', r: 'au', sign: 'ௌ', kind: 'long', en: 'ow as in now' }
   ];
 
   var consonants = [
-    { base: 'க', r: 'k',  cls: 'வல்லினம்',  en: 'k / g' },
-    { base: 'ங', r: 'ṅ',  cls: 'மெல்லினம்', en: 'ng as in sing' },
-    { base: 'ச', r: 'c',  cls: 'வல்லினம்',  en: 'ch / s' },
-    { base: 'ஞ', r: 'ñ',  cls: 'மெல்லினம்', en: 'ny as in canyon' },
-    { base: 'ட', r: 'ṭ',  cls: 'வல்லினம்',  en: 't / d (retroflex)' },
-    { base: 'ண', r: 'ṇ',  cls: 'மெல்லினம்', en: 'n (retroflex)' },
-    { base: 'த', r: 't',  cls: 'வல்லினம்',  en: 'th / dh (dental)' },
-    { base: 'ந', r: 'n',  cls: 'மெல்லினம்', en: 'n (dental)' },
-    { base: 'ப', r: 'p',  cls: 'வல்லினம்',  en: 'p / b' },
-    { base: 'ம', r: 'm',  cls: 'மெல்லினம்', en: 'm' },
-    { base: 'ய', r: 'y',  cls: 'இடையினம்',  en: 'y' },
-    { base: 'ர', r: 'r',  cls: 'இடையினம்',  en: 'r (tap)' },
-    { base: 'ல', r: 'l',  cls: 'இடையினம்',  en: 'l' },
-    { base: 'வ', r: 'v',  cls: 'இடையினம்',  en: 'v / w' },
-    { base: 'ழ', r: 'ḻ',  cls: 'இடையினம்',  en: 'zh — unique to Tamil' },
-    { base: 'ள', r: 'ḷ',  cls: 'இடையினம்',  en: 'l (retroflex)' },
-    { base: 'ற', r: 'ṟ',  cls: 'வல்லினம்',  en: 'rr (trill) / t' },
-    { base: 'ன', r: 'ṉ',  cls: 'மெல்லினம்', en: 'n (alveolar)' }
+    { base: 'க', r: 'k',  cls: 'hard',  en: 'k / g' },
+    { base: 'ங', r: 'ṅ',  cls: 'nasal', en: 'ng as in sing' },
+    { base: 'ச', r: 'c',  cls: 'hard',  en: 'ch / s' },
+    { base: 'ஞ', r: 'ñ',  cls: 'nasal', en: 'ny as in canyon' },
+    { base: 'ட', r: 'ṭ',  cls: 'hard',  en: 't / d (retroflex)' },
+    { base: 'ண', r: 'ṇ',  cls: 'nasal', en: 'n (retroflex)' },
+    { base: 'த', r: 't',  cls: 'hard',  en: 'th / dh (dental)' },
+    { base: 'ந', r: 'n',  cls: 'nasal', en: 'n (dental)' },
+    { base: 'ப', r: 'p',  cls: 'hard',  en: 'p / b' },
+    { base: 'ம', r: 'm',  cls: 'nasal', en: 'm' },
+    { base: 'ய', r: 'y',  cls: 'medium',  en: 'y' },
+    { base: 'ர', r: 'r',  cls: 'medium',  en: 'r (tap)' },
+    { base: 'ல', r: 'l',  cls: 'medium',  en: 'l' },
+    { base: 'வ', r: 'v',  cls: 'medium',  en: 'v / w' },
+    { base: 'ழ', r: 'ḻ',  cls: 'medium',  en: 'zh — unique to Tamil' },
+    { base: 'ள', r: 'ḷ',  cls: 'medium',  en: 'l (retroflex)' },
+    { base: 'ற', r: 'ṟ',  cls: 'hard',  en: 'rr (trill) / t' },
+    { base: 'ன', r: 'ṉ',  cls: 'nasal', en: 'n (alveolar)' }
   ];
 
   var PULLI = '்';
@@ -60,21 +60,21 @@ TB.ALPHABET = {};
   });
 
   TB.ALPHABET.ta = {
-    label: { ta: 'தமிழ் எழுத்துகள் — முழுமையானது (247)', en: 'Complete Tamil alphabet (247)' },
-    summary: 'உயிர் 12 + மெய் 18 + ஆய்தம் 1 + உயிர்மெய் 216 = 247',
+    label: { ta: 'Complete Tamil alphabet (247)', en: 'Complete Tamil alphabet (247)' },
+    summary: 'uyir 12 + mei 18 + aytham 1 + uyirmei 216 = 247',
     vowels: vowels,
     consonants: consonants.map(function (c) {
       return { ch: c.base + PULLI, base: c.base, r: c.r + '̣', rr: c.r, cls: c.cls, en: c.en };
     }),
-    aytham: { ch: 'ஃ', r: 'ḵ', name: 'ஆய்த எழுத்து', en: 'aytham — a breath sound, like a soft /h/' },
+    aytham: { ch: 'ஃ', r: 'ḵ', name: 'aytham', en: 'aytham — a breath sound, like a soft /h/' },
     grid: grid,
-    vowelSigns: vowels.map(function (v) { return { vowel: v.ch, sign: v.sign || '(மாற்றமில்லை)', r: v.r }; }),
+    vowelSigns: vowels.map(function (v) { return { vowel: v.ch, sign: v.sign || '(no change)', r: v.r }; }),
     notes: [
-      'உயிர் எழுத்து 12 — தனியாக ஒலிக்கும்.',
-      'மெய் எழுத்து 18 — புள்ளியுடன் (்) வரும், தனியாக ஒலிக்காது.',
-      'உயிர்மெய் 216 — மெய் + உயிர் சேர்ந்தது (18 × 12).',
-      'ஆய்த எழுத்து ஃ — ஒன்று மட்டுமே.',
-      'வல்லினம் (க ச ட த ப ற), மெல்லினம் (ங ஞ ண ந ம ன), இடையினம் (ய ர ல வ ழ ள).'
+      '12 vowels (uyir) — these make a sound on their own.',
+      '18 consonants (mei) — written with a dot above, and cannot be said alone.',
+      '216 compound letters (uyirmei) — each consonant joined to each vowel (18 × 12).',
+      'One special letter, aytham (ஃ).',
+      'Three groups: hard (க ச ட த ப ற), soft/nasal (ங ஞ ண ந ம ன) and medium (ய ர ல வ ழ ள).'
     ]
   };
 })();
@@ -168,18 +168,18 @@ TB.ALPHABET = {};
   });
 
   TB.ALPHABET.hi = {
-    label: { ta: 'இந்தி வர்ணமாலா — முழுமையானது', en: 'Complete Hindi alphabet' },
+    label: { ta: 'Complete Hindi alphabet', en: 'Complete Hindi alphabet' },
     summary: 'स्वर 13 + व्यंजन 33 + संयुक्त 3 + नुक़्ता 7',
     vowels: vowels,
     rows: rows,
     grid: grid,
-    matras: vowels.map(function (v) { return { vowel: v.ch, sign: v.sign || '(कोई चिह्न नहीं)', r: v.r, ta: v.ta }; }),
+    matras: vowels.map(function (v) { return { vowel: v.ch, sign: v.sign || '(no sign)', r: v.r, ta: v.ta }; }),
     notes: [
-      'स्वर (உயிர்) 13 — தனியாக ஒலிக்கும்.',
-      'व्यंजन (மெய்) 33 — அடிப்படையில் "அ" ஒலி உள்ளடங்கியது (क = "க", "க்" அல்ல).',
-      'हलंत् (्) சேர்த்தால் உயிர் நீங்கும்: क् = க் — தமிழ் புள்ளி போல.',
-      'मात्रा — உயிர்க் குறியீடு மெய்யுடன் சேரும்: क + ी = की.',
-      'மூச்சொலி (ख छ ठ थ फ) தமிழில் இல்லை — கையை வாய் முன் வைத்துப் பயிற்சி செய்யுங்கள்.'
+      '13 vowels (स्वर) — these make a sound on their own.',
+      '33 consonants (व्यंजन) — each already contains a short "a" sound (क = "ka", not "k").',
+      'Adding halant (्) removes that vowel: क् = "k" — exactly like the Tamil dot.',
+      'A matra is a vowel sign attached to a consonant: क + ी = की.',
+      'Aspirated sounds (ख छ ठ थ फ) do not exist in Tamil — hold your hand in front of your mouth and feel the puff of air.'
     ]
   };
 })();
@@ -216,17 +216,17 @@ TB.ALPHABET = {};
   ];
 
   TB.ALPHABET.en = {
-    label: { ta: 'ஆங்கில எழுத்துகள் — 26', en: 'English alphabet — 26 letters' },
+    label: { ta: 'English alphabet — 26 letters', en: 'English alphabet — 26 letters' },
     summary: 'Vowels 5 (A E I O U) + Semi-vowel 1 (Y) + Consonants 20',
     letters: letters,
     vowels: letters.filter(function (l) { return l.type === 'vowel'; }),
     consonants: letters.filter(function (l) { return l.type === 'consonant'; }),
     semivowels: letters.filter(function (l) { return l.type === 'semi-vowel'; }),
     notes: [
-      'ஆங்கிலத்தில் 26 எழுத்துகள் — ஆனால் 44 ஒலிகள். ஒரே எழுத்து பல ஒலிகளைத் தரும்.',
-      'உயிர் எழுத்து 5 (A E I O U); Y சில நேரம் உயிராகவும் (my), சில நேரம் மெய்யாகவும் (yes) செயல்படும்.',
-      'தமிழ் போல "எழுதியபடியே படி" என்பது ஆங்கிலத்தில் கிடையாது — ஒவ்வொரு சொல்லின் ஒலியையும் தனியாகக் கற்க வேண்டும்.',
-      'மௌன எழுத்துகள் (silent letters) மிக அதிகம்: know, write, hour, listen, lamb.'
+      'English has 26 letters but 44 sounds — one letter can make several different sounds.',
+      '5 vowels (A E I O U). Y acts as a vowel in "my" and as a consonant in "yes".',
+      'Unlike Tamil, English is not written as it sounds — you have to learn each word’s pronunciation separately.',
+      'Silent letters are very common: know, write, hour, listen, lamb.'
     ]
   };
 })();

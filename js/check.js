@@ -231,7 +231,7 @@ TB.Check = (function () {
     var firstIdx = tags.findIndex(function (t) { return t.pos !== 'punct'; });
     if (firstIdx >= 0 && /^[a-z]/.test(fixed[firstIdx])) {
       var cap = fixed[firstIdx].charAt(0).toUpperCase() + fixed[firstIdx].slice(1);
-      push(firstIdx, 'capital', 'வாக்கியம் பெரிய எழுத்தில் தொடங்க வேண்டும்.', fixed[firstIdx], cap);
+      push(firstIdx, 'capital', 'A sentence must start with a capital letter.', fixed[firstIdx], cap);
       fixed[firstIdx] = cap;
     }
 
@@ -242,7 +242,7 @@ TB.Check = (function () {
 
       /* standalone "i" must be capital I */
       if (w === 'i' && t.raw === 'i') {
-        push(i, 'capital', '"I" எப்போதும் பெரிய எழுத்து.', 'i', 'I');
+        push(i, 'capital', '"I" is always capitalised.', 'i', 'I');
         fixed[i] = 'I';
       }
 
@@ -250,10 +250,10 @@ TB.Check = (function () {
       if ((w === 'a' || w === 'an') && next && next.pos !== 'punct') {
         var needAn = startsVowelSound(next.w);
         if (w === 'a' && needAn) {
-          push(i, 'article', '"' + next.w + '" உயிர் ஒலியில் தொடங்குகிறது — "an" வேண்டும்.', 'a', 'an');
+          push(i, 'article', '"' + next.w + '" starts with a vowel sound, so it takes "an".', 'a', 'an');
           fixed[i] = /^A/.test(t.raw) ? 'An' : 'an';
         } else if (w === 'an' && !needAn) {
-          push(i, 'article', '"' + next.w + '" மெய் ஒலியில் தொடங்குகிறது — "a" வேண்டும்.', 'an', 'a');
+          push(i, 'article', '"' + next.w + '" starts with a consonant sound, so it takes "a".', 'an', 'a');
           fixed[i] = /^A/.test(t.raw) ? 'A' : 'a';
         }
       }
@@ -267,7 +267,7 @@ TB.Check = (function () {
           var base = TB.IRREG_REV[v.w] || v.w.replace(/e?s$/, '').replace(/ed$/, '');
           if (TB.LEX.en[base] || known(base)) {
             push(vi, 'double-tense',
-              '"' + w + '" ஏற்கனவே காலத்தைக் காட்டுகிறது — முதன்மை வினை அடிப்படை வடிவத்தில் இருக்க வேண்டும்.',
+              '"' + w + '" already shows the tense, so the main verb stays in its base form.',
               v.w, base);
             fixed[vi] = base;
           }
@@ -282,7 +282,7 @@ TB.Check = (function () {
         if (mv && mv.pos === 'verb' && /s$/.test(mv.w) && !/ss$/.test(mv.w)) {
           var mb = mv.w.replace(/e?s$/, '');
           push(mi, 'modal-form',
-            '"' + w + '"-க்குப் பின் வினை எப்போதும் அடிப்படை வடிவம் — "-s" சேர்க்கக் கூடாது.',
+            'After "' + w + '" the verb stays in its base form — never add "-s".',
             mv.w, mb);
           fixed[mi] = mb;
         }
@@ -295,7 +295,7 @@ TB.Check = (function () {
           : ['two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'many', 'few'].indexOf(num) >= 0;
         if (isPlural) {
           var pl = api_thirdPerson ? api_thirdPerson(next.w) : next.w + 's';
-          push(i + 1, 'plural', 'ஒன்றுக்கு மேற்பட்டவை — பெயர்ச்சொல் பன்மையாக இருக்க வேண்டும்.', next.w, pl);
+          push(i + 1, 'plural', 'More than one — the noun must be plural.', next.w, pl);
           fixed[i + 1] = pl;
         }
       }
@@ -310,7 +310,7 @@ TB.Check = (function () {
         else if (['he', 'she', 'it'].indexOf(w) >= 0 && next.w === 'were') want = 'was';
         else if (['we', 'they'].indexOf(w) >= 0 && next.w === 'was') want = 'were';
         if (want) {
-          push(i + 1, 'agreement', '"' + t.raw + '"-உடன் "' + want + '" வர வேண்டும்.', next.w, want);
+          push(i + 1, 'agreement', '"' + t.raw + '" takes "' + want + '".', next.w, want);
           fixed[i + 1] = want;
         }
       }
@@ -333,14 +333,14 @@ TB.Check = (function () {
         var s3 = api_thirdPerson ? api_thirdPerson(mainV.w)
           : (/(s|x|z|ch|sh|o)$/.test(mainV.w) ? mainV.w + 'es' : mainV.w + 's');
         push(vIndex, 'agreement',
-          'எழுவாய் "' + subjW.raw + '" (he/she/it வகை) — வினையில் "-s" கட்டாயம். தமிழில் இந்த விதி இல்லாததால் இது மிகப் பொதுவான பிழை.',
+          'The subject "' + subjW.raw + '" is he/she/it type, so the verb needs "-s". Tamil has no such rule, which is why this is the most common mistake.',
           mainV.w, s3);
         fixed[vIndex] = s3;
       } else if (plural && /s$/.test(mainV.w) && !/ss$/.test(mainV.w) && !alreadyInflected) {
         var b2 = mainV.w.replace(/ies$/, 'y').replace(/e?s$/, '');
         if (known(b2)) {
           push(vIndex, 'agreement',
-            'எழுவாய் "' + subjW.raw + '" — வினையில் "-s" வரக் கூடாது.', mainV.w, b2);
+            'The subject "' + subjW.raw + '" does not take "-s" on the verb.', mainV.w, b2);
           fixed[vIndex] = b2;
         }
       }
@@ -359,7 +359,7 @@ TB.Check = (function () {
         if (!prev || (prev.pos !== 'adj' && prev.pos !== 'noun' && prev.pos !== 'det')) {
           issues.push({
             index: i, type: 'article-missing', soft: true,
-            ta: '"' + tg.raw + '" — முன்னால் "a / an / the" தேவைப்படலாம். தமிழில் இச்சொற்கள் இல்லாததால் இது அடிக்கடி விடுபடும்.',
+            ta: '"' + tg.raw + '" may need "a / an / the" in front. Tamil has no articles, so these are easy to miss.',
             from: tg.raw, to: (startsVowelSound(tg.w) ? 'an ' : 'a ') + tg.raw
           });
         }
@@ -370,7 +370,7 @@ TB.Check = (function () {
     /* repeated word */
     for (i = 1; i < tags.length; i++) {
       if (tags[i].w && tags[i].w === tags[i - 1].w && tags[i].pos !== 'punct') {
-        push(i, 'repeat', 'சொல் இரண்டு முறை வந்துள்ளது.', tags[i].raw, '');
+        push(i, 'repeat', 'This word appears twice.', tags[i].raw, '');
         fixed[i] = '';
       }
     }
@@ -380,7 +380,7 @@ TB.Check = (function () {
     if (lastTok && !/[.!?]/.test(lastTok)) {
       var isQ = a.type.en.indexOf('question') >= 0;
       issues.push({ index: a.tokens.length, type: 'punctuation', soft: true,
-        ta: 'வாக்கியத்தின் முடிவில் ' + (isQ ? '"?"' : '"."') + ' சேர்க்கவும்.',
+        ta: 'Add ' + (isQ ? 'a "?"' : 'a full stop') + ' at the end of the sentence.',
         from: '', to: isQ ? '?' : '.' });
       fixed.push(isQ ? '?' : '.');
     }
@@ -419,8 +419,8 @@ TB.Check = (function () {
           original: sentence, corrected: sentence, changed: false,
           issues: [], spelling: [], analysis: a, clean: true,
           note: lang === 'ta'
-            ? 'தமிழ் வாக்கியத்திற்கு இலக்கண பகுப்பாய்வு மட்டும் — தானியங்கி திருத்தம் இல்லை.'
-            : 'इस वाक्य का विश्लेषण — स्वचालित सुधार नहीं.'
+            ? 'Grammar analysis only for Tamil — no automatic correction.'
+            : 'Analysis only for Hindi — no automatic correction.'
         };
       }
       return checkEnglish(sentence);

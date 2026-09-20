@@ -48,7 +48,7 @@ TB.Store = (function () {
       stats: { xp: 0, streak: 0, lastActive: null, practiced: 0, translated: 0 },
       prefs: {
         theme: 'dark', rate: 0.85, pitch: 1, voiceTa: '', voiceEn: '', voiceHi: '',
-        autoSpeak: true, showRoman: true, target: 'en', ui: 'ta'
+        autoSpeak: true, showRoman: true, target: 'ta'
       }
     };
   }
@@ -179,7 +179,7 @@ TB.Store = (function () {
 
     importData: function (userId, json) {
       var parsed = JSON.parse(json);
-      if (!parsed || !parsed.data) throw new Error('இந்தக் கோப்பு சரியான காப்புப் பிரதி அல்ல.');
+      if (!parsed || !parsed.data) throw new Error('That file is not a valid backup.');
       var d = api.data(userId);
       var inc = parsed.data;
       if (Array.isArray(inc.history)) {

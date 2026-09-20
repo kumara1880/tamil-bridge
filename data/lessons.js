@@ -7,8 +7,8 @@ TB.LESSONS = [
   {
     id: 'u01',
     title: { ta: 'அறிமுகம் — உன்னைப் பற்றி சொல்', en: 'Introducing yourself' },
-    goal: 'உங்கள் பெயர், ஊர், வேலை ஆகியவற்றை ஆங்கிலத்திலும் இந்தியிலும் சொல்லக் கற்றுக்கொள்ளுங்கள்.',
-    grammar: 'ஆங்கிலத்தில் "am / is / are" என்பது தமிழின் "இருக்கிறேன்/ஆவேன்" போன்றது — ஆனால் தமிழில் பெரும்பாலும் விடுபடும். "நான் குமார்" என்பதை ஆங்கிலத்தில் "I Kumar" எனச் சொல்ல முடியாது; "I **am** Kumar" எனச் சொல்ல வேண்டும். இந்தியில் இது "हूँ" (hūṁ).',
+    goal: 'Say your name, where you are from and what you do — in English and in Hindi.',
+    grammar: 'English "am / is / are" does the job of Tamil "இருக்கிறேன் / ஆவேன்" — but Tamil usually leaves it out. "நான் குமார்" cannot become "I Kumar"; you must say "I **am** Kumar". In Hindi this word is **हूँ**.',
     lines: [
       { ta: 'என் பெயர் குமார்.', en: 'My name is Kumar.', hi: 'मेरा नाम कुमार है।',
         gloss: [['என்', 'my', 'मेरा'], ['பெயர்', 'name', 'नाम'], ['—', 'is', 'है'], ['குமார்', 'Kumar', 'कुमार']] },
@@ -24,16 +24,16 @@ TB.LESSONS = [
         gloss: [['உங்களை', 'you', 'आपसे'], ['சந்தித்ததில்', 'to meet', 'मिलकर'], ['மகிழ்ச்சி', 'nice/happy', 'खुशी']] }
     ],
     quiz: [
-      { q: '"I ___ a teacher." — சரியான சொல்?', opts: ['am', 'is', 'are', 'be'], a: 0, why: 'I-உடன் எப்போதும் "am".' },
-      { q: '"मैं छात्र ___।" — இந்தியில் நிரப்பவும்', opts: ['है', 'हूँ', 'हैं', 'हो'], a: 1, why: 'मैं (நான்)-உடன் "हूँ".' }
+      { q: '"I ___ a teacher." — which word fits?', opts: ['am', 'is', 'are', 'be'], a: 0, why: 'With "I" it is always "am".' },
+      { q: '"मैं छात्र ___।" — fill in the Hindi word', opts: ['है', 'हूँ', 'हैं', 'हो'], a: 1, why: 'मैं (I) always takes हूँ.' }
     ]
   },
 
   {
     id: 'u02',
     title: { ta: 'கேள்வி கேட்பது', en: 'Asking questions' },
-    goal: 'என்ன, எங்கே, யார், எப்போது, ஏன், எப்படி — ஐந்து மொழிகளிலும் கேள்வி கேட்பது.',
-    grammar: 'தமிழில் கேள்விச் சொல் வாக்கியத்தின் நடுவில் இருக்கலாம். ஆங்கிலத்தில் கேள்விச் சொல் **எப்போதும் முதலில்** வரும், அதற்குப் பின் துணைவினை (is/do/can) வரும்: "Where **are** you going?" இந்தியில் கேள்விச் சொல் வினைக்கு முன் வரும்.',
+    goal: 'Ask questions: what, where, who, when, why and how.',
+    grammar: 'In Tamil the question word can sit in the middle of a sentence. In English it **always comes first**, followed by the auxiliary: "Where **are** you going?" In Hindi it goes just before the verb.',
     lines: [
       { ta: 'இது என்ன?', en: 'What is this?', hi: 'यह क्या है?',
         gloss: [['இது', 'this', 'यह'], ['என்ன', 'what', 'क्या'], ['—', 'is', 'है']] },
@@ -49,16 +49,16 @@ TB.LESSONS = [
         gloss: [['இது', 'this', 'यह'], ['எப்படி', 'how', 'कैसे'], ['வேலை செய்கிறது', 'does work', 'काम करता है']] }
     ],
     quiz: [
-      { q: 'சரியான வாக்கியம் எது?', opts: ['You are going where?', 'Where you are going?', 'Where are you going?', 'Where going you are?'], a: 2, why: 'கேள்விச்சொல் + துணைவினை + எழுவாய் + வினை.' },
-      { q: '"கब" என்பதன் பொருள்?', opts: ['எங்கே', 'எப்போது', 'ஏன்', 'யார்'], a: 1, why: 'कब = எப்போது = when.' }
+      { q: 'Which sentence is correct?', opts: ['You are going where?', 'Where you are going?', 'Where are you going?', 'Where going you are?'], a: 2, why: 'Question word + auxiliary + subject + verb.' },
+      { q: 'What does "कब" mean?', opts: ['where', 'when', 'why', 'who'], a: 1, why: 'कब = when.' }
     ]
   },
 
   {
     id: 'u03',
     title: { ta: 'நிகழ்காலம் — தினசரி பழக்கம்', en: 'Present simple' },
-    goal: 'தினமும் செய்யும் செயல்களைச் சொல்வது.',
-    grammar: 'மிக முக்கியம்: ஆங்கிலத்தில் **he / she / it**-உடன் வினைச்சொல்லில் **-s** சேர்க்க வேண்டும். "He go" தவறு; "He go**es**" சரி. தமிழில் இப்படி ஒரு விதி இல்லாததால் இது அடிக்கடி விடுபடும். இந்தியில் பாலினத்திற்கேற்ப करता है / करती है என மாறும்.',
+    goal: 'Talk about what you do every day.',
+    grammar: 'The big one: with **he / she / it** you must add **-s** to the verb. "He go" is wrong; "He go**es**" is right. Tamil has no such rule, which is why this is the most commonly missed point. Hindi instead changes the verb for gender: करता है / करती है.',
     lines: [
       { ta: 'நான் தினமும் பள்ளிக்குச் செல்கிறேன்.', en: 'I go to school every day.', hi: 'मैं रोज़ स्कूल जाता हूँ।',
         gloss: [['நான்', 'I', 'मैं'], ['தினமும்', 'every day', 'रोज़'], ['பள்ளிக்கு', 'to school', 'स्कूल'], ['செல்கிறேன்', 'go', 'जाता हूँ']] },
@@ -74,16 +74,16 @@ TB.LESSONS = [
         gloss: [['நான்', 'I', 'मैं'], ['இறைச்சி', 'meat', 'मांस'], ['இல்லை', 'do not', 'नहीं'], ['சாப்பிடு', 'eat', 'खाता']] }
     ],
     quiz: [
-      { q: 'சரியானது எது?', opts: ['She go to work.', 'She goes to work.', 'She going to work.', 'She gone to work.'], a: 1, why: 'she → வினையில் -s/-es சேர்க்க வேண்டும்.' },
-      { q: 'மறுப்பு வடிவம்: "He plays." →', opts: ['He not plays.', 'He does not plays.', 'He does not play.', 'He do not play.'], a: 2, why: 'does ஏற்கனவே -s சுமக்கிறது, எனவே main verb அடிப்படை வடிவம்.' }
+      { q: 'Which one is correct?', opts: ['She go to work.', 'She goes to work.', 'She going to work.', 'She gone to work.'], a: 1, why: 'With "she" the verb needs -s / -es.' },
+      { q: 'Negative form of "He plays." →', opts: ['He not plays.', 'He does not plays.', 'He does not play.', 'He do not play.'], a: 2, why: '"does" already carries the -s, so the main verb stays in its base form.' }
     ]
   },
 
   {
     id: 'u04',
     title: { ta: 'நிகழ்கால தொடர் — இப்போது நடப்பது', en: 'Present continuous' },
-    goal: 'இந்த நொடியில் நடக்கும் செயலைச் சொல்வது.',
-    grammar: 'வடிவம்: **am / is / are + வினை + ing**. தமிழ் "-கொண்டிருக்கிறேன்" போன்றது. இந்தியில்: **रहा / रही / रहे + हूँ/है/हैं**.',
+    goal: 'Say what is happening right now.',
+    grammar: 'Form: **am / is / are + verb + ing**. It works like the Tamil ending "-கொண்டிருக்கிறேன்". In Hindi: **रहा / रही / रहे + हूँ / है / हैं**.',
     lines: [
       { ta: 'நான் சாப்பிட்டுக் கொண்டிருக்கிறேன்.', en: 'I am eating.', hi: 'मैं खा रहा हूँ।',
         gloss: [['நான்', 'I', 'मैं'], ['—', 'am', 'हूँ'], ['சாப்பிட்டுக் கொண்டிருக்கிறேன்', 'eating', 'खा रहा']] },
@@ -99,16 +99,16 @@ TB.LESSONS = [
         gloss: [['அவர்கள்', 'they', 'वे'], ['வேலை', 'work', 'काम'], ['செய்யவில்லை', 'are not working', 'नहीं कर रहे हैं']] }
     ],
     quiz: [
-      { q: '"நான் எழுதிக் கொண்டிருக்கிறேன்" =', opts: ['I write.', 'I am write.', 'I am writing.', 'I writing.'], a: 2, why: 'am + verb-ing.' },
-      { q: 'இந்தியில் பெண் பேசும்போது: "मैं जा ___ हूँ।"', opts: ['रहा', 'रही', 'रहे', 'रहो'], a: 1, why: 'பெண்பால் → रही.' }
+      { q: '"I am writing" in English is —', opts: ['I write.', 'I am write.', 'I am writing.', 'I writing.'], a: 2, why: 'am + verb-ing.' },
+      { q: 'A girl speaking Hindi: "मैं जा ___ हूँ।"', opts: ['रहा', 'रही', 'रहे', 'रहो'], a: 1, why: 'Feminine → रही.' }
     ]
   },
 
   {
     id: 'u05',
     title: { ta: 'இறந்த காலம்', en: 'Past simple' },
-    goal: 'நேற்று நடந்ததைச் சொல்வது.',
-    grammar: 'வழக்கமான வினைகளுக்கு **-ed** சேர்க்கவும் (walk → walked). ஆனால் பல வினைகள் ஒழுங்கற்றவை: go → **went**, eat → **ate**, see → **saw**. இவற்றை மனப்பாடம் செய்ய வேண்டும். இந்தியில்: गया / गई / किया.',
+    goal: 'Talk about what happened yesterday.',
+    grammar: 'Regular verbs add **-ed** (walk → walked). Many common verbs are irregular and must simply be memorised: go → **went**, eat → **ate**, see → **saw**. In Hindi: गया / गई / किया.',
     lines: [
       { ta: 'நான் நேற்று சந்தைக்குச் சென்றேன்.', en: 'I went to the market yesterday.', hi: 'मैं कल बाज़ार गया।',
         gloss: [['நான்', 'I', 'मैं'], ['நேற்று', 'yesterday', 'कल'], ['சந்தைக்கு', 'to the market', 'बाज़ार'], ['சென்றேன்', 'went', 'गया']] },
@@ -124,16 +124,16 @@ TB.LESSONS = [
         gloss: [['அவர்கள்', 'they', 'वे'], ['நேற்று', 'yesterday', 'कल'], ['வந்தார்கள்', 'came', 'आए']] }
     ],
     quiz: [
-      { q: '"go"-வின் இறந்த காலம்?', opts: ['goed', 'gone', 'went', 'going'], a: 2, why: 'go → went (ஒழுங்கற்றது).' },
-      { q: 'சரியானது: "He did not ___ ."', opts: ['came', 'come', 'comes', 'coming'], a: 1, why: 'did ஏற்கனவே காலத்தைக் காட்டுகிறது → அடிப்படை வடிவம்.' }
+      { q: 'What is the past tense of "go"?', opts: ['goed', 'gone', 'went', 'going'], a: 2, why: 'go → went (irregular).' },
+      { q: 'Correct: "He did not ___ ."', opts: ['came', 'come', 'comes', 'coming'], a: 1, why: '"did" already shows the tense, so use the base form.' }
     ]
   },
 
   {
     id: 'u06',
     title: { ta: 'எதிர்காலம்', en: 'Future tense' },
-    goal: 'நாளை செய்யப் போவதைச் சொல்வது.',
-    grammar: '**will + வினை** (அடிப்படை வடிவம்). "will goes" தவறு. திட்டமிட்ட செயலுக்கு "am going to + verb". இந்தியில்: -गा (ஆண்) / -गी (பெண்) / -गे (பன்மை).',
+    goal: 'Talk about what you will do tomorrow.',
+    grammar: '**will + base verb**. "will goes" is wrong. For something already planned, use "am going to + verb". In Hindi the ending follows gender: -गा (m), -गी (f), -गे (plural).',
     lines: [
       { ta: 'நான் நாளை வருவேன்.', en: 'I will come tomorrow.', hi: 'मैं कल आऊँगा।',
         gloss: [['நான்', 'I', 'मैं'], ['நாளை', 'tomorrow', 'कल'], ['வருவேன்', 'will come', 'आऊँगा']] },
@@ -149,16 +149,16 @@ TB.LESSONS = [
         gloss: [['நீங்கள்', 'you', 'आप'], ['எப்போது', 'when', 'कब'], ['புறப்படுவீர்கள்', 'will leave', 'निकलेंगे']] }
     ],
     quiz: [
-      { q: 'சரியானது எது?', opts: ['She will goes.', 'She will go.', 'She will going.', 'She will went.'], a: 1, why: 'will-க்குப் பின் எப்போதும் அடிப்படை வடிவம்.' },
-      { q: 'ஆண் பேசும்போது: "मैं कल ___।"', opts: ['आऊँगी', 'आऊँगा', 'आऊँगे', 'आया'], a: 1, why: 'ஆண்பால் எதிர்காலம் → -गा.' }
+      { q: 'Which one is correct?', opts: ['She will goes.', 'She will go.', 'She will going.', 'She will went.'], a: 1, why: 'After "will" the verb is always in its base form.' },
+      { q: 'A boy speaking Hindi: "मैं कल ___।"', opts: ['आऊँगी', 'आऊँगा', 'आऊँगे', 'आया'], a: 1, why: 'Masculine future → -गा.' }
     ]
   },
 
   {
     id: 'u07',
     title: { ta: 'a / an / the — தமிழில் இல்லாத சொற்கள்', en: 'Articles' },
-    goal: 'தமிழ் பேசுபவர்களின் மிகப் பெரிய ஆங்கிலப் பிழையைச் சரிசெய்வது.',
-    grammar: 'தமிழில் "a / an / the" என எதுவும் இல்லை — அதனால் இவை அடிக்கடி விடுபடுகின்றன. விதி: முதன்முறை குறிப்பிடும் ஒருமைப் பெயர்ச்சொல்லுக்கு **a/an**; ஏற்கனவே தெரிந்த ஒன்றுக்கு **the**. உயிர் ஒலியில் தொடங்கினால் **an** (an apple, an hour). இந்தியிலும் "the" இல்லை — ஆனால் "एक" = a.',
+    goal: 'Fix the single most common mistake Tamil speakers make in English.',
+    grammar: 'Tamil has no "a / an / the" at all, so these words get dropped. The rule: **a/an** the first time you mention one thing, **the** once it is already known. Use **an** before a vowel sound (an apple, an hour). Hindi has no "the" either, though एक works like "a".',
     lines: [
       { ta: 'எனக்கு ஒரு புத்தகம் வேண்டும்.', en: 'I want a book.', hi: 'मुझे एक किताब चाहिए।',
         gloss: [['எனக்கு', 'I', 'मुझे'], ['ஒரு', 'a', 'एक'], ['புத்தகம்', 'book', 'किताब'], ['வேண்டும்', 'want', 'चाहिए']] },
@@ -174,16 +174,16 @@ TB.LESSONS = [
         gloss: [['அவள்', 'she', 'उसने'], ['ஒரு மணி நேரம்', 'an hour', 'एक घंटा'], ['காத்திருந்தாள்', 'waited', 'इंतज़ार किया']] }
     ],
     quiz: [
-      { q: '"___ hour" — சரியானது?', opts: ['a', 'an', 'the', 'எதுவும் வேண்டாம்'], a: 1, why: 'hour-இல் h ஒலிக்காது, உயிர் ஒலியில் தொடங்குகிறது → an.' },
-      { q: '"I am ___ engineer."', opts: ['a', 'an', 'the', '—'], a: 1, why: 'engineer உயிர் ஒலியில் தொடங்குகிறது → an.' }
+      { q: '"___ hour" — which is correct?', opts: ['a', 'an', 'the', 'nothing'], a: 1, why: 'The h in "hour" is silent, so it begins with a vowel sound → an.' },
+      { q: '"I am ___ engineer."', opts: ['a', 'an', 'the', '—'], a: 1, why: '"engineer" begins with a vowel sound → an.' }
     ]
   },
 
   {
     id: 'u08',
     title: { ta: 'இடம் காட்டும் சொற்கள் — in / on / at', en: 'Prepositions' },
-    goal: 'ஆங்கிலத்தில் முன்னொட்டு, தமிழ்/இந்தியில் பின்னொட்டு.',
-    grammar: 'முக்கியமான வேறுபாடு: தமிழில் "மேசை**யில்**" — சொல்லுக்குப் **பின்** ஒட்டு. ஆங்கிலத்தில் "**on** the table" — சொல்லுக்கு **முன்**. இந்தி தமிழ் போலவே பின்னால்: "मेज़ **पर**".',
+    goal: 'Say where something is.',
+    grammar: 'The key difference: Tamil attaches the marker **after** the word — "மேசை**யில்**". English puts it **before** — "**on** the table". Hindi works like Tamil and puts it after: "मेज़ **पर**".',
     lines: [
       { ta: 'புத்தகம் மேசையில் உள்ளது.', en: 'The book is on the table.', hi: 'किताब मेज़ पर है।',
         gloss: [['மேசை', 'table', 'मेज़'], ['-யில்', 'on', 'पर']] },
@@ -199,16 +199,16 @@ TB.LESSONS = [
         gloss: [['-இலிருந்து', 'from', 'से']] }
     ],
     quiz: [
-      { q: '"I live ___ Chennai."', opts: ['on', 'at', 'in', 'to'], a: 2, why: 'நகரங்களுக்கு in.' },
-      { q: '"The pen is ___ the bag."', opts: ['in', 'on', 'at', 'of'], a: 0, why: 'உள்ளே இருந்தால் in.' }
+      { q: '"I live ___ Chennai."', opts: ['on', 'at', 'in', 'to'], a: 2, why: 'Cities take "in".' },
+      { q: '"The pen is ___ the bag."', opts: ['in', 'on', 'at', 'of'], a: 0, why: 'If it is inside something, use "in".' }
     ]
   },
 
   {
     id: 'u09',
     title: { ta: 'பணிவான கோரிக்கை', en: 'Polite requests' },
-    goal: 'கடை, அலுவலகம், பயணத்தில் பணிவாகக் கேட்பது.',
-    grammar: '"Can you…" சாதாரணம், "Could you…" மிகப் பணிவானது. "Please" முன்னாலோ பின்னாலோ வரலாம். இந்தியில் आप + कीजिए / सकते हैं.',
+    goal: 'Ask for things politely — in a shop, an office, or while travelling.',
+    grammar: '"Can you…" is normal; "Could you…" is more polite. "Please" can go at the start or the end. In Hindi use आप with कीजिए or सकते हैं.',
     lines: [
       { ta: 'தயவுசெய்து எனக்கு உதவ முடியுமா?', en: 'Could you help me, please?', hi: 'क्या आप मेरी मदद कर सकते हैं?',
         gloss: [['முடியுமா', 'could', 'सकते हैं'], ['உதவ', 'help', 'मदद']] },
@@ -224,16 +224,16 @@ TB.LESSONS = [
         gloss: [['விலை', 'cost/price', 'कीमत'], ['என்ன', 'how much/what', 'क्या']] }
     ],
     quiz: [
-      { q: 'மிகப் பணிவான வடிவம்?', opts: ['Give me water.', 'I want water.', 'Could you give me some water, please?', 'Water!'], a: 2, why: 'Could + please = அதிக பணிவு.' },
-      { q: '"मुझे समझ नहीं आया" =', opts: ['எனக்குத் தெரியும்', 'எனக்குப் புரியவில்லை', 'நான் வருகிறேன்', 'நன்றி'], a: 1, why: 'समझ = புரிதல்.' }
+      { q: 'Which is the most polite?', opts: ['Give me water.', 'I want water.', 'Could you give me some water, please?', 'Water!'], a: 2, why: 'Could + please is the most polite combination.' },
+      { q: '"मुझे समझ नहीं आया" means —', opts: ['I know', 'I do not understand', 'I am coming', 'thank you'], a: 1, why: 'समझ means "understanding".' }
     ]
   },
 
   {
     id: 'u10',
     title: { ta: 'நிஜ வாழ்க்கை — கடை, மருத்துவர், வழி', en: 'Real-life situations' },
-    goal: 'அன்றாடத் தேவைகளை மூன்று மொழிகளிலும் கையாள்வது.',
-    grammar: 'இங்கே கற்ற அனைத்தையும் சேர்த்துப் பயன்படுத்துகிறோம் — கேள்வி வடிவம், பணிவு, காலம்.',
+    goal: 'Handle everyday situations in all three languages.',
+    grammar: 'This unit combines everything so far — question forms, politeness and tense.',
     lines: [
       { ta: 'ரயில் நிலையம் எங்கே உள்ளது?', en: 'Where is the railway station?', hi: 'रेलवे स्टेशन कहाँ है?',
         gloss: [['எங்கே', 'where', 'कहाँ'], ['நிலையம்', 'station', 'स्टेशन']] },
@@ -249,8 +249,8 @@ TB.LESSONS = [
         gloss: [['தேவை', 'need', 'चाहिए'], ['உதவி', 'help', 'मदद']] }
     ],
     quiz: [
-      { q: '"I have a headache" =', opts: ['எனக்கு காய்ச்சல்', 'எனக்குத் தலைவலி', 'எனக்குப் பசி', 'எனக்குத் தூக்கம்'], a: 1, why: 'headache = தலைவலி.' },
-      { q: '"यह बहुत महँगा है" =', opts: ['இது மலிவானது', 'இது விலை அதிகம்', 'இது புதியது', 'இது பெரியது'], a: 1, why: 'महँगा = விலை உயர்ந்த.' }
+      { q: '"I have a headache" means —', opts: ['I have a fever', 'I have a headache', 'I am hungry', 'I am sleepy'], a: 1, why: 'A headache is a pain in the head.' },
+      { q: '"यह बहुत महँगा है" means —', opts: ['This is cheap', 'This is expensive', 'This is new', 'This is big'], a: 1, why: 'महँगा means expensive.' }
     ]
   }
 ];

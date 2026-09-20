@@ -460,3 +460,57 @@ a { color: var(--blue); }
 }
 
 @media print { .side, .topbar { display: none; } }
+
+/* Tamil reading aid: small, sitting under the English/Hindi it supports. */
+.w-gloss {
+  font-family: var(--tamil);
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.w-gloss .w-r { font-size: 11px; color: var(--text-mute); font-style: italic; }
+.card-sub.ta { font-family: var(--tamil); font-size: 12px; }
+
+/* ---------------------------------------------------- writing practice */
+.trace-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: center; }
+.trace-model {
+  font-size: 150px; line-height: 1.1; text-align: center; font-weight: 600;
+  background: var(--panel-2); border-radius: var(--radius); padding: 18px 8px;
+}
+.trace-pad { position: relative; width: 100%; aspect-ratio: 1; max-width: 440px; margin: 0 auto; }
+.trace-ghost {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 260px; line-height: 1; color: var(--line); pointer-events: none;
+  user-select: none; opacity: .75;
+}
+.trace-pad canvas {
+  position: relative; width: 100%; height: 100%;
+  border: 2px dashed var(--line); border-radius: var(--radius);
+  background: transparent; touch-action: none; cursor: crosshair;
+}
+.spell-in {
+  width: 100%; max-width: 380px; margin: 14px auto 0; display: block;
+  padding: 13px 16px; font-size: 26px; text-align: center;
+  border-radius: var(--radius-sm); border: 2px solid var(--line);
+  background: var(--bg-soft); color: var(--text); outline: none;
+}
+.spell-in:focus { border-color: var(--accent); }
+
+/* ------------------------------------------------------ read-aloud player */
+.reader-line {
+  padding: 7px 11px; border-radius: 8px; margin-bottom: 3px;
+  transition: background .15s, color .15s; cursor: pointer; line-height: 1.7;
+}
+.reader-line:hover { background: var(--panel-2); }
+.reader-line.now {
+  background: var(--accent-dim); color: var(--accent-2);
+  font-weight: 600; box-shadow: inset 3px 0 0 var(--accent);
+}
+:root[data-theme="light"] .reader-line.now { color: var(--accent); }
+
+@media (max-width: 760px) {
+  .trace-wrap { grid-template-columns: 1fr; }
+  .trace-model { font-size: 96px; }
+  .trace-ghost { font-size: 180px; }
+}

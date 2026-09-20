@@ -47,11 +47,11 @@ TB.OCR = (function () {
       s.async = true;
       s.onload = function () {
         if (window.Tesseract) resolve(window.Tesseract);
-        else reject(new Error('Tesseract ஏற்ற முடியவில்லை.'));
+        else reject(new Error('Could not load Tesseract.'));
       };
       s.onerror = function () {
         loading = null;
-        reject(new Error('படக் கருவியைப் பதிவிறக்க முடியவில்லை. இணைய இணைப்பைச் சரிபார்க்கவும்.'));
+        reject(new Error('Could not download the image engine. Check your internet connection.'));
       };
       document.head.appendChild(s);
     });
@@ -77,7 +77,7 @@ TB.OCR = (function () {
       };
       img.onerror = function () {
         URL.revokeObjectURL(url);
-        reject(new Error('இந்தப் படத்தைப் படிக்க முடியவில்லை.'));
+        reject(new Error('Could not read that image.'));
       };
       img.src = url;
     });
@@ -85,7 +85,7 @@ TB.OCR = (function () {
 
   var api = {
     PACKS: PACKS,
-    packLabel: function (p) { return PACKS[p] ? PACKS[p].ta : p; },
+    packLabel: function (p) { return PACKS[p] ? PACKS[p].en : p; },
     packToLang: function (p) { return PACKS[p] ? PACKS[p].code : 'en'; },
 
     /* langs: array of Tesseract pack names, e.g. ['eng','tam'] */
@@ -100,11 +100,11 @@ TB.OCR = (function () {
             logger: function (m) {
               if (onProgress && m && m.status) {
                 var label = {
-                  'loading tesseract core': 'கருவியை ஏற்றுகிறது…',
-                  'loading language traineddata': 'மொழித் தரவை ஏற்றுகிறது…',
-                  'initializing tesseract': 'தயார் செய்கிறது…',
-                  'initializing api': 'தயார் செய்கிறது…',
-                  'recognizing text': 'எழுத்துகளைப் படிக்கிறது…'
+                  'loading tesseract core': 'Loading the engine…',
+                  'loading language traineddata': 'Loading language data…',
+                  'initializing tesseract': 'Getting ready…',
+                  'initializing api': 'Getting ready…',
+                  'recognizing text': 'Reading the text…'
                 }[m.status] || m.status;
                 onProgress(label, Math.round((m.progress || 0) * 100));
               }
