@@ -534,3 +534,11 @@ a { color: var(--blue); }
 .hi-read { font-size: 12px; margin-top: 2px; line-height: 1.5; }
 .hi-rom { color: var(--teal); font-style: italic; }
 .hi-tam { font-family: var(--tamil); color: var(--text-dim); }
+
+/* phrasebook */
+.phrase { padding: 12px 0; border-top: 1px solid var(--line-soft); transition: background .15s; }
+.phrase:first-of-type { border-top: 0; }
+.phrase.now { background: var(--accent-dim); border-radius: 9px; padding-left: 10px; padding-right: 10px; }
+.ph-en { font-size: 16px; font-weight: 650; }
+.ph-hi { font-size: 19px; margin-top: 3px; }
+.ph-actions { display: flex; gap: 2px; flex: none; }

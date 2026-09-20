@@ -93,6 +93,7 @@ TB.Views = (function () {
       +     quick('#/tutor', '🧠', 'Sentence Explainer', 'Grammar + tense')
       +     quick('#/photo', '📷', 'Photo Translate', 'From a photo')
       +     quick('#/speak', '🎤', 'Pronunciation', 'Get a score')
+      +     quick('#/phrases', '💬', 'Phrasebook', 'Say it today')
       +     quick('#/alphabet', '🔡', 'Alphabet', '247 + varnamala')
       +   '</div>'
       + '</div>'
