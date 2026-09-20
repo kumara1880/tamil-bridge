@@ -34,8 +34,21 @@ TB.Dict = (function () {
        "cat" keys to "sat", which would otherwise match Hindi सात (seven).
        Only fall through to it when the input is not itself a known word. */
     if (!hit && lang === 'en' && !TB.LEX.en[lower] && !(TB.Check && TB.Check.known(lower))) {
+      /* First the exact route: spell the romanisation back into its own
+         script ("naai" -> நாய்) and look that up. Only if nothing is found
+         fall back to the phonetic key, which is lossy enough that two
+         different words can share one. */
+      ['ta', 'hi'].some(function (L) {
+        var native = TB.Translit.lookup(w, L);
+        if (native) {
+          hit = TB.IDX[L][native] || null;
+          if (hit) return true;
+        }
+        return false;
+      });
+
       var key = TB.Translit.phKey(w);
-      if (key && key.length >= 3) {
+      if (!hit && key && key.length >= 3) {
         /* Tamil romanisation first, then English, then Hindi. */
         ['taR', 'en', 'hiR'].some(function (field) {
           for (var i = 0; i < TB.VOCAB.length; i++) {
@@ -43,11 +56,9 @@ TB.Dict = (function () {
           }
           return false;
         });
-        /* still nothing: let the transliterator turn it into native script
-           ("poonai" -> பூனை) and look that up instead */
         if (!hit) {
           ['ta', 'hi'].some(function (L) {
-            var native = TB.Translit.lookup(w, L);
+            var native = TB.Translit.to(w, L);
             if (native) {
               hit = TB.IDX[L][native] || null;
               if (hit) return true;

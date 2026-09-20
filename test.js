@@ -15,9 +15,9 @@ ctx.speechSynthesis = { getVoices: () => [], speak() {}, cancel() {}, addEventLi
 ctx.document = { addEventListener() {}, head: { appendChild() {} }, createElement: () => ({}) };
 vm.createContext(ctx);
 
-['data/vocab.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
+['data/vocab.js','data/vocab2.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
  'data/phrases.js','data/lexicon.js',
- 'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/translate.js',
+ 'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/tutor.js','js/check.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
@@ -31,7 +31,7 @@ const section = s => console.log('\n' + s);
 
 /* ---------------- data integrity ---------------- */
 section('DATA');
-t('vocab 201', TB.VOCAB.length === 201, TB.VOCAB.length);
+t('vocab loaded', TB.VOCAB.length >= 3000, TB.VOCAB.length);
 t('all vocab fields present', TB.VOCAB.every(w => w.ta && w.en && w.hi && w.taR && w.hiR && w.enTa && w.hiTa && w.th && w.id));
 t('vocab ids unique', new Set(TB.VOCAB.map(w => w.id)).size === TB.VOCAB.length);
 t('every theme has words', TB.THEMES.every(th => TB.VOCAB.some(w => w.th === th.id)));
@@ -52,6 +52,44 @@ t('lesson ids are unique',
 t('every lesson line is trilingual', TB.LESSONS.every(u => u.lines.every(l => l.ta && l.en && l.hi)));
 t('every quiz answer index is valid',
   TB.LESSONS.every(u => u.quiz.every(q => q.a >= 0 && q.a < q.opts.length && q.why)));
+
+/* ---------------- vocabulary ---------------- */
+section('VOCABULARY');
+(function () {
+  var V = TB.VOCAB;
+  t('3000+ words', V.length >= 3000, V.length);
+  t('every word is trilingual',
+    V.every(function (w) { return w.en && w.ta && w.hi; }));
+  t('every word has a level 1-3',
+    V.every(function (w) { return w.lv >= 1 && w.lv <= 3; }));
+  var themes = {};
+  TB.THEMES.forEach(function (x) { themes[x.id] = true; });
+  var orphan = V.filter(function (w) { return !themes[w.th]; });
+  t('every word has a real theme', orphan.length === 0,
+    orphan.slice(0, 3).map(function (w) { return w.en + '/' + w.th; }).join(','));
+  var seen = {}, dup = [];
+  V.forEach(function (w) {
+    var k = w.en.toLowerCase();
+    if (seen[k]) dup.push(w.en); else seen[k] = 1;
+  });
+  t('no duplicate headwords', dup.length === 0, dup.slice(0, 5).join(','));
+  /* a stray Latin letter inside a Tamil or Hindi word is invisible when you
+     read it but silently breaks the reader, the voice and the search */
+  var mixed = V.filter(function (w) {
+    return /[^஀-௿\s.,!?()-]/.test(w.ta) ||
+           /[^ऀ-ॿ\s.,!?()-]/.test(w.hi);
+  });
+  t('no mixed scripts', mixed.length === 0,
+    mixed.slice(0, 3).map(function (w) { return w.en; }).join(','));
+  t('every word has an English pronunciation',
+    V.every(function (w) { return w.enIpa && w.enTa; }));
+  t('English sounds are written in Tamil letters',
+    V.every(function (w) { return /[஀-௿]/.test(w.enTa); }));
+  t('Tamil romanisation generates for all',
+    V.every(function (w) { return !!w.taR && !/[஀-௿]/.test(w.taR); }));
+  t('themes carry a word count',
+    TB.THEMES.every(function (x) { return x.n === undefined || x.n > 0; }));
+})();
 
 /* ---------------- Hindi readings ---------------- */
 section('HINDI READINGS (roman + Tamil)');

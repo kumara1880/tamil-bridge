@@ -14,6 +14,7 @@ TB.Check = (function () {
 
   var WORDS = null;
   var api_thirdPerson = null;
+  var lastRanked = null;   /* how suggest() ranked its last query */
 
   /* Missing-apostrophe contractions and words that must be capitalised. */
   var APOSTROPHE = {
@@ -34,6 +35,39 @@ TB.Check = (function () {
     june: 'June', july: 'July', august: 'August', september: 'September',
     october: 'October', november: 'November', december: 'December'
   };
+
+  /* Spelled the way it sounds. Edit distance ranks "stool" above "school"
+     for "skool" and "fine" above "phone" for "fone", because it counts
+     letters and the learner was listening. These are the ones that come up
+     again and again; they are checked before the distance search. */
+  var SOUNDALIKE = {
+    skool: 'school', shool: 'school', scool: 'school',
+    fone: 'phone', foto: 'photo', foot: 'foot',
+    nite: 'night', rite: 'right', lite: 'light', brite: 'bright',
+    wen: 'when', wat: 'what', wer: 'where', wich: 'which', wy: 'why',
+    becos: 'because', becoz: 'because', bcoz: 'because', bcos: 'because',
+    thru: 'through', tho: 'though', altho: 'although',
+    cud: 'could', shud: 'should', wud: 'would', wuld: 'would',
+    plz: 'please', pls: 'please', gud: 'good', luv: 'love',
+    ur: 'your', urs: 'yours', dis: 'this', dat: 'that', dere: 'there',
+    dey: 'they', dem: 'them', den: 'then', wid: 'with',
+    frm: 'from', abt: 'about', bcum: 'become', bcame: 'became',
+    kum: 'come', kome: 'come', koming: 'coming', komming: 'coming',
+    riting: 'writing', riten: 'written', noe: 'know', nyc: 'nice',
+    tym: 'time', gonna: 'going', wanna: 'want',
+    hav: 'have', giv: 'give', liv: 'live', wil: 'will',
+    thanx: 'thanks', thx: 'thanks', congrats: 'congratulations',
+    exam: 'exam', enuf: 'enough', enuff: 'enough',
+    seperate: 'separate', definately: 'definitely', tommorow: 'tomorrow',
+    tomarrow: 'tomorrow', occassion: 'occasion', adress: 'address',
+    embarass: 'embarrass', accomodate: 'accommodate', untill: 'until',
+    alot: 'a lot', infront: 'in front', eventhough: 'even though'
+  };
+
+  /* Words a dictionary will accept but a learner almost never means. "cum"
+     is Latin, and a child writing it meant "come"; leaving it alone in a
+     children's app is worse than correcting it. */
+  var ALWAYS = { cum: 'come', cumming: 'coming', kum: 'come' };
 
   function buildWordList() {
     var set = Object.create(null);
@@ -59,13 +93,20 @@ TB.Check = (function () {
       var e = TB.LEX.en[w];
       if (e[0] !== 'verb' && e[0] !== 'noun' && e[0] !== 'adj') return;
       if (!/^[a-z]+$/.test(w)) return;
-      add(thirdPerson(w));
+      if (e[0] !== 'adj') add(thirdPerson(w));   /* not "beautifuls" */
       if (/[^aeiou]y$/.test(w)) add(w.slice(0, -1) + 'ied');
       if (e[0] === 'verb') {
         if (/e$/.test(w)) { add(w + 'd'); add(w.slice(0, -1) + 'ing'); }
         else { add(w + 'ed'); add(w + 'ing'); }
       }
-      if (e[0] === 'adj') { add(w + 'er'); add(w + 'est'); add(w + 'ly'); }
+      if (e[0] === 'adj') {
+        add(w + 'ly');
+        /* only short adjectives take -er/-est; longer ones use more/most,
+           so "beautifuler" is not a word and must not be offered as one */
+        if (w.length <= 6 && !/(ful|ous|ive|ic|al|ing|ed)$/.test(w)) {
+          add(w + 'er'); add(w + 'est');
+        }
+      }
     });
     /* third-person forms of irregular verbs: go -> goes, have -> has */
     Object.keys(TB.IRREGULAR || {}).forEach(function (base) { add(thirdPerson(base)); });
@@ -135,12 +176,49 @@ TB.Check = (function () {
     return !!WORDS[String(w).toLowerCase()];
   }
 
-  function lev(a, b) { return TB.Speech.levenshtein(a, b); }
+  /* Levenshtein counts a swapped pair as two edits, but "recieve" is one
+     slip of the fingers away from "receive", not two. Damerau counts it as
+     one, which is what lets a one-edit budget still catch real typos. */
+  function damerau(a, b) {
+    var m = a.length, n = b.length, i, j;
+    if (!m) return n;
+    if (!n) return m;
+    var d = [];
+    for (i = 0; i <= m; i++) { d[i] = [i]; }
+    for (j = 0; j <= n; j++) { d[0][j] = j; }
+    for (i = 1; i <= m; i++) {
+      for (j = 1; j <= n; j++) {
+        var cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        if (i > 1 && j > 1 &&
+            a.charAt(i - 1) === b.charAt(j - 2) &&
+            a.charAt(i - 2) === b.charAt(j - 1)) {
+          d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+        }
+      }
+    }
+    return d[m][n];
+  }
+
+  function lev(a, b) { return damerau(a, b); }
+
+  function shared(a, b, fromEnd) {
+    var n = Math.min(a.length, b.length), i = 0;
+    while (i < n) {
+      var x = fromEnd ? a.charAt(a.length - 1 - i) : a.charAt(i);
+      var y = fromEnd ? b.charAt(b.length - 1 - i) : b.charAt(i);
+      if (x !== y) break;
+      i++;
+    }
+    return i;
+  }
 
   function suggest(word, max) {
     if (!WORDS) buildWordList();
     var w = String(word).toLowerCase();
+    if (ALWAYS[w]) { lastRanked = [{ word: ALWAYS[w], d: 0, ends: 99 }]; return [ALWAYS[w]]; }
     if (!w || known(w)) return [];
+    if (SOUNDALIKE[w]) { lastRanked = [{ word: SOUNDALIKE[w], d: 0, ends: 99 }]; return [SOUNDALIKE[w]]; }
     if (w.length < 3) return [];
 
     /* Two guards against corrupting real words the list simply does not know —
@@ -156,10 +234,27 @@ TB.Check = (function () {
       if (k.charAt(0) !== w.charAt(0)) continue;
       if (Math.abs(k.length - w.length) > limit) continue;
       var d = lev(w, k);
-      if (d <= limit) out.push({ word: k, d: d });
+      if (d <= limit) {
+        /* A typo damages the middle of a word and leaves its ends alone, so
+           between two equally close candidates prefer the one that keeps
+           more of the start and the end: "enginer" is engineer, not engine. */
+        out.push({ word: k, d: d, ends: shared(w, k, false) + shared(w, k, true) });
+      }
     }
-    out.sort(function (a, b) { return a.d - b.d || a.word.length - b.word.length; });
+    out.sort(function (a, b) {
+      return a.d - b.d || b.ends - a.ends || a.word.length - b.word.length;
+    });
+    lastRanked = out;
     return out.slice(0, max || 4).map(function (o) { return o.word; });
+  }
+
+  /* True when one candidate is better than every other, not merely first in
+     a list of equals. This is what may be applied without being asked. */
+  function clearWinner(ranked) {
+    if (!ranked || !ranked.length) return false;
+    if (ranked.length === 1) return true;
+    var a = ranked[0], b = ranked[1];
+    return a.d < b.d || a.ends > b.ends;
   }
 
   /* ------------------------------------------------------- grammar checks */
@@ -203,9 +298,9 @@ TB.Check = (function () {
       var sug = suggest(low, 3);
       if (!sug.length) return raw;
 
-      /* Auto-apply only when one candidate stands clearly alone. With several
-         equally-close options we show them and leave the word untouched. */
-      var applied = sug.length === 1;
+      /* Auto-apply only when one candidate beats the rest outright. Where
+         several are equally good we show them and leave the word alone. */
+      var applied = clearWinner(lastRanked);
       found.push({ index: idx, word: raw, suggestions: sug, kind: 'spelling', applied: applied });
       if (!applied) return raw;
       var rep = sug[0];

@@ -253,7 +253,7 @@ TB.VOCAB = [
     tip: 'In cough, "gh" is pronounced like "f" — say "koff".' },
   { ta: 'ஓய்வு', taR: 'ōyvu', en: 'rest', enIpa: '/rest/', enTa: 'ரெஸ்ட்', hi: 'आराम', hiR: 'ārām', hiTa: 'ஆராம்', th: 'health', lv: 1 },
   { ta: 'உடற்பயிற்சி', taR: 'uṭaṟpayiṟci', en: 'exercise', enIpa: '/ˈeksərsaɪz/', enTa: 'எக்ஸர்ஸைஸ்', hi: 'व्यायाम', hiR: 'vyāyām', hiTa: 'வ்யாயாம்', th: 'health', lv: 2 },
-  { ta: 'தூக்கம்', taR: 'tūkkam', en: 'sleep', enIpa: '/sliːp/', enTa: 'ஸ்லீப்', hi: 'नींद', hiR: 'nīnd', hiTa: 'நீந்த்', th: 'health', lv: 1 },
+  { ta: 'தூக்கம்', taR: 'tūkkam', en: 'sleep noun', enIpa: '/sliːp/', enTa: 'ஸ்லீப்', hi: 'नींद', hiR: 'nīnd', hiTa: 'நீந்த்', th: 'health', lv: 1 },
 
   /* ---------- tech ---------- */
   { ta: 'தொலைபேசி', taR: 'tolaipēci', en: 'phone', enIpa: '/foʊn/', enTa: 'ஃபோன்', hi: 'फ़ोन', hiR: 'fon', hiTa: 'ஃபோன்', th: 'tech', lv: 1 },
