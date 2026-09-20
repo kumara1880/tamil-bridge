@@ -8,7 +8,11 @@ window.TB = window.TB || {};
 
 TB.OCR = (function () {
   var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  var LANG_PATH = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/';
+  /* Tesseract's own model host. An earlier build pointed this at
+     cdn.jsdelivr.net/npm/@tesseract.js-data/, which 404s for the
+     *.traineddata.gz files — OCR could never load a language and every photo
+     failed. Verified: tessdata.projectnaptha.com serves eng/tam/hin. */
+  var LANG_PATH = 'https://tessdata.projectnaptha.com/4.0.0';
   var loading = null;
 
   /* OCR pack -> { label, translateCode } */

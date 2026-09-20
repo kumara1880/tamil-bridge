@@ -121,9 +121,16 @@
       if (l.gloss && l.gloss.length) {
         h += '<div class="tok-line" style="margin:8px 0 0">';
         l.gloss.forEach(function (g) {
-          h += '<div class="tok"><div class="t-w ta" style="font-size:13px">' + esc(g[0]) + '</div>'
-             + '<div class="t-m" style="font-family:var(--ui)">' + esc(g[1]) + '</div>'
-             + '<div class="t-p hi">' + esc(g[2]) + '</div></div>';
+          /* gloss = [tamil, english, hindi]. English leads, Hindi follows with
+             its romanisation so it can actually be read, and Tamil sits last
+             as the small reading aid. */
+          var hiRoman = /[ऀ-ॿ]/.test(g[2]) ? TB.Translit.romanHindi(g[2]) : '';
+          h += '<div class="tok">'
+             + '<div class="t-w">' + esc(g[1]) + '</div>'
+             + '<div class="t-m hi">' + esc(g[2]) + '</div>'
+             + (hiRoman ? '<div class="t-r">' + esc(hiRoman) + '</div>' : '')
+             + '<div class="t-p ta">' + esc(g[0]) + '</div>'
+             + '</div>';
         });
         h += '</div>';
       }
@@ -161,15 +168,17 @@
         + '<div class="card"><div class="row">'
         +   '<span class="small muted">Prompt language:</span>'
         +   '<div class="pill-row" id="dirPills">'
-        +     '<button class="pill on" data-dir="en2ta" type="button">English → Tamil</button>'
+        +     '<button class="pill on" data-dir="en2hi" type="button">English → Hindi</button>'
+        +     '<button class="pill" data-dir="hi2en" type="button">Hindi → English</button>'
+        +     '<button class="pill" data-dir="en2ta" type="button">English → Tamil</button>'
         +     '<button class="pill" data-dir="ta2en" type="button">Tamil → English</button>'
-        +     '<button class="pill" data-dir="ta2hi" type="button">Tamil → हिंदी</button>'
-        +     '<button class="pill" data-dir="hi2ta" type="button">हिंदी → Tamil</button>'
+        +     '<button class="pill" data-dir="ta2hi" type="button">Tamil → Hindi</button>'
+        +     '<button class="pill" data-dir="hi2ta" type="button">Hindi → Tamil</button>'
         +   '</div></div></div>'
         + '<div id="pArea"></div></div>';
     },
     mount: function (root) {
-      var dir = 'en2ta';
+      var dir = 'en2hi';
       var queue = [], idx = 0, shown = false, correct = 0;
 
       function start() {
@@ -196,7 +205,9 @@
 
         var w = queue[idx];
         var pair = {
-          ta2en: ['ta', 'en'], en2ta: ['en', 'ta'], ta2hi: ['ta', 'hi'], hi2ta: ['hi', 'ta']
+          en2hi: ['en', 'hi'], hi2en: ['hi', 'en'],
+          ta2en: ['ta', 'en'], en2ta: ['en', 'ta'],
+          ta2hi: ['ta', 'hi'], hi2ta: ['hi', 'ta']
         }[dir];
         var qLang = pair[0], aLang = pair[1];
         var q = w[qLang], a = w[aLang];
@@ -207,6 +218,7 @@
           +   '<div class="tiny muted">' + langLabel(qLang) + ' → ' + langLabel(aLang) + '</div>'
           +   '<div class="prompt ' + qLang + '">' + esc(q) + speak(q, qLang) + '</div>'
           +   (qLang === 'ta' ? '<div class="tiny muted"><i>' + esc(w.taR) + '</i></div>' : '')
+          +   (qLang === 'hi' ? '<div class="tiny muted"><i>' + esc(w.hiR) + '</i></div>' : '')
           +   (qLang === 'en' && w.enIpa ? '<div class="tiny" style="color:var(--teal)">' + esc(w.enIpa) + '</div>' : '')
           +   (shown
               ? '<div class="answer ' + aLang + '">' + esc(a) + speak(a, aLang) + '</div>'
@@ -367,6 +379,10 @@
             stopReading();
             var lines = res.lines.filter(function (l) { return l.text.trim(); });
             if (!lines.length) return;
+            if (TB.Speech.missing(srcLang)) {
+              TB.App.toast(TB.Speech.missingVoiceMessage(srcLang), 'err');
+              return;
+            }
             var prefs = D().prefs;
             var names = { ta: prefs.voiceTa, en: prefs.voiceEn, hi: prefs.voiceHi };
             var btn = out.querySelector('#readAloud');

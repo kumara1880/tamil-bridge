@@ -39,6 +39,27 @@ TB.Speech = (function () {
     else listeners.push(fn);
   }
 
+  /* Rank voices so the most natural-sounding one wins.
+     Network voices (Google, Microsoft "Natural"/"Online") are noticeably
+     better than the compact offline ones, which matters a lot for Tamil and
+     Hindi — a robotic voice teaches the wrong pronunciation. */
+  function quality(v) {
+    var n = (v.name || '').toLowerCase();
+    var score = 0;
+    if (/natural|neural/.test(n)) score += 6;
+    if (/google/.test(n)) score += 5;
+    if (/online/.test(n)) score += 3;
+    if (v.localService === false) score += 2;
+    if (/compact|espeak/.test(n)) score -= 4;
+    if (v.default) score += 1;
+    return score;
+  }
+
+  function bestOf(list) {
+    if (!list.length) return null;
+    return list.slice().sort(function (a, b) { return quality(b) - quality(a); })[0];
+  }
+
   /* Resolve a BCP-47 tag or short code to the best available voice. */
   function pickVoice(lang, preferredName) {
     if (!voices.length) return null;
@@ -49,12 +70,12 @@ TB.Speech = (function () {
     var tags = LANGS[lang] || [lang];
     for (var i = 0; i < tags.length; i++) {
       var tag = tags[i].toLowerCase();
-      var hit = voices.filter(function (v) { return (v.lang || '').toLowerCase().replace('_', '-') === tag; })[0];
-      if (hit) return hit;
+      var hits = voices.filter(function (v) { return (v.lang || '').toLowerCase().replace('_', '-') === tag; });
+      if (hits.length) return bestOf(hits);
     }
     /* prefix match: "ta" matches "ta-IN" */
     var base = (LANGS[lang] ? LANGS[lang][0] : lang).split('-')[0].toLowerCase();
-    return voices.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(base) === 0; })[0] || null;
+    return bestOf(voices.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(base) === 0; }));
   }
 
   function bcp47(lang) { return (LANGS[lang] && LANGS[lang][0]) || lang; }
@@ -253,6 +274,17 @@ TB.Speech = (function () {
       });
 
       return { score: best.score, heard: best.heard, perWord: perWord };
+    },
+
+    /* A plain explanation when the OS has no voice for a language, with the
+       exact steps to install one. Reading aloud in the wrong voice would
+       teach the wrong pronunciation, so we say so rather than fake it. */
+    missingVoiceMessage: function (lang) {
+      var name = { ta: 'Tamil', en: 'English', hi: 'Hindi' }[lang] || lang;
+      return 'No ' + name + ' voice is installed on this device, so it cannot be read aloud '
+           + 'correctly. Windows: Settings → Time & language → Language & region → '
+           + 'Add a language → ' + name + ', and tick "Speech". Android/iOS: install the '
+           + name + ' voice in your system text-to-speech settings.';
     },
 
     /* Tamil feedback text for a score. */

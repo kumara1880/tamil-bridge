@@ -172,6 +172,38 @@ TB.Auth = (function () {
       });
     },
 
+    /* Create a local record for an account that already exists on the server.
+       Needed whenever the server knows a user but this browser does not — a
+       different device or origin, or a private window that wiped storage.
+       The hash is derived here from the password just entered, so the account
+       works offline from now on. */
+    adopt: function (remoteUser, password) {
+      var identifier = remoteUser.email || remoteUser.phone || '';
+      var existing = TB.Store.findUser(identifier);
+      if (existing) { current = existing; TB.Store.setSession(existing.id); return Promise.resolve(existing); }
+
+      var salt = randomSalt();
+      return derive(password, salt, ITER).then(function (res) {
+        var user = {
+          id: remoteUser.id || ('u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+          name: remoteUser.name || 'Learner',
+          email: remoteUser.email || '',
+          phone: remoteUser.phone || '',
+          salt: salt, hash: res.hash, kdf: res.kdf, iter: ITER,
+          createdAt: remoteUser.createdAt || Date.now(),
+          fromServer: true
+        };
+        TB.Store.putUser(user);
+        TB.Store.setSession(user.id);
+        current = user;
+        TB.Store.touchStreak(user.id);
+        return user;
+      });
+    },
+
+    /* True when an account with this identifier exists in this browser. */
+    knownLocally: function (identifier) { return !!TB.Store.findUser(identifier); },
+
     signOut: function () {
       TB.Store.clearSession();
       current = null;

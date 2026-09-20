@@ -3,6 +3,7 @@ window.TB = window.TB || {};
 
 TB.App = (function () {
   var root, current = '', pendingSpeak = null;
+  var warnedVoice = {};   /* one voice warning per language, not per click */
 
   /* ------------------------------------------------------------- toasts */
   function toast(msg, kind) {
@@ -159,6 +160,10 @@ TB.App = (function () {
         if (!text) return;
         var d = TB.Store.data(TB.Auth.userId());
         var names = { ta: d.prefs.voiceTa, en: d.prefs.voiceEn, hi: d.prefs.voiceHi };
+        if (TB.Speech.missing(lang) && !warnedVoice[lang]) {
+          warnedVoice[lang] = true;
+          toast(TB.Speech.missingVoiceMessage(lang), 'err');
+        }
         if (pendingSpeak) pendingSpeak.classList.remove('playing');
         sp.classList.add('playing');
         pendingSpeak = sp;
@@ -239,7 +244,7 @@ TB.App = (function () {
       e.preventDefault();
       var btn = document.getElementById('authGo');
       var name = document.getElementById('fName').value;
-      var id = document.getElementById('fId').value;
+      var id = document.getElementById('fId').value.trim();
       var pw = document.getElementById('fPw').value;
       var remember = document.getElementById('fRemember').checked;
 
@@ -248,29 +253,92 @@ TB.App = (function () {
       var label = btn.textContent;
       btn.innerHTML = '<span class="spin"></span> Please wait…';
 
-      var local = mode === 'up'
-        ? TB.Auth.signUp(name, id, pw)
-        : TB.Auth.signIn(id, pw, remember);
-
-      local.then(function (user) {
-        /* mirror to the backend when one is configured; never block on it */
-        if (TB.Sync.configured()) {
-          var remote = mode === 'up' ? TB.Sync.signUp(name, id, pw) : TB.Sync.signIn(id, pw);
-          remote.then(function () { return TB.Sync.pull(); })
-            .then(function (remoteData) {
-              var d = TB.Store.data(user.id);
-              TB.Store.saveData(user.id, TB.Sync.merge(d, remoteData));
-              toast('Synced', 'ok');
-              render();
-            })
-            .catch(function () { /* offline or asleep: local mode is fine */ });
-        }
-        enter();
-      }).catch(function (err) {
+      function fail(text, hint) {
         btn.disabled = false;
         btn.textContent = label;
-        msg.innerHTML = '<div class="msg msg-err">' + TB.Views.esc(err.message) + '</div>';
-      });
+        msg.innerHTML = '<div class="msg msg-err">' + TB.Views.esc(text) + '</div>'
+          + (hint ? '<div class="msg msg-info">' + hint + '</div>' : '');
+      }
+
+      function afterSync(user) {
+        /* pull anything already stored on the server for this account */
+        return TB.Sync.pull().then(function (remoteData) {
+          var d = TB.Store.data(user.id);
+          TB.Store.saveData(user.id, TB.Sync.merge(d, remoteData));
+        }).catch(function () { /* nothing stored yet, or offline */ });
+      }
+
+      /* ------------------------------------------------------ SIGN UP --- */
+      if (mode === 'up') {
+        var localIssue = null;
+        if (!name.trim()) localIssue = 'Please enter your name.';
+        else if (!TB.Auth.isEmail(id) && !TB.Auth.isPhone(id)) localIssue = 'Enter a valid email address or phone number.';
+        else localIssue = TB.Auth.passwordIssue(pw);
+        if (localIssue) { fail(localIssue); return; }
+
+        /* With sync on, the server decides whether the account already exists,
+           so it is asked first. Without sync, local storage is the authority. */
+        var create = TB.Sync.configured()
+          ? TB.Sync.signUp(name, id, pw).then(
+              function (remoteUser) {
+                return TB.Auth.adopt(remoteUser, pw).then(function (u) {
+                  return afterSync(u).then(function () { return u; });
+                });
+              },
+              function (err) {
+                /* the server is the authority on duplicates */
+                if (/already registered/i.test(err.message)) throw err;
+                /* unreachable or asleep: fall back to a local-only account */
+                return TB.Auth.signUp(name, id, pw);
+              })
+          : TB.Auth.signUp(name, id, pw);
+
+        create.then(function () { enter(); }).catch(function (err) { fail(err.message); });
+        return;
+      }
+
+      /* ------------------------------------------------------ SIGN IN --- */
+      TB.Auth.signIn(id, pw, remember)
+        .then(function (user) {
+          /* signed in locally; refresh from the server in the background */
+          if (TB.Sync.configured()) {
+            TB.Sync.signIn(id, pw)
+              .then(function () { return afterSync(user); })
+              .then(function () { toast('Synced', 'ok'); render(); })
+              .catch(function () { /* local mode is fine */ });
+          }
+          enter();
+        })
+        .catch(function (localErr) {
+          var knownHere = TB.Auth.knownLocally(id);
+
+          /* The account is not in this browser. It may still exist on the
+             server — that is the case the old flow never checked. */
+          if (TB.Sync.configured()) {
+            btn.innerHTML = '<span class="spin"></span> Checking the server…';
+            TB.Sync.signIn(id, pw)
+              .then(function (remoteUser) { return TB.Auth.adopt(remoteUser, pw); })
+              .then(function (user) { return afterSync(user).then(function () { return user; }); })
+              .then(function () { toast('Signed in from your account on the server', 'ok'); enter(); })
+              .catch(function (remoteErr) {
+                if (knownHere) { fail(localErr.message); return; }
+                fail(remoteErr && /Incorrect/i.test(remoteErr.message || '')
+                       ? remoteErr.message
+                       : localErr.message,
+                     storageHint());
+              });
+            return;
+          }
+
+          fail(localErr.message, knownHere ? '' : storageHint());
+        });
+
+      function storageHint() {
+        return 'Accounts are saved <b>in this browser</b> unless you turn on Sync. '
+             + 'An account created in a private/incognito window, in another browser, '
+             + 'or on another device will not be found here. '
+             + 'Create the account again, or set up Sync in Settings to use one account everywhere.';
+      }
     });
   }
 

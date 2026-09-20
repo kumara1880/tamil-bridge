@@ -514,3 +514,8 @@ a { color: var(--blue); }
   .trace-model { font-size: 96px; }
   .trace-ghost { font-size: 180px; }
 }
+
+.tok .t-r { font-size: 10px; color: var(--teal); font-style: italic; margin-top: 1px; }
+.tok .t-p.ta { font-family: var(--tamil); color: var(--text-mute); font-size: 11px; margin-top: 2px; }
+.tok .t-m.hi { font-family: var(--deva); color: var(--text); font-size: 13px; }
+.tok .t-w { font-size: 15px; font-weight: 650; }
