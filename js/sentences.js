@@ -337,21 +337,33 @@ TB.Sentences = (function () {
 
     /* The three tenses of one verb, side by side, for every person — which
        is the chart a learner actually wants to see. */
-    chart: function (en, formId) {
+    chart: function (en, formId, slot) {
       var vi = -1;
       VERBS.forEach(function (v, i) { if (v.en === en) vi = i; });
       if (vi < 0) return null;
       var fi = 0;
       FORMS.forEach(function (f, i) { if (f.id === formId) fi = i; });
+      /* Which thing the verb acts on, or which adverb colours it. Varying
+         this is what turns one chart into thousands: every chart is 36 real
+         sentences and the charts together tile the whole space exactly. */
+      var width = BLOCKS[vi];
+      var o = (((slot || 0) % width) + width) % width;
       var rows = SUBJECTS.map(function (s, si) {
         return {
           subject: s,
-          present: build(si, vi, 0, 0, fi),
-          past: build(si, vi, 0, 1, fi),
-          future: build(si, vi, 0, 2, fi)
+          present: build(si, vi, o, 0, fi),
+          past: build(si, vi, o, 1, fi),
+          future: build(si, vi, o, 2, fi)
         };
       });
-      return { verb: VERBS[vi], rows: rows };
-    }
+      return { verb: VERBS[vi], vi: vi, rows: rows, form: FORMS[fi],
+               slot: o, slots: width };
+    },
+
+    /* How many distinct charts exist, and how many sentences they hold.
+       charts * 36 === total(), so nothing in the space is unreachable. */
+    charts: function () { return PER_FRAME * FORMS.length; },
+    perChart: function () { return SUBJECTS.length * TENSES.length; },
+    slotsFor: function (vi) { return BLOCKS[vi]; }
   };
 })();

@@ -17,6 +17,7 @@ vm.createContext(ctx);
 
 ['data/vocab.js','data/vocab2.js','data/ensound.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
  'data/phrases.js','data/lexicon.js','data/grammar.js','data/grammar_hi.js',
+ 'data/wordpairs.js','data/wordpairs2.js','data/spoken.js','data/grammar.js','data/grammar_hi.js',
  'data/wordpairs.js','data/wordpairs2.js','data/spoken.js',
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
@@ -118,93 +119,92 @@ section('MATHS');
     M.PLACES.every(function (p) { return p.en && p.ta && p.hi; }));
 })();
 
-/* ---------------- ruled writing ---------------- */
+/* ---------------- the writing pad ---------------- */
 section('WRITING');
 (function () {
   var W = TB.Writing;
-  t('English and digits default to four lines',
-    W.defaultRuling('en') === 'four' && W.defaultRuling('num') === 'four');
-  t('Tamil and Hindi default to two',
-    W.defaultRuling('ta') === 'two' && W.defaultRuling('hi') === 'two');
 
-  var g = W.geometry(600, 200, 'four', 1)[0];
-  t('four-ruled gives three equal bands',
-    Math.abs((g.xline - g.top) - (g.base - g.xline)) < 0.01 &&
-    Math.abs((g.base - g.xline) - (g.tail - g.base)) < 0.01);
-  t('the baseline sits between the middle and the tail',
-    g.top < g.xline && g.xline < g.base && g.base < g.tail);
-  var two = W.geometry(600, 200, 'two', 1)[0];
-  t('two-ruled has just the two', two.top < two.base && two.xline === undefined);
-  t('rows stack without overlapping', (function () {
-    var rows = W.geometry(600, 400, 'four', 4);
-    for (var i = 1; i < rows.length; i++) if (rows[i].top <= rows[i - 1].tail) return false;
+  /* Rows are the only geometry left, and they must be even: a sheet whose
+     lines drift apart is worse than no sheet. */
+  var r1 = W.rows(600, 200, 1);
+  var r4 = W.rows(600, 400, 4);
+  t('one row is centred in the sheet',
+    Math.abs(r1[0].middle - 100) < 1, r1[0].middle.toFixed(1));
+  t('four rows are equal in height',
+    r4.every(function (x) { return Math.abs(x.height - r4[0].height) < 0.01; }));
+  t('four rows are evenly spaced', (function () {
+    for (var i = 1; i < r4.length; i++) {
+      var gap = r4[i].middle - r4[i - 1].middle;
+      if (Math.abs(gap - (r4[1].middle - r4[0].middle)) > 0.01) return false;
+    }
     return true;
   })());
+  t('rows stay inside the sheet',
+    r4[0].top >= 0 && r4[3].top + r4[3].height <= 400.01);
+  t('the sheet keeps a margin top and bottom', r4[0].top > 10);
 
-  /* The ruling is only worth printing if the letters land on it. Measured in
-     the browser to the pixel; here the rule each letter follows is pinned so
-     it cannot drift. */
-  var g4 = W.geometry(600, 200, 'four', 1)[0];
-  function zone(ch) {
-    var z = W.zoneFor(ch, 'four', g4);
-    var name = function (v) {
-      return v === g4.top ? 'top' : v === g4.xline ? 'xline'
-           : v === g4.base ? 'base' : v === g4.tail ? 'tail' : '?';
-    };
-    return name(z.from) + '-' + name(z.to);
-  }
-  var ROOMS = {
-    'top-base':   'ABZ059bdfhklt'.split(''),
-    'xline-base': 'acemnorsuvwxz'.split(''),
-    'xline-tail': 'gjpqy'.split('')
-  };
-  var misplaced = [];
-  Object.keys(ROOMS).forEach(function (want) {
-    ROOMS[want].forEach(function (ch) {
-      if (zone(ch) !== want) misplaced.push(ch + ' is ' + zone(ch) + ', should be ' + want);
-    });
-  });
-  t('every letter is put in the right room', misplaced.length === 0, misplaced.slice(0, 4).join(' | '));
-  t('tall small letters reach the top line, like capitals',
-    zone('b') === zone('A') && zone('l') === zone('H'));
-  t('a tail drops below the baseline', zone('g') === 'xline-tail' && zone('y') === 'xline-tail');
-  t('a plain small letter never leaves the middle room', zone('a') === 'xline-base');
-  t('digits are full height', zone('0') === 'top-base' && zone('7') === 'top-base');
-  t('two-ruled has one room, so everything shares it', (function () {
-    var g2 = W.geometry(600, 200, 'two', 1)[0];
-    return ['a', 'b', 'g', 'A', '5'].every(function (ch) {
-      var z = W.zoneFor(ch, 'two', g2);
-      return z.from === g2.top && z.to === g2.base;
-    });
-  })());
-  t('the rooms are explained in all three languages',
-    W.explain('four').every(function (x) { return x.en && x.ta && x.hi; }) &&
-    W.explain('two').every(function (x) { return x.en && x.ta && x.hi; }));
-  t('four-ruled is explained as three rooms', W.explain('four').length === 4);
+  t('capitals and small letters are all practisable',
+    W.set('caps').length === 26 && W.set('small').length === 26);
 
-  /* Four lines contain everything, so the ruling may fill the row. Two lines
-     mark only the body, and an English ascender, a Devanagari matra and a
-     Tamil tail all belong outside them -- so there has to be paper there. */
+  /* Ten digits is where writing practice starts, not where it stops: ages,
+     dates, prices and marks all live below a hundred. */
+  var num = W.set('num');
+  t('numbers run from nought to a hundred', num.length === 101, num.length);
+  t('and they are in order',
+    num.every(function (x, i) { return +x.ch === i; }));
+  t('a hundred is written as a hundred',
+    num[100].ch === '100' && /hundred/i.test(num[100].words.en), num[100].words.en);
+  t('every number carries its name in all three languages',
+    num.every(function (d) { return d.words.en && d.words.ta && d.words.hi; }));
+  t('no two numbers share an English name',
+    new Set(num.map(function (d) { return d.words.en; })).size === 101);
+
+  /* A multi-digit number must repeat across the row like a single letter,
+     or two thirds of the paper is wasted. A sentence must not. */
   (function () {
-    var h = 220;
-    var four = W.geometry(600, h, 'four', 1)[0];
-    var two = W.geometry(600, h, 'two', 1)[0];
-    var twoBand = two.base - two.top;
-    var roomAbove = two.top;
-    var roomBelow = h - two.base;
-    t('a two-line page leaves room above and below the lines',
-      roomAbove > twoBand * 0.45 && roomBelow > twoBand * 0.45,
-      'band ' + twoBand.toFixed(0) + ' above ' + roomAbove.toFixed(0) + ' below ' + roomBelow.toFixed(0));
-    /* worst case measured in the browser: Devanagari matras reach 1.45x the
-       body, English ascenders 1.38x, Tamil tails 1.39x */
-    t('the tallest matra still lands on the paper', roomAbove >= twoBand * 0.45);
-    t('the longest tail still lands on the paper', roomBelow >= twoBand * 0.45);
-    t('four lines use more of the row than two do',
-      (four.tail - four.top) > (two.base - two.top));
+    var seen = [];
+    var ctx = {
+      font: '', fillStyle: '', textBaseline: '',
+      measureText: function (t) {
+        return { width: t.length * 30, actualBoundingBoxAscent: 70, actualBoundingBoxDescent: 20 };
+      },
+      fillText: function (t, x, y) { seen.push({ t: t, x: x, y: y }); }
+    };
+    W.drawGhost(ctx, '47', 'num', 600, 200, 1, '#000', true);
+    t('a two-digit number is repeated across the row', seen.length > 1, seen.length + ' copies');
+    t('every copy is the whole number, not one digit',
+      seen.every(function (o) { return o.t === '47'; }));
+    t('the copies are evenly spaced', (function () {
+      if (seen.length < 3) return true;
+      var g = seen[1].x - seen[0].x;
+      for (var i = 2; i < seen.length; i++) {
+        if (Math.abs((seen[i].x - seen[i - 1].x) - g) > 0.01) return false;
+      }
+      return true;
+    })());
+    t('and the group is centred on the sheet',
+      Math.abs(seen[0].x - (600 - (seen[seen.length - 1].x + 60))) < 1.5,
+      seen[0].x + ' / ' + (600 - (seen[seen.length - 1].x + 60)));
+
+    seen = [];
+    W.drawGhost(ctx, 'This is my name', 'en', 600, 400, 4, '#000', false);
+    t('a sentence is written once per line, not repeated',
+      seen.length <= 4 && seen.every(function (o) { return o.t.indexOf(' ') >= 0 || o.t.length > 2; }),
+      seen.map(function (o) { return o.t; }).join(' | '));
   })();
 
-  t('capitals, small letters and digits are all practisable',
-    W.set('caps').length === 26 && W.set('small').length === 26 && W.set('num').length === 10);
+  /* The practice set must be reachable: a hundred numbers behind a Next
+     button is not practice. */
+  (function () {
+    var fs = require('fs');
+    var src = fs.readFileSync(__dirname + '/js/views3.js', 'utf8');
+    t('a long set is offered as one tappable index',
+      /function jumpStrip/.test(src) && /data-j=/.test(src));
+    t('and the trace pad says the model repeats',
+      /paint\('t', L\.ch, L\.script, true\)/.test(src));
+    t('while your own sentence does not',
+      /paint\('o', show, ownScript, false\)/.test(src));
+  })();
   t('small letters really are small',
     W.set('small').every(function (x) { return x.ch === x.ch.toLowerCase(); }));
   t('capitals really are capital',
@@ -213,6 +213,40 @@ section('WRITING');
     W.set('num').every(function (d) { return d.words.en && d.words.ta && d.words.hi; }));
   t('Tamil and Hindi sets are not empty',
     W.set('ta').length > 20 && W.set('hi').length > 20);
+  t('every set names the script it is written in',
+    ['caps', 'small', 'num', 'ta', 'hi'].every(function (k) {
+      return W.set(k).every(function (x) { return !!W.FAMILY[x.script]; });
+    }));
+
+  /* Nothing may mention a ruling any more. */
+  (function () {
+    var fs = require('fs');
+    var files = ['js/writing.js', 'js/views3.js', 'assets/styles.css'];
+    var left = files.filter(function (f) {
+      var src = fs.readFileSync(__dirname + '/' + f, 'utf8');
+      return /four-ruled|two-ruled|rule-pad|rule-guides|drawGuides|defaultRuling/.test(src);
+    });
+    t('the ruled page is gone everywhere', left.length === 0, left.join(' '));
+  })();
+
+  /* The bug that made typing impossible: a phone opening its keyboard fires
+     a resize, and the view used to rebuild itself on that — destroying the
+     input mid-word. The handler must repaint, never redraw. */
+  (function () {
+    var fs = require('fs');
+    var src = fs.readFileSync(__dirname + '/js/views3.js', 'utf8');
+    var i = src.indexOf("addEventListener('resize'");
+    /* stop at the end of the handler, not 420 characters into whatever
+       follows it */
+    var end = src.indexOf('}, 200);', i);
+    var handler = src.slice(i, end > 0 ? end + 8 : i + 400);
+    t('a resize repaints the sheet rather than rebuilding the page',
+      i > 0 && /paint\(/.test(handler) && !/redraw\(\)/.test(handler));
+    t('and ignores a resize that did not change the width',
+      /innerWidth === lastW/.test(handler));
+    t('ink listeners are attached once, not on every repaint',
+      /__wired/.test(src));
+  })();
 })();
 
 /* ---------------- grammar, words, speaking ---------------- */
@@ -306,8 +340,26 @@ section('SENTENCES');
   /* Hindi in the past of a transitive verb agrees with the object, not the
      subject — मैंने किताब पढ़ी, not पढ़ा. That is the rule this generator
      exists to get right. */
-  var c = S.chart('eat', 'statement');
+  var c = S.chart('eat', 'statement', 0);
   t('a chart covers every person', c.rows.length === S.SUBJECTS.length);
+
+  /* The charts must tile the sentence space exactly: charts x rows x tenses
+     is the total, so nothing in it is unreachable from the chart. */
+  t('the charts cover every sentence there is, and no more',
+    S.charts() * S.perChart() === S.total(),
+    S.charts().toLocaleString('en-IN') + ' x ' + S.perChart() + ' = ' + S.total().toLocaleString('en-IN'));
+  t('over a lakh of them are reachable through the chart',
+    S.charts() * S.perChart() >= 100000);
+  t('changing the ending changes the sentence',
+    S.chart('eat', 'statement', 0).rows[0].present.en !== S.chart('eat', 'statement', 1).rows[0].present.en,
+    S.chart('eat', 'statement', 1).rows[0].present.en);
+  t('the ending wraps rather than running off the end',
+    S.chart('eat', 'statement', S.chart('eat', 'statement', 0).slots).slot === 0);
+  t('a chart knows which form it is in',
+    S.chart('eat', 'question', 0).form.id === 'question');
+  t('and the question form really asks',
+    /\?$/.test(S.chart('eat', 'question', 0).rows[0].present.en),
+    S.chart('eat', 'question', 0).rows[0].present.en);
   t('the chart has all three tenses',
     c.rows.every(function (r) { return r.past && r.present && r.future; }));
   t('Hindi marks gender on the verb',
@@ -353,6 +405,46 @@ section('SENTENCES');
     S.SUBJECTS.every(function (x) { return x.hi && x.hiErg; }));
   t('every verb has all four Tamil stems',
     S.VERBS.every(function (v) { return v.ta.p && v.ta.d && v.ta.f && v.ta.inf; }));
+})();
+
+/* ---------------- can a parent find it ---------------- */
+section('FINDING THINGS');
+(function () {
+  var fs = require('fs');
+  var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+  var v8 = fs.readFileSync(__dirname + '/js/views8.js', 'utf8');
+  var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+  var home = fs.readFileSync(__dirname + '/js/views.js', 'utf8');
+
+  /* Nothing is allowed to be three taps deep behind a name nobody searches
+     for. Every tab gets its own address and its own line in the sidebar. */
+  ['#/english/words', '#/english/tense', '#/english/sentences', '#/english/speaking']
+    .forEach(function (href) {
+      t('the sidebar links to ' + href, html.indexOf('href="' + href + '"') > 0);
+    });
+  t('synonyms and antonyms are called that, not "same and opposite"',
+    /Synonyms &amp; Antonyms/.test(html) && /Synonyms & Antonyms/.test(v8));
+  t('the tense chart is named in the sidebar', /Tense chart/.test(html));
+  t('the home page offers them too',
+    /#\/english\/words/.test(home) && /#\/english\/tense/.test(home));
+  t('writing and maths are on the home page too',
+    /quick\('#\/write'/.test(home) && /quick\('#\/maths'/.test(home));
+
+  /* A link into a tab must open that tab. */
+  t('the section reads the address', /function startTab/.test(v8)
+    && /mount: function \(root, param\)/.test(v8)
+    && /html: function \(param\)/.test(v8));
+  t('and tapping a tab updates the address', /history\.replaceState/.test(v8));
+  t('the router passes the address on to the view',
+    /v\.mount\(root, r\.param\)/.test(app) && /v\.html\(r\.param\)/.test(app));
+  t('the highlight follows the whole address, not just the section',
+    /a === exact/.test(app));
+
+  /* One handler on the lasting element, not one per redraw, or a word gets
+     spoken once for every time you have visited the tab. */
+  t('speaking handlers do not stack up on redraw',
+    (v8.match(/body\.addEventListener\('click'/g) || []).length === 1
+      && /function onBody/.test(v8));
 })();
 
 /* ---------------- clipboard ---------------- */

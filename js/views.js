@@ -141,6 +141,10 @@ TB.Views = (function () {
       +     quick('#/photo', '📷', 'Photo Translate', 'From a photo')
       +     quick('#/speak', '🎤', 'Pronunciation', 'Get a score')
       +     quick('#/phrases', '💬', 'Phrasebook', 'Say it today')
+      +     quick('#/english/words', '🔁', 'Synonyms & Antonyms', 'same · opposite')
+      +     quick('#/english/tense', '🕰️', 'Tense chart', 'past · present · future')
+      +     quick('#/write', '✏️', 'Writing', 'A–Z, a–z, 0–100')
+      +     quick('#/maths', '➕', 'Maths', 'step by step')
       +     quick('#/alphabet', '🔡', 'Alphabet', '247 + varnamala')
       +   '</div>'
       + '</div>'

@@ -159,8 +159,18 @@ TB.App = (function () {
     paintSection(r.view);
     document.getElementById('viewTitle').textContent = v.title;
     document.getElementById('viewSub').textContent = v.sub || '';
-    document.querySelectorAll('#nav a').forEach(function (a) {
-      a.classList.toggle('on', a.getAttribute('data-v') === r.view);
+    /* Some sections have several entries, one per tab, so the highlight goes
+       on the entry whose address matches exactly; only when nothing matches
+       does it fall back to the section's own plain entry. */
+    var here = '#/' + r.view + (r.param ? '/' + r.param : '');
+    var links = document.querySelectorAll('#nav a');
+    var exact = null;
+    links.forEach(function (a) { if (a.getAttribute('href') === here) exact = a; });
+    links.forEach(function (a) {
+      var href = a.getAttribute('href') || '';
+      a.classList.toggle('on', exact
+        ? a === exact
+        : a.getAttribute('data-v') === r.view && href.split('/').length === 2);
     });
 
     root.innerHTML = v.html(r.param);

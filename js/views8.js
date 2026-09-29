@@ -9,11 +9,18 @@
   var esc = V.esc, speak = V.speakBtn, readAid = V.readAid, D = V.D, saveD = V.saveD;
 
   var TABS = [
-    { id: 'grammar',   en: 'Grammar',    icon: '📐' },
-    { id: 'words',     en: 'Same & opposite', icon: '🔁' },
-    { id: 'sentences', en: 'Sentences',  icon: '♾️' },
-    { id: 'speaking',  en: 'Speaking',   icon: '💬' }
+    { id: 'grammar',   en: 'Grammar',             icon: '📐' },
+    { id: 'words',     en: 'Synonyms & Antonyms', icon: '🔁' },
+    { id: 'tense',     en: 'Tense Chart',         icon: '🕰️' },
+    { id: 'sentences', en: 'Sentences',           icon: '♾️' },
+    { id: 'speaking',  en: 'Speaking',            icon: '💬' }
   ];
+
+  /* A section that can only be reached by tapping through another section is
+     a section nobody finds, so every tab is its own address. */
+  function startTab(param) {
+    return TABS.some(function (t) { return t.id === param; }) ? param : 'grammar';
+  }
 
   /* One line of a language, with its pronunciation underneath. Hindi gets
      roman and Tamil letters; English gets Tamil letters; Tamil gets roman.
@@ -31,21 +38,23 @@
   }
 
   V.english = {
-    title: 'Grammar & Speaking', sub: 'Rules, word pairs, endless sentences and real conversations',
-    html: function () {
+    title: 'Grammar & Speaking',
+    sub: 'Grammar · synonyms & antonyms · the tense chart · endless sentences · real conversations',
+    html: function (param) {
+      var start = startTab(param);
       return '<div class="view">'
         + '<div class="card"><div class="pill-row" id="eTabs">'
-        + TABS.map(function (t, i) {
-            return '<button class="pill' + (i === 0 ? ' on' : '') + '" data-tab="' + t.id + '" type="button">'
+        + TABS.map(function (t) {
+            return '<button class="pill' + (t.id === start ? ' on' : '') + '" data-tab="' + t.id + '" type="button">'
                  + t.icon + ' ' + esc(t.en) + '</button>';
           }).join('')
         + '</div></div>'
         + '<div id="eBody"></div></div>';
     },
 
-    mount: function (root) {
+    mount: function (root, param) {
       var body = root.querySelector('#eBody');
-      var tab = 'grammar';
+      var tab = startTab(param);
       var gLang = 'en';       /* whose grammar */
       var wLang = 'en';       /* whose word pairs */
       var sIndex = 0;         /* where we are in the sentence space */
@@ -130,10 +139,6 @@
           wLang = b.getAttribute('data-wl');
           words();
         });
-        body.addEventListener('click', function (e) {
-          var b = e.target.closest('[data-say]');
-          if (b) TB.Speech.speak(b.getAttribute('data-say'), b.getAttribute('data-lang'), { rate: 0.75 });
-        });
       }
 
       /* ---------------------------------------------------- sentences */
@@ -183,12 +188,18 @@
       }
 
       function drawChart(verb) {
-        var c = TB.Sentences.chart(verb, 'statement');
+        var c = TB.Sentences.chart(verb, 'statement', 0);
         var out = body.querySelector('#sChartOut');
-        if (!c) { out.innerHTML = ''; return; }
-        out.innerHTML = '<div class="card"><h3>' + esc(verb) + ' — every person, every tense</h3>'
-          + '<div class="card-sub">Tamil shows the person on the verb; Hindi shows the gender, and in the past '
-          + 'a transitive verb follows the object</div>'
+        out.innerHTML = c ? chartCard(c) : '';
+      }
+
+      function chartCard(c) {
+        return '<div class="card"><h3>' + esc(c.verb.en) + ' · ' + esc(c.verb.ta.d)
+          + ' — every person, every tense</h3>'
+          + '<div class="card-sub">' + esc(c.form.id)
+          + (c.slots > 1 ? ' · way ' + (c.slot + 1) + ' of ' + c.slots + ' to finish it' : '')
+          + ' · Tamil marks the person on the verb; Hindi marks the gender, and in the past '
+          + 'a transitive verb agrees with the object, not with who did it</div>'
           + '<div class="chart-scroll"><table class="chart"><thead><tr>'
           + '<th>Who</th><th>Past</th><th>Present</th><th>Future</th></tr></thead><tbody>'
           + c.rows.map(function (r) {
@@ -203,6 +214,53 @@
                 + '</tr>';
             }).join('')
           + '</tbody></table></div></div>';
+      }
+
+      /* -------------------------------------------------- tense chart */
+      /* Past, present and future of one verb for every person, in all three
+         languages with the pronunciation underneath. The verb, the form and
+         the ending can all be changed, and the charts tile the whole sentence
+         space exactly — charts × 36 is the total, nothing is unreachable. */
+      var tVerb = 'eat', tForm = 'statement', tSlot = 0;
+      function tense() {
+        var S = TB.Sentences;
+        var c = S.chart(tVerb, tForm, tSlot);
+        body.innerHTML = '<div class="card">'
+          + '<div class="card-head"><div><h3>Past · Present · Future</h3>'
+          + '<div class="card-sub">'
+          + S.charts().toLocaleString('en-IN') + ' charts of ' + S.perChart()
+          + ' sentences each — ' + S.total().toLocaleString('en-IN')
+          + ' sentences in all, in English, தமிழ் and हिंदी.</div></div></div>'
+          + '<div class="row mt" style="flex-wrap:wrap;gap:10px;align-items:flex-end">'
+          +   '<label class="tiny muted" style="display:block">Verb<br>'
+          +     '<select id="tVerb" class="sel">'
+          +     S.VERBS.map(function (v) {
+                  return '<option value="' + esc(v.en) + '"' + (v.en === tVerb ? ' selected' : '') + '>'
+                       + esc(v.en) + '  ·  ' + esc(v.ta.d) + '</option>';
+                }).join('')
+          +     '</select></label>'
+          +   '<div class="pill-row" id="tForm">'
+          +   S.FORMS.map(function (f) {
+                return '<button class="pill' + (f.id === tForm ? ' on' : '') + '" data-tf="'
+                     + f.id + '" type="button">' + esc(f.id) + '</button>';
+              }).join('')
+          +   '</div>'
+          +   '<button class="btn btn-sm" id="tSlot" type="button">🔄 Change the ending'
+          +     (c ? ' (' + (c.slot + 1) + '/' + c.slots + ')' : '') + '</button>'
+          + '</div></div>'
+          + (c ? chartCard(c) : '');
+
+        body.querySelector('#tVerb').addEventListener('change', function () {
+          tVerb = this.value; tSlot = 0; tense();
+        });
+        body.querySelector('#tForm').addEventListener('click', function (e) {
+          var b = e.target.closest('[data-tf]');
+          if (!b) return;
+          tForm = b.getAttribute('data-tf'); tense();
+        });
+        body.querySelector('#tSlot').addEventListener('click', function () {
+          tSlot = c ? (c.slot + 1) % c.slots : 0; tense();
+        });
       }
 
       /* ----------------------------------------------------- speaking */
@@ -243,7 +301,7 @@
           speaking();
         });
 
-        body.addEventListener('click', function (e) {
+        onBody(function (e) {
           var p = e.target.closest('[data-play]');
           if (p) {
             var d = TB.SPOKEN[+p.getAttribute('data-play')];
@@ -270,18 +328,37 @@
         TB.Speech.stop();
         if (tab === 'grammar') grammar();
         else if (tab === 'words') words();
+        else if (tab === 'tense') tense();
         else if (tab === 'sentences') sentences();
         else speaking();
         var d = D(); d.stats.xp = (d.stats.xp || 0) + 1; saveD(d);
         TB.App.refreshChips();
       }
 
+      /* #eBody outlives every redraw, so a handler added inside a tab would
+         stack up and speak the same word once per visit. Added once, here. */
+      var bodyHandlers = [];
+      function onBody(fn) { bodyHandlers.push(fn); }
+      body.addEventListener('click', function (e) {
+        var said = e.target.closest('[data-say]');
+        if (said) {
+          TB.Speech.speak(said.getAttribute('data-say'), said.getAttribute('data-lang'), { rate: 0.75 });
+          return;
+        }
+        bodyHandlers.forEach(function (fn) { fn(e); });
+      });
+
+      /* The tab is the address, so the back button works and a link can be
+         sent to somebody. */
       root.querySelector('#eTabs').addEventListener('click', function (e) {
         var b = e.target.closest('[data-tab]');
         if (!b) return;
         root.querySelectorAll('#eTabs .pill').forEach(function (x) { x.classList.remove('on'); });
         b.classList.add('on');
         tab = b.getAttribute('data-tab');
+        if (location.hash !== '#/english/' + tab) {
+          history.replaceState(null, '', '#/english/' + tab);
+        }
         draw();
       });
 
