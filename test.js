@@ -181,6 +181,27 @@ section('WRITING');
     W.explain('two').every(function (x) { return x.en && x.ta && x.hi; }));
   t('four-ruled is explained as three rooms', W.explain('four').length === 4);
 
+  /* Four lines contain everything, so the ruling may fill the row. Two lines
+     mark only the body, and an English ascender, a Devanagari matra and a
+     Tamil tail all belong outside them -- so there has to be paper there. */
+  (function () {
+    var h = 220;
+    var four = W.geometry(600, h, 'four', 1)[0];
+    var two = W.geometry(600, h, 'two', 1)[0];
+    var twoBand = two.base - two.top;
+    var roomAbove = two.top;
+    var roomBelow = h - two.base;
+    t('a two-line page leaves room above and below the lines',
+      roomAbove > twoBand * 0.45 && roomBelow > twoBand * 0.45,
+      'band ' + twoBand.toFixed(0) + ' above ' + roomAbove.toFixed(0) + ' below ' + roomBelow.toFixed(0));
+    /* worst case measured in the browser: Devanagari matras reach 1.45x the
+       body, English ascenders 1.38x, Tamil tails 1.39x */
+    t('the tallest matra still lands on the paper', roomAbove >= twoBand * 0.45);
+    t('the longest tail still lands on the paper', roomBelow >= twoBand * 0.45);
+    t('four lines use more of the row than two do',
+      (four.tail - four.top) > (two.base - two.top));
+  })();
+
   t('capitals, small letters and digits are all practisable',
     W.set('caps').length === 26 && W.set('small').length === 26 && W.set('num').length === 10);
   t('small letters really are small',

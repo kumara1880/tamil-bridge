@@ -43,7 +43,12 @@ TB.Writing = (function () {
     var pad = Math.round(h * 0.06);
     var usable = h - pad * 2;
     var rowH = usable / rows;
-    var inner = rowH * (rows === 1 ? 0.7 : 0.78);   /* gap between rows */
+    /* Four lines hold everything, so the ruling can fill the row. Two lines
+       mark only the body, and the parts that stick out need paper to stick
+       out onto. */
+    var fill = ruling === 'two' ? (rows === 1 ? 0.42 : 0.5)
+                                : (rows === 1 ? 0.7 : 0.78);
+    var inner = rowH * fill;
     /* one row alone should sit in the middle of the pad rather than at the
        top with empty paper underneath */
     var lift = rows === 1 ? (rowH - inner) / 2 : 0;
@@ -122,6 +127,10 @@ TB.Writing = (function () {
   var ASCEND = 'bdfhklt';
   var DESCEND = 'gjpqy';
 
+  /* Latin letters only: everything else is written between two lines. */
+  function climbs(ch) { return /[A-Z0-9]/.test(ch) || ASCEND.indexOf(ch) >= 0; }
+  function hangs(ch) { return DESCEND.indexOf(ch) >= 0; }
+
   function zoneFor(ch, ruling, g) {
     if (ruling !== 'four') return { from: g.top, to: g.base };
     if (/[A-Z0-9]/.test(ch)) return { from: g.top, to: g.base };
@@ -130,31 +139,75 @@ TB.Writing = (function () {
     return { from: g.xline, to: g.base };
   }
 
-  /* Size so the ink of this exact character fills exactly that room. */
-  function fitGlyph(ctx, ch, family, zone) {
-    ctx.font = '100px ' + family;
-    var m = ctx.measureText(ch);
-    var asc = m.actualBoundingBoxAscent || 72;
-    var desc = m.actualBoundingBoxDescent || 0;
-    var ink = asc + desc;
-    if (ink <= 0) return null;
-    var size = 100 * (zone.to - zone.from) / ink;
-    return { size: size, baseline: zone.from + asc * size / 100 };
-  }
-
-  /* Size so the x-height fills the middle room -- used for a whole run of
-     words, where one size for the run matters more than each letter
-     touching its own line. */
-  function fitRun(ctx, family, g, ruling, script) {
+  /* The size at which this font's x-height exactly fills the middle room.
+     Everything on a ruled page is measured from that, because the middle
+     room is where the body of almost every letter lives. */
+  function sizeForBand(ctx, family, band, script) {
     var probe = script === 'hi' ? '\u0915' : script === 'ta' ? '\u0b95' : 'x';
-    var band = ruling === 'four' ? (g.base - g.xline) : (g.base - g.top) * 0.86;
     ctx.font = '100px ' + family;
     var m = ctx.measureText(probe);
-    var asc = m.actualBoundingBoxAscent || 50;
-    return Math.max(8, 100 * band / asc);
+    var xh = m.actualBoundingBoxAscent || 50;
+    return Math.max(8, 100 * band / xh);
   }
 
-  /* Lay the model text out on the rules, wrapping onto the next ruled row. */
+  /* Draw one glyph so it obeys all four lines at once.
+
+     Three passes through clipping bands. The middle room is drawn with no
+     transform at all, so the bowl of g and the body of b are exactly the
+     height of that room and sit exactly on the baseline. Only the part that
+     sticks out above the x-line, or below the baseline, is stretched -- and
+     only far enough to touch its line. */
+  function drawRuledGlyph(ctx, ch, x, g, family, size, ruling) {
+    ctx.font = size + 'px ' + family;
+    var m = ctx.measureText(ch);
+    var inkAsc = m.actualBoundingBoxAscent || 0;
+    var inkDesc = m.actualBoundingBoxDescent || 0;
+    var width = m.width;
+
+    if (ruling !== 'four') {
+      /* Two lines, one band: the letter stands on the lower line and its
+         body fills the band. Nothing is stretched -- a Devanagari matra
+         above the headline, or a Tamil tail below the line, belongs where
+         the script puts it. */
+      ctx.fillText(ch, x, g.base);
+      return width;
+    }
+
+    var band = g.base - g.xline;
+
+    function band_(top, bottom, anchor, scaleY) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x - size, top, width + size * 2, Math.max(0, bottom - top));
+      ctx.clip();
+      if (scaleY !== 1) {
+        ctx.translate(0, anchor);
+        ctx.scale(1, scaleY);
+        ctx.translate(0, -anchor);
+      }
+      ctx.fillText(ch, x, g.base);
+      ctx.restore();
+    }
+
+    /* the middle room, untouched -- this is what keeps the baseline honest */
+    band_(g.xline, g.base, g.base, 1);
+
+    /* Whether a letter climbs or hangs is a fact about the letter, not
+       something to measure: round letters overshoot the x-height by a
+       whisker for optical reasons, and reading that as an ascender stretches
+       one pixel into a smear. The measurement only says how far. */
+    if (climbs(ch)) {
+      var above = inkAsc - band;
+      if (above > band * 0.08) band_(g.top, g.xline, g.xline, (g.xline - g.top) / above);
+    }
+    if (hangs(ch)) {
+      var below = inkDesc;
+      if (below > band * 0.08) band_(g.base, g.tail, g.base, (g.tail - g.base) / below);
+    }
+
+    return width;
+  }
+
   function drawGhost(ctx, text, script, w, h, ruling, rows, colour) {
     var geo = geometry(w, h, ruling, rows);
     var family = FAMILY[script] || FAMILY.en;
@@ -162,33 +215,36 @@ TB.Writing = (function () {
     ctx.fillStyle = colour || 'rgba(140,160,180,.30)';
 
     var str = String(text || '');
+    if (!str.trim()) return { geo: geo };
+
+    var g0 = geo[0];
+    var band = ruling === 'four' ? (g0.base - g0.xline) : (g0.base - g0.top);
+    var size = sizeForBand(ctx, family, band, script);
+
+    /* One character repeated: fill the line with it. */
     var chars = str.replace(/\s+/g, '');
-    /* One character, repeated: fit each copy to its own room exactly, which
-       is the whole point of writing on ruled lines. */
     var single = chars.length > 0 &&
       chars.split('').every(function (c) { return c === chars.charAt(0); });
 
     if (single) {
       var ch = chars.charAt(0);
-      var fit = fitGlyph(ctx, ch, family, zoneFor(ch, ruling, geo[0]));
-      if (!fit) return { geo: geo };
-      ctx.font = fit.size + 'px ' + family;
+      ctx.font = size + 'px ' + family;
       var cw = ctx.measureText(ch).width;
-      var gap = cw * 0.8;
-      var x = 18;
-      while (x + cw <= w - 14) {
-        ctx.fillText(ch, x, fit.baseline);
+      var gap = cw * 0.85;
+      var x = 20;
+      while (x + cw <= w - 16) {
+        drawRuledGlyph(ctx, ch, x, g0, family, size, ruling);
         x += cw + gap;
       }
-      return { geo: geo, size: fit.size, fitted: true };
+      return { geo: geo, size: size, fitted: true };
     }
 
-    /* A word or a sentence: one size for the whole run, wrapped onto rows. */
-    var size = fitRun(ctx, family, geo[0], ruling, script);
+    /* A word or a sentence: same size throughout, wrapped onto the rows,
+       every glyph still obeying the lines. */
     ctx.font = size + 'px ' + family;
     var words = str.split(/(\s+)/);
     var line = '', r = 0, placed = [];
-    var maxW = w - 36;
+    var maxW = w - 40;
 
     function flush() {
       if (line.trim() && r < geo.length) { placed.push({ text: line, row: r }); r++; }
@@ -205,7 +261,13 @@ TB.Writing = (function () {
 
     placed.forEach(function (p) {
       var g = geo[p.row];
-      if (g) ctx.fillText(p.text, 18, g.base);
+      if (!g) return;
+      var x = 20;
+      ctx.font = size + 'px ' + family;
+      p.text.split('').forEach(function (ch) {
+        if (ch === ' ') { x += ctx.measureText(' ').width; return; }
+        x += drawRuledGlyph(ctx, ch, x, g, family, size, ruling);
+      });
     });
     return { geo: geo, size: size, rowsUsed: placed.length, overflow: r > geo.length };
   }
@@ -293,8 +355,10 @@ TB.Writing = (function () {
     drawGuides: drawGuides,
     drawGhost: drawGhost,
     zoneFor: zoneFor,
-    fitGlyph: fitGlyph,
-    fitRun: fitRun,
+    sizeForBand: sizeForBand,
+    climbs: climbs,
+    hangs: hangs,
+    drawRuledGlyph: drawRuledGlyph,
     explain: explain,
     FAMILY: FAMILY,
     set: set
