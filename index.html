@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css?v=898fcc19">
+<link rel="stylesheet" href="assets/styles.css?v=f47d873a">
 </head>
 <body>
 
@@ -127,7 +127,18 @@
         <h2 id="viewTitle">Home</h2>
         <div class="sub" id="viewSub"></div>
       </div>
-      <div class="spacer"></div>
+
+      <form class="search" id="searchForm" role="search" autocomplete="off">
+        <span class="search-ic" aria-hidden="true">🔎</span>
+        <input id="searchInput" type="text" role="combobox" aria-expanded="false"
+               aria-controls="searchOut" aria-autocomplete="list" spellcheck="false"
+               aria-label="Search everything"
+               placeholder="Search everything — synonyms, tenses, words, letters…">
+        <button class="search-clear" id="searchClear" type="button" aria-label="Clear search">✕</button>
+        <kbd class="search-key" aria-hidden="true">/</kbd>
+        <div class="search-out" id="searchOut" role="listbox" aria-label="Search results" hidden></div>
+      </form>
+
       <span class="chip" id="streakChip" title="Day streak">🔥 0</span>
       <span class="chip accent" id="xpChip" title="Points">0 XP</span>
       <button class="btn btn-sm" id="textBtn" type="button" title="Text size">A+</button>
@@ -178,7 +189,7 @@
 <script src="js/ocr.js?v=08c5e35b"></script>
 <script src="js/sync.js?v=5d89b702"></script>
 <!-- ui -->
-<script src="js/views.js?v=c777380c"></script>
+<script src="js/views.js?v=e7443651"></script>
 <script src="js/views2.js?v=4b9cc3ee"></script>
 <script src="js/writing.js?v=f7406a6a"></script>
 <script src="js/views3.js?v=db78e90c"></script>
@@ -187,6 +198,8 @@
 <script src="js/views6.js?v=ffc30765"></script>
 <script src="js/views7.js?v=752815bf"></script>
 <script src="js/views8.js?v=6761abf2"></script>
-<script src="js/app.js?v=3ed01ba3"></script>
+<script src="js/search.js?v=1ba180c3"></script>
+<script src="js/searchbar.js?v=efdfc8d1"></script>
+<script src="js/app.js?v=05c5e43b"></script>
 </body>
 </html>

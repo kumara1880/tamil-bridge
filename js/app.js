@@ -433,6 +433,7 @@ TB.App = (function () {
     paintUser();
     TB.buildIndexes();
     TB.Translit.rebuild();
+    if (TB.SearchBar) TB.SearchBar.mount();
     if (!location.hash || location.hash === '#') location.hash = '#/home';
     else render();
     refreshChips();

@@ -22,7 +22,7 @@ vm.createContext(ctx);
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
  'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js',
- 'js/maths.js','js/writing.js','js/sentences.js']
+ 'js/maths.js','js/writing.js','js/sentences.js','js/search.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
 const TB = ctx.TB;
@@ -445,6 +445,146 @@ section('FINDING THINGS');
   t('speaking handlers do not stack up on redraw',
     (v8.match(/body\.addEventListener\('click'/g) || []).length === 1
       && /function onBody/.test(v8));
+})();
+
+/* ---------------- search ---------------- */
+section('SEARCH');
+(function () {
+  var S = TB.Search;
+
+  t('the index covers the whole app', S.size() > 3000, S.size().toLocaleString('en-IN'));
+
+  /* The question that started this: somebody types "synonym" and has to
+     land on the synonyms page, not on a word that happens to contain it. */
+  function first(q) { var r = S.query(q, 5); return r.length ? r[0] : null; }
+  function hrefs(q) { return S.query(q, 8).map(function (x) { return x.href; }); }
+
+  [['synonym', '#/english/words'],
+   ['synonyms', '#/english/words'],
+   ['antonym', '#/english/words'],
+   ['opposite', '#/english/words'],
+   ['tense', '#/english/tense'],
+   ['tense chart', '#/english/tense'],
+   ['writing', '#/write'],
+   ['handwriting', '#/write'],
+   ['multiplication', '#/maths'],
+   ['photo', '#/photo'],
+   ['pronunciation', '#/speak'],
+   ['alphabet', '#/alphabet'],
+   ['settings', '#/settings']].forEach(function (pair) {
+    var f = first(pair[0]);
+    t('"' + pair[0] + '" leads to ' + pair[1], !!f && f.href === pair[1], f && f.href);
+  });
+
+  /* The Tamil and Hindi words for "opposite" must work too: a Tamil-first
+     learner does not type the English name of what they are looking for. */
+  t('\u0b8e\u0ba4\u0bbf\u0bb0\u0bcd\u0b9a\u0bcd\u0b9a\u0bca\u0bb2\u0bcd finds the opposites page',
+    hrefs('\u0b8e\u0ba4\u0bbf\u0bb0\u0bcd\u0b9a\u0bcd\u0b9a\u0bca\u0bb2\u0bcd').indexOf('#/english/words') >= 0);
+  t('\u0935\u093f\u0932\u094b\u092e finds the opposites page',
+    hrefs('\u0935\u093f\u0932\u094b\u092e').indexOf('#/english/words') >= 0);
+  t('\u0915\u093e\u0932 finds the tense chart',
+    hrefs('\u0915\u093e\u0932').indexOf('#/english/tense') >= 0);
+
+  /* A word can be searched in any of the three scripts, or by how it sounds. */
+  function findsWord(q, en) {
+    return S.query(q, 8).some(function (x) { return x.kind === 'word' && x.t === en; });
+  }
+  t('an English word is found', findsWord('dog', 'dog'));
+  t('the same word is found in Tamil', findsWord('\u0ba8\u0bbe\u0baf\u0bcd', 'dog'));
+  t('and in Hindi', findsWord('\u0915\u0941\u0924\u094d\u0924\u093e', 'dog'));
+
+  /* Romanised Tamil with and without the scholarly dots must agree: a
+     phone keyboard cannot type \u1e47 and nobody should have to. */
+  t('romanised Tamil works without the dots',
+    S.query('vanakkam', 5).length > 0 && S.query('va\u1e47akkam', 5).length > 0);
+  t('and both spellings reach the same word',
+    S.query('vanakkam', 1)[0].t === S.query('va\u1e47akkam', 1)[0].t,
+    S.query('vanakkam', 1)[0].t);
+
+  /* Nobody types the scholarly dots, so the spellings people actually use
+     on a phone keyboard have to work. The app's own Meaning box advertises
+     "poonai" — it had better find \u0baa\u0bc2\u0ba9\u0bc8. */
+  [['poonai', 'cat'], ['naai', 'dog'], ['vanakkam', 'hello'],
+   ['thanni', 'water'], ['paal', 'milk'], ['veedu', 'house']].forEach(function (pair) {
+    t('"' + pair[0] + '" finds ' + pair[1], findsWord(pair[0], pair[1]),
+      (S.query(pair[0], 1)[0] || {}).t);
+  });
+  t('folding hears the long vowels',
+    S.fold('poonai') === S.fold('punai') && S.fold('naai') === S.fold('nai'),
+    S.fold('poonai') + ' / ' + S.fold('punai'));
+  t('folding hears the aspirates',
+    S.fold('thanni') === S.fold('tanni'), S.fold('thanni'));
+  t('folding leaves Tamil and Hindi script alone',
+    S.fold('\u0baa\u0bc2\u0ba9\u0bc8') === '\u0baa\u0bc2\u0ba9\u0bc8'
+      && S.fold('\u0915\u0941\u0924\u094d\u0924\u093e') === '\u0915\u0941\u0924\u094d\u0924\u093e');
+
+  /* A word that starts with what you typed must beat one that merely
+     contains it, or the list is useless. */
+  t('a word beginning with the query wins',
+    S.score('candle', 'can') > S.score('american', 'can'));
+  t('an exact match beats every prefix',
+    S.score('can', 'can') > S.score('candle', 'can'));
+  t('a word-boundary match beats a mid-word one',
+    S.score('tin can', 'can') > S.score('american', 'can'));
+
+  /* Sections outrank data, so the page about a thing comes before an
+     example of it. */
+  t('a section outranks a word of the same name',
+    first('numbers').kind === 'section', first('numbers') && first('numbers').kind);
+
+  /* Nothing may point at an address the router cannot reach. */
+  (function () {
+    var fs = require('fs');
+    var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+    var routes = (app.match(/var ROUTES = \{[\s\S]*?\};/) || [''])[0];
+    var bad = [];
+    S.build().forEach(function (e) {
+      var view = e.href.replace(/^#\//, '').split('/')[0];
+      if (routes.indexOf(view + ':') < 0) bad.push(e.t + ' -> ' + e.href);
+    });
+    t('every result points at a real section', bad.length === 0, bad.slice(0, 3).join(' | '));
+  })();
+
+  /* Typing a number found nothing at all, which is a strange thing for a
+     counting app. */
+  t('a number is found', first('47') && first('47').kind === 'number',
+    first('47') && first('47').t);
+  t('and carries its name in all three languages',
+    /forty-seven/.test(first('47').s) && /\u0b8f\u0bb4\u0bc1/.test(first('47').s)
+      && /\u0938\u0948\u0902\u0924\u093e\u0932\u0940\u0938/.test(first('47').s), first('47').s);
+  t('a number word is found too',
+    S.query('sixty', 5).some(function (x) { return x.kind === 'number'; }));
+  t('lakh and crore are findable by name',
+    S.query('lakh', 3).some(function (x) { return x.t === '100000'; })
+      && S.query('crore', 3).some(function (x) { return x.t === '10000000'; }));
+
+  /* Folding must bring the spellings together without throwing the word
+     away: "naai" folded to "ni" once matched half the dictionary. */
+  t('"naai" puts the dog near the top',
+    S.query('naai', 3).some(function (x) { return x.t === 'dog'; }),
+    S.query('naai', 3).map(function (x) { return x.t; }).join(', '));
+
+  t('an empty search returns nothing rather than everything', S.query('', 10).length === 0);
+  t('a search with no match returns nothing',
+    S.query('zzqqxx', 10).length === 0, S.query('zzqqxx', 10).length);
+
+  /* The bar itself */
+  (function () {
+    var fs = require('fs');
+    var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+    var bar = fs.readFileSync(__dirname + '/js/searchbar.js', 'utf8');
+    t('the box is in the top bar of every page', /id="searchInput"/.test(html));
+    t('and is loaded before the app starts',
+      html.indexOf('js/search.js') < html.indexOf('js/app.js')
+      && html.indexOf('js/searchbar.js') < html.indexOf('js/app.js'));
+    t('slash and ctrl-K open it', /e\.key === '\/'/.test(bar) && /e\.key === 'k'/.test(bar));
+    t('the arrow keys move through the results', /ArrowDown/.test(bar) && /ArrowUp/.test(bar));
+    t('escape gives the page back', /e\.key === 'Escape'/.test(bar));
+    t('choosing something closes the keyboard on a phone', /input\.blur\(\)/.test(bar));
+    t('the index is built when the browser is idle, not on the first keystroke',
+      /requestIdleCallback/.test(bar));
+    t('browser storage failures are survivable', /catch \(e\)/.test(bar));
+  })();
 })();
 
 /* ---------------- clipboard ---------------- */

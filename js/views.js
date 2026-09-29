@@ -356,12 +356,13 @@ TB.Views = (function () {
   /* ============================================================= MEANING */
   var meaning = {
     title: 'Meaning', sub: 'Any word — in any language',
-    html: function () {
+    html: function (param) {
+      var seed = param ? decodeURIComponent(param) : '';
       return ''
       + '<div class="view">'
       + '<div class="card">'
       +   '<div class="row">'
-      +     '<input id="mWord" type="text" placeholder="cat  /  பூனை  /  बिल्ली  /  poonai" '
+      +     '<input id="mWord" type="text" value="' + esc(seed) + '" placeholder="cat  /  பூனை  /  बिल्ली  /  poonai" '
       +       'style="flex:1;min-width:200px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg-soft);font-size:17px">'
       +     '<button class="btn btn-primary" id="mGo" type="button">Search</button>'
       +     '<button class="btn btn-icon" id="mMic" type="button">🎤</button>'
@@ -371,7 +372,7 @@ TB.Views = (function () {
       + '<div id="mOut"></div>'
       + '</div>';
     },
-    mount: function (root) {
+    mount: function (root, param) {
       var input = root.querySelector('#mWord'), out = root.querySelector('#mOut');
 
       function go() {
@@ -467,8 +468,12 @@ TB.Views = (function () {
         TB.Speech.listen('ta').then(function (r) { input.value = r.text; go(); })
           .catch(function (e) { TB.App.toast(e.message, 'err'); });
       });
+      /* A word searched from the top bar arrives in the address, so the
+         result is already on screen when the page opens. */
       if (TB.App.pending && TB.App.pending.word) {
         input.value = TB.App.pending.word; TB.App.pending = null; go();
+      } else if (param) {
+        input.value = decodeURIComponent(param); go();
       } else input.focus();
     }
   };
