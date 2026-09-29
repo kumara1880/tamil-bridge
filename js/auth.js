@@ -117,14 +117,19 @@ TB.Auth = (function () {
     isPhone: isPhone,
     passwordIssue: passwordIssue,
 
-    /* Register. `identifier` may be an email or a phone number. */
+    /* Register. New accounts are made with an email address: a number
+       cannot receive a reset link, so an account made with one can never be
+       recovered. Signing in still accepts a number, so that anybody who
+       already has such an account is not locked out of it. */
     signUp: function (name, identifier, password) {
       identifier = String(identifier || '').trim();
       name = String(name || '').trim();
 
       if (!name) return Promise.reject(new Error('Please enter your name.'));
-      if (!isEmail(identifier) && !isPhone(identifier)) {
-        return Promise.reject(new Error('Enter a valid email address or phone number.'));
+      if (!isEmail(identifier)) {
+        return Promise.reject(new Error(isPhone(identifier)
+          ? 'Please use an email address. A password can only be reset by email.'
+          : 'Enter a valid email address.'));
       }
       var pwIssue = passwordIssue(password);
       if (pwIssue) return Promise.reject(new Error(pwIssue));
@@ -241,8 +246,10 @@ TB.Auth = (function () {
       if (!current) return Promise.reject(new Error('Please sign in first.'));
       identifier = String(identifier || '').trim();
       if (identifier) {
-        if (!isEmail(identifier) && !isPhone(identifier)) {
-          return Promise.reject(new Error('Enter a valid email address or phone number.'));
+        if (!isEmail(identifier)) {
+          return Promise.reject(new Error(isPhone(identifier)
+            ? 'Please use an email address, so a password reset can reach you.'
+            : 'Enter a valid email address.'));
         }
         var clash = TB.Store.findUser(identifier);
         if (clash && clash.id !== current.id) {

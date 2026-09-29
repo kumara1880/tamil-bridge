@@ -717,11 +717,27 @@ section('SIGNING IN');
       /a reset link goes to/.test(v2));
   })();
 
-  /* The moment to warn somebody is while they are choosing what to type,
-     not after they have forgotten the password. */
-  t('sign-up warns that a number alone leaves no way back',
-    /way back in if you forget it/.test(app)
-      && /can only be reset by email/.test(app));
+  /* Better than warning about a number is not accepting one. A reset goes
+     by email, so an account made with a number could never be recovered,
+     and an account nobody can get back into is worse than no account. */
+  t('a new account needs an email address', /Enter a valid email address\./.test(srv));
+  t('a number is refused, with the reason',
+    /could never be recovered/.test(srv) && /isPhone\(identifier\)/.test(srv));
+  t('the client refuses it before the server has to', /isPhone\(id\)/.test(app)
+      && /no way back in if you forget it/.test(app));
+  t('the sign-in field asks for an email', (function () {
+    var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+    return /<label for="fId">Email address<\/label>/.test(html)
+        && /id="fId" type="email"/.test(html);
+  })());
+  /* But signing in must still accept a number, or anybody who already made
+     an account that way is locked out of it for good. */
+  t('signing in still looks up a number, so nobody is locked out',
+    /const phone = !email \? normalisePhone\(identifier\) : null/.test(srv));
+  t('and Settings invites an address for an account that has none', (function () {
+    var v2 = fs.readFileSync(__dirname + '/js/views2.js', 'utf8');
+    return /There is no way back into this account/.test(v2);
+  })());
 
   /* Somebody must be able to take their data back. Delete account erased
      the copy on the phone and left the server's copy untouched for ever,
@@ -1682,8 +1698,18 @@ section('DICTIONARY (offline)');
     t('wrong password rejected', threw);
     const back = await TB.Auth.signIn('kumara@test.com', 'tamil2024');
     t('signin succeeds', back.id === u.id);
-    const p = await TB.Auth.signUp('Phone', '9876543210', 'tamil2024');
-    t('phone signup works', p.phone === '9876543210');
+    /* This used to check that a phone number could register. It cannot any
+       more, and that is the point: a number receives no reset link, so an
+       account made with one could never be recovered. */
+    threw = false;
+    let why = '';
+    try { await TB.Auth.signUp('Phone', '9876543210', 'tamil2024'); }
+    catch (e) { threw = true; why = e.message; }
+    t('a phone number cannot open an account', threw, why);
+    t('and the refusal explains why', /reset by email/.test(why), why);
+    threw = false;
+    try { await TB.Auth.signUp('Rubbish', 'hello', 'tamil2024'); } catch (e) { threw = true; }
+    t('nor does anything that is not an address', threw);
     t('weak password rejected', !!TB.Auth.passwordIssue('abc'));
 
     /* history + export */

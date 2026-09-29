@@ -331,8 +331,17 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
   try {
     const { name, identifier, password } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name is required.' });
-    if (!isEmail(identifier) && !isPhone(identifier)) {
-      return res.status(400).json({ error: 'Enter a valid email address or phone number.' });
+    /* New accounts need an address. A number cannot receive a reset link,
+       and an account nobody can get back into is worse than no account at
+       all. Signing in still accepts a number, so the ones already made that
+       way still work \u2014 their owners can add an address in Settings. */
+    if (!isEmail(identifier)) {
+      return res.status(400).json({
+        error: isPhone(identifier)
+          ? 'Please use an email address. A password can only be reset by email, so an '
+            + 'account made with a number could never be recovered.'
+          : 'Enter a valid email address.'
+      });
     }
     /* Same rules the browser enforces — a client check is a convenience, not
        a guarantee, so the server applies them too. */

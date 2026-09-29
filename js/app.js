@@ -405,27 +405,6 @@ TB.App = (function () {
       });
     })();
 
-    /* A phone number alone leaves no way back into the account, and the
-       moment to say so is while somebody is choosing what to type \u2014 not
-       after they have forgotten the password. */
-    var idBox = document.getElementById('fId');
-    idBox.addEventListener('input', function () {
-      var v = idBox.value.trim();
-      var warn = document.getElementById('idWarn');
-      var phoneOnly = v && !TB.Auth.isEmail(v) && TB.Auth.isPhone(v);
-      if (!warn) {
-        warn = document.createElement('div');
-        warn.id = 'idWarn';
-        warn.className = 'hint';
-        idBox.parentNode.appendChild(warn);
-      }
-      warn.innerHTML = (mode === 'up' && phoneOnly)
-        ? '\u26A0\uFE0F A password can only be reset by email. With a number alone there is no '
-          + 'way back in if you forget it \u2014 you can add an email later in Settings.'
-        : '';
-      warn.style.color = 'var(--red)';
-    });
-
     /* show / hide the password */
     var pwInput = document.getElementById('fPw');
     var pwEye = document.getElementById('pwEye');
@@ -495,7 +474,14 @@ TB.App = (function () {
       if (mode === 'up') {
         var localIssue = null;
         if (!name.trim()) localIssue = 'Please enter your name.';
-        else if (!TB.Auth.isEmail(id) && !TB.Auth.isPhone(id)) localIssue = 'Enter a valid email address or phone number.';
+        /* An address, not a number: a number cannot receive a reset link,
+           and an account nobody can get back into is worse than no account. */
+        else if (!TB.Auth.isEmail(id)) {
+          localIssue = TB.Auth.isPhone(id)
+            ? 'Please use an email address. A password can only be reset by email, so an '
+              + 'account made with a number has no way back in if you forget it.'
+            : 'Enter a valid email address.';
+        }
         else localIssue = TB.Auth.passwordIssue(pw);
         if (localIssue) { fail(localIssue); return; }
 

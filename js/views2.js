@@ -1089,7 +1089,11 @@
 
       + '<div class="card"><h3>Account</h3>'
       +   '<div class="field"><label>Name</label><input id="sName" value="' + esc(u.name || '') + '"></div>'
-      +   '<div class="field"><label>Email / phone</label><input id="sId" value="' + esc(u.email || u.phone || '') + '"></div>'
+      /* A legacy account made with a number has no address to show; leaving
+         the box empty invites one rather than offering back a value that can
+         no longer be saved. */
+      +   '<div class="field"><label>Email address</label><input id="sId" type="email" '
+      +   'placeholder="name@mail.com" value="' + esc(u.email || '') + '"></div>'
       +   '<button class="btn btn-sm" id="sSaveProfile" type="button">Save</button>'
       +   '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)">'
       +   '<div class="tiny muted mb">Change password</div>'
