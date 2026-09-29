@@ -676,6 +676,36 @@ section('SIGNING IN');
   t('and refuses honestly rather than pretending, when it cannot',
     /cannot send email yet/.test(srv) && /cannot keep accounts yet/.test(srv));
 
+  /* Somebody must be able to take their data back. Delete account erased
+     the copy on the phone and left the server's copy untouched for ever,
+     while telling them it had been "permanently erased". */
+  t('an account can be deleted from the server', /\/api\/account\/delete/.test(srv));
+  t('and the password is required, so a stolen phone cannot do it',
+    /bcrypt\.compare\(String\(password/.test(srv) && /nothing was deleted/.test(srv));
+  t('the learning data is deleted as well as the account',
+    /blobs\.deleteOne/.test(srv) && /users\.deleteOne/.test(srv));
+  t('the data goes first, so a half-failure leaves nothing unreachable',
+    srv.indexOf('blobs.deleteOne') < srv.indexOf('users.deleteOne'));
+  t('deleting is rate limited', /account\/delete', auth, rateLimit/.test(srv));
+
+  /* The fallback store must be able to delete too, or a person on a server
+     that has lost its database is told their account cannot be removed. */
+  t('the in-memory store can delete as well', /async deleteOne\(q\)/.test(srv));
+
+  /* The client asks the server before it erases anything locally, so a
+     refusal leaves the person with everything they had. */
+  t('the client can ask the server to delete', /deleteAccount: function \(password\)/.test(sync));
+  t('and forgets the token afterwards',
+    /deleteAccount[\s\S]{0,260}setToken\(''\)/.test(sync));
+  (function () {
+    var v2 = fs.readFileSync(__dirname + '/js/views2.js', 'utf8');
+    t('Settings asks for the password before deleting', /id="sDelPw"/.test(v2));
+    t('and says what will actually be erased',
+      /from this device[\s\S]{0,40}and from the server/.test(v2));
+    t('the server is asked first, so a refusal destroys nothing',
+      /Nothing has been deleted/.test(v2));
+  })();
+
   /* Nothing here may cost anything or need a key. */
   t('the mailer is optional, so the server still boots without it',
     /Nodemailer is loaded lazily/.test(srv));

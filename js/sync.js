@@ -131,6 +131,14 @@ TB.Sync = (function () {
       });
     },
 
+    /* Erase this account from the server. The password is asked for again
+       because this cannot be undone. */
+    deleteAccount: function (password) {
+      return req('/api/account/delete', {
+        method: 'POST', body: JSON.stringify({ password: password })
+      }, 75000).then(function (j) { api.setToken(''); return j; });
+    },
+
     pull: function () { return req('/api/data').then(function (j) { return j.data; }); },
 
     push: function (data) {

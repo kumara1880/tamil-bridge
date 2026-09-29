@@ -215,6 +215,15 @@ function memoryCollection() {
       m.set(doc._id, doc);
       return { matchedCount: 1 };
     },
+    /* Deleting has to work here too. Without it, a person on a server that
+       has fallen back to memory asks for their account to be erased and is
+       told it could not be done — which is at least honest, but useless. */
+    async deleteOne(q) {
+      const doc = await this.findOne(q);
+      if (!doc) return { deletedCount: 0 };
+      m.delete(doc._id);
+      return { deletedCount: 1 };
+    },
     async createIndex() { return null; }
   };
 }
@@ -471,6 +480,31 @@ app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   } catch (e) {
     console.error('reset', e);
     res.status(500).json({ error: 'Could not reset the password.' });
+  }
+});
+
+/* Deleting is the one thing that cannot be undone, so it asks for the
+   password again. A token alone is not enough: a phone left unlocked on a
+   table should not be able to destroy somebody's work. */
+app.post('/api/account/delete', auth, rateLimit(6, 15 * 60 * 1000), async (req, res) => {
+  try {
+    const user = await users.findOne({ _id: req.userId });
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+
+    const { password } = req.body || {};
+    if (!(await bcrypt.compare(String(password || ''), user.hash))) {
+      return res.status(401).json({ error: 'That password is not right, so nothing was deleted.' });
+    }
+
+    /* The learning data goes first. If the second call fails, a person is
+       left with an account and no data, which they can delete again \u2014
+       rather than data with no account, which nobody could ever reach. */
+    await blobs.deleteOne({ _id: req.userId });
+    await users.deleteOne({ _id: req.userId });
+    res.json({ ok: true, deleted: true });
+  } catch (e) {
+    console.error('delete account', e);
+    res.status(500).json({ error: 'Could not delete the account. Nothing was changed.' });
   }
 });
 

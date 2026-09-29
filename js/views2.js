@@ -1131,9 +1131,15 @@
       +   '<div class="row"><button class="btn btn-sm" id="sExport" type="button">⬇ Download everything</button>'
       +   '<button class="btn btn-sm" id="sImportBtn" type="button">⬆ Restore</button>'
       +   '<input id="sImport" type="file" accept="application/json" style="display:none"></div>'
-      +   '<div class="tiny muted mt">Your data lives only in this browser. Clearing browser data deletes it — download a backup now and then.</div>'
+      +   '<div class="tiny muted mt">Your data lives in this browser, and on the server too if sync is on. '
+      +   'Clearing browser data deletes the local copy — download a backup now and then.</div>'
       +   '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)">'
+      +   '<div class="tiny muted mb">Deleting removes your account and everything in it, here and on the server. '
+      +   'It cannot be undone.</div>'
+      +   '<div class="row"><input id="sDelPw" type="password" autocomplete="current-password" '
+      +   'placeholder="Your password" style="max-width:220px">'
       +   '<button class="btn btn-sm" id="sDelete" type="button" style="border-color:var(--red);color:var(--red)">Delete account</button></div>'
+      +   '<div id="sDelMsg"></div></div>'
       + '</div>'
 
       + '<div class="card"><h3>About</h3>'
@@ -1246,10 +1252,36 @@
       });
 
       root.querySelector('#sDelete').addEventListener('click', function () {
-        TB.App.confirm('Delete account?', 'Your history and all progress will be permanently erased. This cannot be undone.', function () {
-          TB.Auth.deleteAccount();
-          location.reload();
-        });
+        var pwBox = root.querySelector('#sDelPw');
+        var out = root.querySelector('#sDelMsg');
+        var pw = pwBox.value;
+        out.innerHTML = '';
+
+        var onServer = TB.Sync.configured() && TB.Sync.hasToken();
+        if (onServer && !pw) {
+          out.innerHTML = '<div class="msg msg-err mt">Type your password to confirm.</div>';
+          pwBox.focus();
+          return;
+        }
+
+        TB.App.confirm('Delete account?',
+          onServer
+            ? 'Your account, your history and all your progress will be erased from this device '
+              + 'and from the server. This cannot be undone.'
+            : 'Your history and all progress on this device will be permanently erased. '
+              + 'This cannot be undone.',
+          function () {
+            /* The server goes first: if it refuses, the local copy is still
+               there and the person has lost nothing. */
+            var step = onServer ? TB.Sync.deleteAccount(pw) : Promise.resolve();
+            step.then(function () {
+              TB.Auth.deleteAccount();
+              location.reload();
+            }).catch(function (err) {
+              out.innerHTML = '<div class="msg msg-err mt">' + esc(err.message)
+                + ' Nothing has been deleted.</div>';
+            });
+          });
       });
     }
   };
