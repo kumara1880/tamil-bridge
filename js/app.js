@@ -228,7 +228,13 @@ TB.App = (function () {
 
     document.getElementById('themeBtn').addEventListener('click', function () {
       var d = TB.Store.data(TB.Auth.userId());
-      d.prefs.theme = d.prefs.theme === 'dark' ? 'light' : 'dark';
+      /* Toggle away from what is on the screen, not from what is stored.
+         Earlier builds wrote 'dark' into everybody's preferences without
+         their asking, and the screen then starts light while the stored
+         value says dark — so the first tap set it to the colour it already
+         was and appeared to do nothing at all. */
+      var showing = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      d.prefs.theme = showing === 'dark' ? 'light' : 'dark';
       d.prefs.themeChosen = true;
       TB.Store.saveData(TB.Auth.userId(), d);
       applyTheme(d.prefs.theme);
@@ -398,6 +404,27 @@ TB.App = (function () {
         eye.textContent = np.type === 'text' ? '\u{1F648}' : '\u{1F441}';
       });
     })();
+
+    /* A phone number alone leaves no way back into the account, and the
+       moment to say so is while somebody is choosing what to type \u2014 not
+       after they have forgotten the password. */
+    var idBox = document.getElementById('fId');
+    idBox.addEventListener('input', function () {
+      var v = idBox.value.trim();
+      var warn = document.getElementById('idWarn');
+      var phoneOnly = v && !TB.Auth.isEmail(v) && TB.Auth.isPhone(v);
+      if (!warn) {
+        warn = document.createElement('div');
+        warn.id = 'idWarn';
+        warn.className = 'hint';
+        idBox.parentNode.appendChild(warn);
+      }
+      warn.innerHTML = (mode === 'up' && phoneOnly)
+        ? '\u26A0\uFE0F A password can only be reset by email. With a number alone there is no '
+          + 'way back in if you forget it \u2014 you can add an email later in Settings.'
+        : '';
+      warn.style.color = 'var(--red)';
+    });
 
     /* show / hide the password */
     var pwInput = document.getElementById('fPw');

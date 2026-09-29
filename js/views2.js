@@ -1127,6 +1127,28 @@
       +   '<div class="tiny muted mt">Render’s free tier sleeps after 15 minutes idle — the first request can take up to a minute.</div>'
       + '</div>'
 
+      + (function () {
+          /* An account made with a phone number has nowhere for a reset
+             link to go. Saying so here, where it can be fixed, is the whole
+             point of the card. */
+          var u = TB.Auth.user() || {};
+          var has = !!u.email;
+          return '<div class="card"><h3>Getting back in</h3>'
+            + (has
+                ? '<div class="card-sub">If you forget your password, a reset link goes to '
+                  + '<b>' + esc(u.email) + '</b>.</div>'
+                : '<div class="msg msg-warn"><b>There is no way back into this account.</b> '
+                  + 'It was made with a number, and a password can only be reset by email. '
+                  + 'Add an address below and that is fixed.</div>')
+            + '<div class="row mt"><input id="sRecEmail" type="email" autocomplete="email" '
+            + 'placeholder="name@mail.com" value="' + esc(u.email || '') + '" style="max-width:240px">'
+            + '<input id="sRecPw" type="password" autocomplete="current-password" '
+            + 'placeholder="Your password" style="max-width:190px">'
+            + '<button class="btn btn-sm btn-primary" id="sRecSave" type="button">'
+            + (has ? 'Change it' : 'Add it') + '</button></div>'
+            + '<div id="sRecMsg"></div></div>';
+        })()
+
       + '<div class="card"><h3>Data</h3>'
       +   '<div class="row"><button class="btn btn-sm" id="sExport" type="button">⬇ Download everything</button>'
       +   '<button class="btn btn-sm" id="sImportBtn" type="button">⬆ Restore</button>'
@@ -1249,6 +1271,44 @@
           } catch (e) { TB.App.toast(e.message, 'err'); }
         };
         fr.readAsText(f);
+      });
+
+      root.querySelector('#sRecSave').addEventListener('click', function () {
+        var email = root.querySelector('#sRecEmail').value.trim();
+        var pw = root.querySelector('#sRecPw').value;
+        var out = root.querySelector('#sRecMsg');
+        var btn = root.querySelector('#sRecSave');
+        out.innerHTML = '';
+
+        if (!TB.Auth.isEmail(email)) {
+          out.innerHTML = '<div class="msg msg-err mt">That does not look like an email address.</div>';
+          return;
+        }
+        if (!TB.Sync.configured() || !TB.Sync.hasToken()) {
+          out.innerHTML = '<div class="msg msg-info mt">This account is only on this device, so '
+            + 'there is no server to send a reset link from. Turn on Sync above first.</div>';
+          return;
+        }
+        if (!pw) {
+          out.innerHTML = '<div class="msg msg-err mt">Type your password to confirm.</div>';
+          return;
+        }
+
+        var label = btn.textContent;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spin"></span> Saving\u2026';
+        TB.Sync.setEmail(pw, email).then(function (remote) {
+          /* keep the copy on this device in step; it takes (name, identifier) */
+          TB.Auth.updateProfile('', remote.email).catch(function () {});
+          btn.disabled = false; btn.textContent = label;
+          root.querySelector('#sRecPw').value = '';
+          out.innerHTML = '<div class="msg msg-ok mt">Saved. If you forget your password, the '
+            + 'reset link will go to ' + esc(remote.email) + '.</div>';
+          TB.App.paintUser();
+        }).catch(function (err) {
+          btn.disabled = false; btn.textContent = label;
+          out.innerHTML = '<div class="msg msg-err mt">' + esc(err.message) + '</div>';
+        });
       });
 
       root.querySelector('#sDelete').addEventListener('click', function () {

@@ -1149,11 +1149,19 @@ table.chart td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); v
 }
 .mod-word .ta { color: var(--teal); }
 .mod-word .hi { color: var(--purple); }
+/* A child has to be able to hit this. It was 20x12, which nobody can tap
+   reliably and a small hand cannot tap at all. */
 .mod-word .mini {
-  padding: 0 2px; font-size: 12px; line-height: 1;
-  background: none; border: 0; cursor: pointer; opacity: .6;
+  display: inline-grid; place-items: center;
+  min-width: 34px; min-height: 34px; padding: 0;
+  font-size: 15px; line-height: 1;
+  background: none; border: 0; border-radius: 50%;
+  cursor: pointer; opacity: .65;
 }
-.mod-word .mini:hover { opacity: 1; }
+.mod-word .mini:hover { opacity: 1; background: var(--line-soft); }
+@media (max-width: 640px) {
+  .mod-word .mini { min-width: 40px; min-height: 40px; font-size: 17px; }
+}
 .mod-try, .mod-careful {
   margin-top: 12px; padding: 11px 13px; border-radius: 11px;
 }

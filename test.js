@@ -536,6 +536,15 @@ section('FINDING THINGS');
   t('the highlight follows the whole address, not just the section',
     /a === exact/.test(app));
 
+  /* Earlier builds wrote dark into everybody’s preferences uninvited, so the
+     screen starts light while the stored value says dark. A toggle that
+     reads the stored value then sets it to the colour it already is, and
+     the first tap does nothing. */
+  t('the theme toggle follows what is on the screen, not what is stored',
+    /getAttribute\('data-theme'\) === 'dark' \? 'dark' : 'light'/.test(app));
+  t('and it still records that a choice was made',
+    /themeChosen = true/.test(app));
+
   /* One handler on the lasting element, not one per redraw, or a word gets
      spoken once for every time you have visited the tab. */
   t('speaking handlers do not stack up on redraw',
@@ -682,6 +691,37 @@ section('SIGNING IN');
     /mail: MAIL_STATE\.ready/.test(srv) && /canReset/.test(srv));
   t('and refuses honestly rather than pretending, when it cannot',
     /cannot send email yet/.test(srv) && /cannot keep accounts yet/.test(srv));
+
+  /* An account made with a phone number had no way back in at all: a reset
+     works by sending a link, and there was nowhere to send it. Forgetting
+     the password meant losing everything, for ever. Sending an SMS costs
+     money and this app does not, so the answer is to let somebody add an
+     email to an account they are already signed into. */
+  t('an email can be added to an account', /\/api\/account\/email/.test(srv));
+  t('and the password is required to do it',
+    /set email[\s\S]{0,40}|account\/email/.test(srv)
+      && /nothing was changed/.test(srv));
+  t('it must actually be an email address',
+    /does not look like an email address/.test(srv));
+  t('and it cannot be one somebody else is using',
+    /already uses that email address/.test(srv));
+  t('adding an email is rate limited', /account\/email', auth, rateLimit/.test(srv));
+  t('the client can set it', /setEmail: function \(password, email\)/.test(sync));
+
+  (function () {
+    var v2 = fs.readFileSync(__dirname + '/js/views2.js', 'utf8');
+    t('Settings has somewhere to add one', /id="sRecEmail"/.test(v2));
+    t('and says plainly when there is no way back in',
+      /There is no way back into this account/.test(v2));
+    t('and says where the link will go once there is',
+      /a reset link goes to/.test(v2));
+  })();
+
+  /* The moment to warn somebody is while they are choosing what to type,
+     not after they have forgotten the password. */
+  t('sign-up warns that a number alone leaves no way back',
+    /way back in if you forget it/.test(app)
+      && /can only be reset by email/.test(app));
 
   /* Somebody must be able to take their data back. Delete account erased
      the copy on the phone and left the server's copy untouched for ever,

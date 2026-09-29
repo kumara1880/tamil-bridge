@@ -483,6 +483,36 @@ app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   }
 });
 
+/* Add or change the email on an account. This is what makes a phone-only
+   account recoverable: without an address there is nowhere to send a reset
+   link, and forgetting the password means losing everything. The password
+   is required, because an email address is how an account is taken back. */
+app.post('/api/account/email', auth, rateLimit(10, 15 * 60 * 1000), async (req, res) => {
+  try {
+    const user = await users.findOne({ _id: req.userId });
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+
+    const { password, email } = req.body || {};
+    if (!(await bcrypt.compare(String(password || ''), user.hash))) {
+      return res.status(401).json({ error: 'That password is not right, so nothing was changed.' });
+    }
+    const next = String(email || '').trim().toLowerCase();
+    if (!isEmail(next)) {
+      return res.status(400).json({ error: 'That does not look like an email address.' });
+    }
+    const taken = await users.findOne({ email: next });
+    if (taken && taken._id !== user._id) {
+      return res.status(409).json({ error: 'Another account already uses that email address.' });
+    }
+    await users.updateOne({ _id: user._id }, { $set: { email: next } });
+    const fresh = await users.findOne({ _id: user._id });
+    res.json({ ok: true, user: publicUser(fresh) });
+  } catch (e) {
+    console.error('set email', e);
+    res.status(500).json({ error: 'Could not save that email address.' });
+  }
+});
+
 /* Deleting is the one thing that cannot be undone, so it asks for the
    password again. A token alone is not enough: a phone left unlocked on a
    table should not be able to destroy somebody's work. */

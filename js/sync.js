@@ -131,6 +131,14 @@ TB.Sync = (function () {
       });
     },
 
+    /* Add or change the email on this account, which is what makes a
+       phone-only account recoverable at all. */
+    setEmail: function (password, email) {
+      return req('/api/account/email', {
+        method: 'POST', body: JSON.stringify({ password: password, email: email })
+      }, 75000).then(function (j) { return j.user; });
+    },
+
     /* Erase this account from the server. The password is asked for again
        because this cannot be undone. */
     deleteAccount: function (password) {
