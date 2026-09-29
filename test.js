@@ -17,8 +17,8 @@ vm.createContext(ctx);
 
 ['data/vocab.js','data/vocab2.js','data/ensound.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
  'data/phrases.js','data/lexicon.js','data/grammar.js','data/grammar_hi.js','data/grammar_ta.js',
- 'data/wordpairs.js','data/wordpairs2.js','data/spoken.js','data/grammar.js','data/grammar_hi.js',
- 'data/wordpairs.js','data/wordpairs2.js','data/spoken.js',
+ 'data/wordpairs.js','data/wordpairs2.js','data/wordpairs3.js','data/wordpairs4.js','data/spoken.js','data/grammar.js','data/grammar_hi.js',
+ 'data/wordpairs.js','data/wordpairs2.js','data/wordpairs3.js','data/wordpairs4.js','data/spoken.js',
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
  'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js',
@@ -305,6 +305,37 @@ section('GRAMMAR AND WORDS');
   t('the mistakes are real mistakes, not the right answer twice',
     TB.GRAMMAR_TA.every(function (g) { return g.mistake.wrong !== g.mistake.right; }));
 
+  /* A word list is only worth having if every word in it is in the right
+     script. A Hindi synonym sitting in a Tamil list is not a small mistake:
+     it is the app teaching the wrong word. */
+  var TAMIL = /[\u0b80-\u0bff]/, DEVA = /[\u0900-\u097f]/;
+  [['English', TB.WORDPAIRS, 'en'], ['Hindi', TB.WORDPAIRS_HI, 'hi'], ['Tamil', TB.WORDPAIRS_TA, 'ta']]
+    .forEach(function (row) {
+      var name = row[0], set = row[1], lang = row[2];
+      var bad = [];
+      set.forEach(function (w) {
+        var all = [w[lang]].concat(w.syn).concat(w.ant);
+        all.forEach(function (x) {
+          if (lang === 'ta' && (!TAMIL.test(x) || DEVA.test(x))) bad.push(x);
+          if (lang === 'hi' && (!DEVA.test(x) || TAMIL.test(x))) bad.push(x);
+          if (lang === 'en' && !/[A-Za-z]/.test(x)) bad.push(x);
+        });
+        if (w.ta && DEVA.test(w.ta)) bad.push(w.ta);
+        if (w.hi && TAMIL.test(w.hi)) bad.push(w.hi);
+        if (w.ex) {
+          if (!TAMIL.test(w.ex.ta) || DEVA.test(w.ex.ta)) bad.push(w.ex.ta);
+          if (!DEVA.test(w.ex.hi) || TAMIL.test(w.ex.hi)) bad.push(w.ex.hi);
+        }
+      });
+      t(name + ' words, synonyms, opposites and examples are all in the right script',
+        bad.length === 0, bad.slice(0, 3).join(' | '));
+
+      var heads = set.map(function (w) { return w[lang]; });
+      t(name + ' lists no word twice',
+        new Set(heads).size === heads.length,
+        heads.filter(function (h, i) { return heads.indexOf(h) !== i; }).slice(0, 3).join(', '));
+    });
+
   [['English', TB.WORDPAIRS, 'en'], ['Hindi', TB.WORDPAIRS_HI, 'hi'], ['Tamil', TB.WORDPAIRS_TA, 'ta']]
     .forEach(function (row) {
       var name = row[0], set = row[1], lang = row[2];
@@ -325,6 +356,32 @@ section('GRAMMAR AND WORDS');
           return w.syn.every(function (x) { return w.ant.indexOf(x) < 0; });
         }));
     });
+
+  /* The count shown in the app must be the count that is really there. A
+     cluster of n synonyms holds n(n-1)/2 synonym pairs and n x m opposites;
+     that is the number the page prints, and it is counted, never claimed. */
+  function relations(list, lang) {
+    var syn = 0, ant = 0;
+    list.forEach(function (w) {
+      var n = w.syn.length + 1;
+      syn += n * (n - 1) / 2;
+      ant += n * w.ant.length;
+    });
+    return { syn: syn, ant: ant, total: syn + ant };
+  }
+  var all = relations(TB.WORDPAIRS, 'en').total
+          + relations(TB.WORDPAIRS_HI, 'hi').total
+          + relations(TB.WORDPAIRS_TA, 'ta').total;
+  t('the three languages hold thousands of pairs between them',
+    all > 4000, all.toLocaleString('en-IN') + ' pairs');
+  t('English alone holds over two thousand',
+    relations(TB.WORDPAIRS, 'en').total > 2000,
+    relations(TB.WORDPAIRS, 'en').total.toLocaleString('en-IN'));
+  t('and the page counts them rather than claiming a number', (function () {
+    var fs = require('fs');
+    var src = fs.readFileSync(__dirname + '/js/views8.js', 'utf8');
+    return /function relations/.test(src) && /r\.syn\.toLocaleString/.test(src);
+  })());
 
   t('conversations exist', TB.SPOKEN.length >= 15, TB.SPOKEN.length);
   t('every conversation is titled in all three languages',
@@ -474,6 +531,61 @@ section('FINDING THINGS');
   t('speaking handlers do not stack up on redraw',
     (v8.match(/body\.addEventListener\('click'/g) || []).length === 1
       && /function onBody/.test(v8));
+})();
+
+/* ---------------- sounding out the unknown ---------------- */
+section('ENGLISH IN TAMIL LETTERS');
+(function () {
+  var T = TB.Translit;
+
+  /* The bug this exists for: a word the pronouncing dictionary had never
+     heard of was left in Latin letters in the middle of a line written for
+     somebody who cannot read Latin. */
+  ['A small bird sat on the wall.',
+   'She hid the gift under the bed.',
+   'My name is Kumara.',
+   'Everything the verb acts on comes before it.',
+   'He bought nine bright kites.'].forEach(function (line) {
+    var out = T.englishToTamilSound(line);
+    t('no English letter survives in: ' + line.slice(0, 34),
+      !!out && !/[A-Za-z]/.test(out), out);
+  });
+
+  /* The speller itself, on the patterns that matter. */
+  [['sat', '\u0bb8\u0b9f\u0bcd'], ['hid', '\u0bb9\u0bbf\u0b9f\u0bcd'],
+   ['name', '\u0ba8\u0bc7\u0bae\u0bcd'], ['hide', '\u0bb9\u0bc8\u0b9f\u0bcd'],
+   ['rope', '\u0bb0\u0bcb\u0baa\u0bcd'], ['five', '\u0b83\u0baa\u0bc8\u0bb5\u0bcd'],
+   ['light', '\u0bb2\u0bc8\u0b9f\u0bcd'], ['school', '\u0bb8\u0bcd\u0b95\u0bc2\u0bb2\u0bcd'],
+   ['my', '\u0bae\u0bc8'], ['happy', '\u0bb9\u0baa\u0bbf']].forEach(function (pair) {
+    t('"' + pair[0] + '" is sounded out as ' + pair[1],
+      T.spellEnglishInTamil(pair[0]) === pair[1], T.spellEnglishInTamil(pair[0]));
+  });
+
+  /* Two rules that are Tamil spelling, not English: a word does not begin
+     with \u0ba9, and a silent final e lengthens the vowel before it. */
+  t('a word does not begin with \u0ba9',
+    T.spellEnglishInTamil('night').charAt(0) === '\u0ba8',
+    T.spellEnglishInTamil('night'));
+  t('a silent final e lengthens the vowel before it',
+    T.spellEnglishInTamil('hid') !== T.spellEnglishInTamil('hide'),
+    T.spellEnglishInTamil('hid') + ' / ' + T.spellEnglishInTamil('hide'));
+  t('and a final y is a vowel, not a consonant',
+    !/\u0baf\u0bcd$/.test(T.spellEnglishInTamil('sunny')), T.spellEnglishInTamil('sunny'));
+
+  /* Whatever it produces must be Tamil and nothing else. */
+  t('the speller only ever produces Tamil',
+    ['xylophone', 'Kumara', 'Chennai', 'rhythm', 'queue', 'strength'].every(function (w) {
+      var o = T.spellEnglishInTamil(w);
+      return o && !/[^\u0b80-\u0bff]/.test(o);
+    }));
+  t('and nothing at all for nothing at all',
+    T.spellEnglishInTamil('') === '' && T.spellEnglishInTamil('123') === '');
+
+  /* The dictionary still wins where it has an answer: it came from a
+     pronouncing dictionary, and letters are only the fallback. */
+  t('a known word uses its real pronunciation, not its spelling',
+    T.englishToTamilSound('one') !== T.spellEnglishInTamil('one'),
+    T.englishToTamilSound('one') + ' vs ' + T.spellEnglishInTamil('one'));
 })();
 
 /* ---------------- search ---------------- */
@@ -912,8 +1024,15 @@ section('READINGS (all Indian scripts)');
   t('a plural keeps its s',
     /ஸ்$/.test(TB.Translit.readings('jumps', 'en').tamil),
     TB.Translit.readings('jumps', 'en').tamil);
-  t('mostly-unknown English gets no line, not a half one',
-    TB.Translit.readings('Xyzzy plugh frobnicate', 'en').tamil === '');
+  /* This used to demand no line at all when most of the words were
+     unknown, because a half-transliterated line with English words left in
+     it was worse than nothing. It is now sounded out from the letters
+     instead, so there is no half line to avoid — but there must still be
+     no Latin left anywhere in it. */
+  t('even wholly unknown English is sounded out, with no Latin left', (function () {
+    var out = TB.Translit.readings('Xyzzy plugh frobnicate', 'en').tamil;
+    return out && !/[A-Za-z]/.test(out);
+  })(), TB.Translit.readings('Xyzzy plugh frobnicate', 'en').tamil);
   t('the sound table is all Tamil',
     Object.keys(TB.EN_SOUND_EXTRA).every(function (k) {
       return /^[a-z]+$/.test(k) && /[஀-௿]/.test(TB.EN_SOUND_EXTRA[k])

@@ -104,6 +104,22 @@
       }
 
       /* --------------------------------------------------- word pairs */
+
+      /* How many synonym and opposite pairs a list really holds. Every word
+         in a cluster is a synonym of every other, and stands opposite every
+         word in the opposing one, so the honest number is far larger than
+         the row count \u2014 and far smaller than a lakh, which is why this is
+         counted rather than claimed. */
+      function relations(list, lang) {
+        var syn = 0, ant = 0;
+        list.forEach(function (w) {
+          var n = w.syn.length + 1;
+          syn += n * (n - 1) / 2;
+          ant += n * w.ant.length;
+        });
+        return { syn: syn, ant: ant, total: syn + ant };
+      }
+
       function words() {
         var set = wLang === 'hi' ? TB.WORDPAIRS_HI : wLang === 'ta' ? TB.WORDPAIRS_TA : TB.WORDPAIRS;
         body.innerHTML = '<div class="card"><div class="row">'
@@ -114,7 +130,13 @@
           + '<button class="pill' + (wLang === 'hi' ? ' on' : '') + '" data-wl="hi" type="button">हिंदी</button>'
           + '</div>'
           + '<div class="spacer" style="flex:1"></div>'
-          + '<span class="tiny muted">' + set.length + ' words</span></div></div>'
+          + (function () {
+              var r = relations(set, wLang);
+              return '<span class="tiny muted">' + set.length + ' words \u00b7 '
+                + r.syn.toLocaleString('en-IN') + ' same \u00b7 '
+                + r.ant.toLocaleString('en-IN') + ' opposite</span>';
+            })()
+          + '</div></div>'
           + '<div class="pair-grid">'
           + set.map(function (w) {
               var head = w[wLang];
