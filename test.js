@@ -683,6 +683,15 @@ section('SIGNING IN');
      that way. Gmail wants it without spaces. */
   t('an app password pasted with its spaces still works',
     /SMTP_PASS = \(process\.env\.SMTP_PASS[^)]*\)\.replace\(/.test(srv));
+  /* The app has no business insisting the sending address be a Gmail one. */
+  t('any SMTP provider can be used, not only Gmail',
+    /SMTP_HOST/.test(srv) && /host: SMTP_HOST/.test(srv));
+  t('and Gmail is still the default, because it is free',
+    /service: 'gmail'/.test(srv));
+  t('port 465 is treated as implicit TLS',
+    /secure: SMTP_PORT === 465/.test(srv));
+  t('the from address can carry a display name',
+    /SMTP_FROM \|\| SMTP_USER/.test(srv));
 })();
 
 /* ---------------- the modern world ---------------- */

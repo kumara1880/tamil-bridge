@@ -14,9 +14,15 @@
                      Defaults to "*", which is fine for a public learning app.
      PORT          Supplied by Render.
 
-     SMTP_USER     A Gmail address, for sending password-reset links.
-     SMTP_PASS     A Gmail *app password* — never the account password.
-     SMTP_FROM     Optional display address on the email. Defaults to SMTP_USER.
+     SMTP_USER     The address that sends password-reset links.
+     SMTP_PASS     Its password. For Gmail this is an *app password*, never
+                   the account password.
+     SMTP_HOST     Optional. Another provider's SMTP server. Unset means Gmail.
+     SMTP_PORT     Optional, default 587. 465 is treated as implicit TLS.
+     SMTP_FROM     Optional. What the email says it is from — a display name
+                   is allowed: "Tamil Bridge <someone@gmail.com>". Most
+                   providers require the address itself to be the one that
+                   signed in. Defaults to SMTP_USER.
      APP_URL       Where the reset link should point. Defaults to the first
                    ALLOWED_ORIGIN, then to the request's own origin.
 
@@ -61,15 +67,21 @@ const SMTP_PASS = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
 const MAIL_READY = !!(SMTP_USER && SMTP_PASS);
 let transport = null;
 
+/* Any SMTP server, not just Gmail. Set SMTP_HOST to use another provider;
+   leave it unset and Gmail is assumed, because it costs nothing and
+   everybody already has an account. */
+const SMTP_HOST = (process.env.SMTP_HOST || '').trim();
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+
 function mailer() {
   if (transport) return transport;
   if (!MAIL_READY) return null;
   try {
     const nodemailer = require('nodemailer');
-    transport = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: SMTP_USER, pass: SMTP_PASS }
-    });
+    transport = nodemailer.createTransport(SMTP_HOST
+      ? { host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465,
+          auth: { user: SMTP_USER, pass: SMTP_PASS } }
+      : { service: 'gmail', auth: { user: SMTP_USER, pass: SMTP_PASS } });
     return transport;
   } catch (e) {
     console.warn('[warn] nodemailer is not installed \u2014 run npm install in /server');
