@@ -16,7 +16,7 @@ ctx.document = { addEventListener() {}, head: { appendChild() {} }, createElemen
 vm.createContext(ctx);
 
 ['data/vocab.js','data/vocab2.js','data/ensound.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
- 'data/phrases.js','data/lexicon.js','data/grammar.js','data/grammar_hi.js',
+ 'data/phrases.js','data/lexicon.js','data/grammar.js','data/grammar_hi.js','data/grammar_ta.js',
  'data/wordpairs.js','data/wordpairs2.js','data/spoken.js','data/grammar.js','data/grammar_hi.js',
  'data/wordpairs.js','data/wordpairs2.js','data/spoken.js',
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
@@ -252,7 +252,8 @@ section('WRITING');
 /* ---------------- grammar, words, speaking ---------------- */
 section('GRAMMAR AND WORDS');
 (function () {
-  [['English', TB.GRAMMAR], ['Hindi', TB.GRAMMAR_HI]].forEach(function (pair) {
+  [['English', TB.GRAMMAR], ['Hindi', TB.GRAMMAR_HI],
+   ['Tamil', TB.GRAMMAR_TA]].forEach(function (pair) {
     var name = pair[0], set = pair[1];
     t(name + ' grammar has topics', set.length >= 12, set.length);
     t(name + ' rule is written in all three languages',
@@ -275,6 +276,34 @@ section('GRAMMAR AND WORDS');
     var ids = set.map(function (x) { return x.id; });
     t(name + ' topic ids are unique', new Set(ids).size === ids.length);
   });
+
+  /* The app is named after Tamil; it may not be the one language with no
+     grammar of its own. */
+  t('Tamil grammar exists at all', (TB.GRAMMAR_TA || []).length >= 16,
+    (TB.GRAMMAR_TA || []).length);
+  t('and covers what a learner and a Tamil child both need',
+    ['ta-order', 'ta-case', 'ta-person', 'ta-tense', 'ta-negative', 'ta-question',
+     'ta-thinai', 'ta-pulli', 'ta-uyirmei', 'ta-spoken'].every(function (id) {
+      return TB.GRAMMAR_TA.some(function (g) { return g.id === id; });
+    }));
+  /* Every Tamil example must actually be in Tamil, and every Hindi one in
+     Hindi \u2014 a rule about \u0b95\u0bc1\u0bb1\u0bcd\u0bb1\u0bbf\u0baf\u0bb2\u0bcd written in Devanagari helps nobody. */
+  t('every Tamil rule and example is written in Tamil script',
+    TB.GRAMMAR_TA.every(function (g) {
+      return /[\u0b80-\u0bff]/.test(g.rule.ta) && /[\u0b80-\u0bff]/.test(g.title.ta)
+        && g.examples.every(function (e) { return /[\u0b80-\u0bff]/.test(e.ta); });
+    }));
+  t('and every Hindi one in Devanagari',
+    TB.GRAMMAR_TA.every(function (g) {
+      return /[\u0900-\u097f]/.test(g.rule.hi)
+        && g.examples.every(function (e) { return /[\u0900-\u097f]/.test(e.hi); });
+    }));
+  /* Tamil text must be Tamil, not another Brahmic script that looks close
+     enough at a glance. */
+  t('no Malayalam, Telugu or Kannada has crept into the Tamil',
+    !/[\u0c00-\u0d7f]/.test(JSON.stringify(TB.GRAMMAR_TA)));
+  t('the mistakes are real mistakes, not the right answer twice',
+    TB.GRAMMAR_TA.every(function (g) { return g.mistake.wrong !== g.mistake.right; }));
 
   [['English', TB.WORDPAIRS, 'en'], ['Hindi', TB.WORDPAIRS_HI, 'hi'], ['Tamil', TB.WORDPAIRS_TA, 'ta']]
     .forEach(function (row) {

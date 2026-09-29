@@ -43,8 +43,16 @@ TB.Views = (function () {
      letters and in Tamil letters. Shown for any script the reader can sound
      out, and simply left off when it cannot — a missing line is honest, a
      wrong one teaches the wrong sound. */
-  function readAid(text, lang) {
+  /* How long a piece of text is still worth sounding out. A word, a phrase
+     or an example sentence: yes, that is what the reading aid is for. A
+     paragraph of explanation: no — it doubles the height of the card, and
+     anybody who cannot read the script it is written in is reading the same
+     rule in their own language two lines below. */
+  var READ_ALOUD_LIMIT = 140;
+
+  function readAid(text, lang, force) {
     if (!text || !String(text).trim()) return '';
+    if (!force && String(text).length > READ_ALOUD_LIMIT) return '';
     var r;
     try { r = TB.Translit.readings(text, lang); } catch (e) { return ''; }
     if (!r || !r.can) return '';

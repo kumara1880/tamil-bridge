@@ -100,7 +100,8 @@ TB.Search = (function () {
     { t: 'Maths', href: '#/maths', ic: '➕',
       keys: 'maths math arithmetic addition subtraction multiplication division sum plus minus times divide table' },
     { t: 'Grammar rules', href: '#/english', ic: '\u{1F4D0}',
-      keys: 'grammar rules noun verb adjective adverb tense article preposition pronoun இலக்கணம் व्याकरण' },
+      keys: 'grammar rules noun verb adjective adverb tense article preposition pronoun case '
+          + 'sandhi pulli vetrumai thinai இலக்கணம் வேற்றுமை புள்ளி व्याकरण' },
     { t: 'Synonyms & Antonyms', href: '#/english/words', ic: '\u{1F501}',
       keys: 'synonym synonyms antonym antonyms opposite opposites same similar thesaurus word pairs '
           + 'ஒத்த சொல் எதிர்ச்சொல் '

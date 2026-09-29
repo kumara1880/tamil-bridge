@@ -61,13 +61,17 @@
 
       /* ------------------------------------------------------- grammar */
       function grammar() {
-        var set = gLang === 'hi' ? TB.GRAMMAR_HI : TB.GRAMMAR;
+        var set = gLang === 'hi' ? TB.GRAMMAR_HI
+                : gLang === 'ta' ? TB.GRAMMAR_TA : TB.GRAMMAR;
         body.innerHTML = '<div class="card"><div class="row">'
           + '<span class="tiny muted">Grammar of:</span>'
           + '<div class="pill-row" id="gLang">'
           + '<button class="pill' + (gLang === 'en' ? ' on' : '') + '" data-gl="en" type="button">English</button>'
+          + '<button class="pill' + (gLang === 'ta' ? ' on' : '') + '" data-gl="ta" type="button">தமிழ்</button>'
           + '<button class="pill' + (gLang === 'hi' ? ' on' : '') + '" data-gl="hi" type="button">हिंदी</button>'
-          + '</div></div></div>'
+          + '</div>'
+          + '<div class="spacer" style="flex:1"></div>'
+          + '<span class="tiny muted">' + set.length + ' rules</span></div></div>'
           + set.map(function (t, i) {
               return '<div class="card gram" data-g="' + i + '">'
                 + '<div class="card-head"><div>'
@@ -77,7 +81,9 @@
                 + '<div class="gram-rule">' + trio(t.rule) + '</div>'
                 + '<div class="tiny muted mt mb">Examples</div>'
                 + t.examples.map(function (x) {
-                    return '<div class="gram-ex">' + trio(x, gLang === 'hi' ? ['hi', 'en', 'ta'] : ['en', 'ta', 'hi']) + '</div>';
+                    var order = gLang === 'hi' ? ['hi', 'en', 'ta']
+                              : gLang === 'ta' ? ['ta', 'en', 'hi'] : ['en', 'ta', 'hi'];
+                    return '<div class="gram-ex">' + trio(x, order) + '</div>';
                   }).join('')
                 + '<div class="gram-mistake">'
                 + '<div class="tiny" style="font-weight:700">The mistake almost everyone makes</div>'
