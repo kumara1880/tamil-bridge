@@ -107,77 +107,122 @@ TB.Views = (function () {
   function saveD(d) { TB.Store.saveData(TB.Auth.userId(), d); }
 
   /* ================================================================ HOME */
+  /* Every section, grouped the way somebody would go looking for it. This
+     is the whole app in one place; the drawer is only a shortcut to it. */
+  var DEPARTMENTS = [
+    { name: 'Learn', items: [
+      ['#/learn', '\u{1F4D8}', 'Lessons', 'A course, in order'],
+      ['#/phrases', '\u{1F4AC}', 'Phrasebook', 'Say it today'],
+      ['#/vocab', '\u{1F4DA}', 'Vocabulary', '3,000+ words'],
+      ['#/alphabet', '\u{1F521}', 'Alphabet', '247 + varnamala'],
+      ['#/phonics', '\u{1F50A}', 'Sounds', 'How letters sound']
+    ] },
+    { name: 'Grammar & words', items: [
+      ['#/english', '\u{1F4D0}', 'Grammar rules', 'English \u00b7 \u0ba4\u0bae\u0bbf\u0bb4\u0bcd \u00b7 \u0939\u093f\u0902\u0926\u0940'],
+      ['#/english/words', '\u{1F501}', 'Synonyms & Antonyms', 'Same and opposite'],
+      ['#/english/tense', '\u{1F570}\uFE0F', 'Tense chart', 'Past \u00b7 present \u00b7 future'],
+      ['#/english/sentences', '\u267E\uFE0F', 'Sentence bank', '1,15,776 of them'],
+      ['#/english/speaking', '\u{1F5E3}\uFE0F', 'Spoken practice', 'Real conversations'],
+      ['#/conjugate', '\u{1F500}', 'Conjugation', 'Any verb, any tense']
+    ] },
+    { name: 'Practise', items: [
+      ['#/practice', '\u{1F3AF}', 'Review', 'What is due today'],
+      ['#/write', '\u270F\uFE0F', 'Writing', 'A\u2013Z, a\u2013z, 0\u2013100'],
+      ['#/speak', '\u{1F3A4}', 'Pronunciation', 'Get a score'],
+      ['#/maths', '\u2795', 'Maths', 'Step by step'],
+      ['#/numbers', '\u{1F522}', 'Numbers', 'To ten crore']
+    ] },
+    { name: 'Tools', items: [
+      ['#/translate', '\u{1F524}', 'Translate', 'From any language'],
+      ['#/meaning', '\u{1F4D6}', 'Meaning', 'cat = \u0baa\u0bc2\u0ba9\u0bc8'],
+      ['#/tutor', '\u{1F9E0}', 'Sentence Explainer', 'Grammar + tense'],
+      ['#/photo', '\u{1F4F7}', 'Photo Translate', 'Read a photograph']
+    ] },
+    { name: 'The world now', items: [
+      ['#/modern', '\u{1F916}', 'Growing up now', 'AI, safety, money'],
+      ['#/history', '\u{1F558}', 'History', 'What you looked up'],
+      ['#/settings', '\u2699\uFE0F', 'Settings', 'Voice, colour, sync']
+    ] }
+  ];
+
   var home = {
-    title: 'Home', sub: 'Today’s learning',
+    title: 'Home', sub: 'Today\u2019s learning',
     html: function () {
       var d = D();
       var counts = TB.SRS.counts(d.srs, TB.VOCAB);
       var doneLessons = Object.keys(d.progress).filter(function (k) { return d.progress[k].done; }).length;
       var nextLesson = TB.LESSONS.filter(function (u) { return !(d.progress[u.id] && d.progress[u.id].done); })[0] || TB.LESSONS[0];
 
+      /* One thing to do. Reviews that are already due beat starting
+         something new, because forgetting is the thing that undoes work. */
+      var reviewFirst = counts.due >= 5;
+      var hero = reviewFirst
+        ? { href: '#/practice', kicker: 'Due now',
+            title: counts.due + (counts.due === 1 ? ' word to review' : ' words to review'),
+            sub: 'A few minutes now saves relearning them later.',
+            cta: 'Review them \u2192' }
+        : { href: '#/learn/' + nextLesson.id, kicker: 'Next lesson',
+            title: nextLesson.title.en,
+            sub: nextLesson.goal || esc(nextLesson.title.ta),
+            cta: 'Start \u2192' };
+
       return ''
       + '<div class="view">'
+
+      + '<a class="hero" href="' + hero.href + '">'
+      +   '<div class="hero-kicker">' + esc(hero.kicker) + '</div>'
+      +   '<div class="hero-title">' + esc(hero.title) + '</div>'
+      +   '<div class="hero-sub">' + esc(hero.sub) + '</div>'
+      +   '<span class="btn btn-primary hero-cta">' + esc(hero.cta) + '</span>'
+      + '</a>'
+
       + '<div class="grid g4 mb">'
-      +   stat('accent', d.stats.streak || 0, 'Day streak 🔥')
+      +   stat('accent', d.stats.streak || 0, 'Day streak \u{1F525}')
       +   stat('green', counts.learned, 'Words learned')
       +   stat('blue', counts.due, 'Due today')
       +   stat('purple', doneLessons + '/' + TB.LESSONS.length, 'Lessons done')
       + '</div>'
 
-      + '<div class="grid g2">'
-      + '<div class="card">'
-      +   '<div class="card-head"><div><h3>Next lesson</h3>'
-      +   '<div class="card-sub">' + esc(nextLesson.title.ta) + '</div></div></div>'
-      +   '<p class="small muted" style="margin:0 0 12px">' + esc(nextLesson.goal) + '</p>'
-      +   '<a class="btn btn-primary" href="#/learn/' + nextLesson.id + '">Start →</a>'
-      + '</div>'
-
-      + '<div class="card">'
-      +   '<div class="card-head"><div><h3>Today’s review</h3>'
-      +   '<div class="card-sub">' + counts.due + ' due now, ' + counts.fresh + ' new</div></div></div>'
-      +   '<div class="bar mb"><i style="width:' + Math.round((counts.learned / Math.max(counts.total, 1)) * 100) + '%"></i></div>'
-      +   '<a class="btn btn-primary" href="#/practice">Practise →</a>'
-      + '</div>'
-      + '</div>'
-
-      + '<div class="card">'
-      +   '<h3>Quick tools</h3><div class="card-sub">What you use most</div>'
-      +   '<div class="grid gauto">'
-      +     quick('#/translate', '🔤', 'Translate', 'From any language')
-      +     quick('#/meaning', '📖', 'Meaning', 'cat = பூனை')
-      +     quick('#/tutor', '🧠', 'Sentence Explainer', 'Grammar + tense')
-      +     quick('#/photo', '📷', 'Photo Translate', 'From a photo')
-      +     quick('#/speak', '🎤', 'Pronunciation', 'Get a score')
-      +     quick('#/phrases', '💬', 'Phrasebook', 'Say it today')
-      +     quick('#/modern', '🤖', 'Growing up now', 'AI, safety, money')
-      +     quick('#/english/words', '🔁', 'Synonyms & Antonyms', 'same · opposite')
-      +     quick('#/english/tense', '🕰️', 'Tense chart', 'past · present · future')
-      +     quick('#/write', '✏️', 'Writing', 'A–Z, a–z, 0–100')
-      +     quick('#/maths', '➕', 'Maths', 'step by step')
-      +     quick('#/alphabet', '🔡', 'Alphabet', '247 + varnamala')
-      +   '</div>'
-      + '</div>'
+      + (reviewFirst
+          ? ''
+          : '<div class="card mb"><div class="row">'
+            + '<div><h3 style="margin:0">Today\u2019s review</h3>'
+            + '<div class="card-sub">' + counts.due + ' due, ' + counts.fresh + ' new</div></div>'
+            + '<div class="spacer" style="flex:1"></div>'
+            + '<a class="btn btn-sm" href="#/practice">Practise \u2192</a></div>'
+            + '<div class="bar mt"><i style="width:'
+            + Math.round((counts.learned / Math.max(counts.total, 1)) * 100) + '%"></i></div></div>')
 
       + wordOfDay()
+
+      /* Everything there is, grouped. Nothing in this app should be more
+         than one tap from here. */
+      + DEPARTMENTS.map(function (dep) {
+          return '<div class="card dept">'
+            + '<h3>' + esc(dep.name) + '</h3>'
+            + '<div class="dept-grid">'
+            + dep.items.map(function (it) {
+                return '<a class="dept-item" href="' + it[0] + '">'
+                  + '<span class="dept-ic">' + it[1] + '</span>'
+                  + '<span class="dept-text"><b>' + esc(it[2]) + '</b>'
+                  + '<span>' + esc(it[3]) + '</span></span></a>';
+              }).join('')
+            + '</div></div>';
+        }).join('')
+
       + '</div>';
 
       function stat(cls, n, l) {
         return '<div class="stat ' + cls + '"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>';
       }
-      function quick(href, ic, t, s) {
-        return '<a class="wcard" href="' + href + '" style="text-decoration:none;color:inherit;display:block">'
-             + '<div style="font-size:22px">' + ic + '</div>'
-             + '<div style="font-weight:650;margin-top:5px">' + t + '</div>'
-             + '<div class="tiny muted">' + s + '</div></a>';
-      }
       function wordOfDay() {
         var day = Math.floor(Date.now() / 86400000);
         var w = TB.VOCAB[day % TB.VOCAB.length];
-        return '<div class="card">'
+        return '<div class="card mb">'
           + '<h3>Word of the day</h3><div class="card-sub">' + esc(themeName(w.th)) + '</div>'
           + '<div class="grid g2">'
-          +   '<div><div class="tiny muted">English</div><div style="font-size:26px;font-weight:700">' + esc(w.en) + speak(w.en, 'en') + '</div><div class="tiny" style="color:var(--teal)">' + esc(w.enIpa || '') + ' · ' + esc(w.enTa || '') + '</div></div>'
-          +   '<div><div class="tiny muted">Hindi</div><div class="hi" style="font-size:26px;font-weight:700">' + esc(w.hi) + speak(w.hi, 'hi') + '</div><div class="tiny muted">' + esc(w.hiR) + ' · ' + esc(w.hiTa || '') + '</div></div>'
+          +   '<div><div class="tiny muted">English</div><div style="font-size:26px;font-weight:700">' + esc(w.en) + speak(w.en, 'en') + '</div><div class="tiny" style="color:var(--teal)">' + esc(w.enIpa || '') + ' \u00b7 ' + esc(w.enTa || '') + '</div></div>'
+          +   '<div><div class="tiny muted">Hindi</div><div class="hi" style="font-size:26px;font-weight:700">' + esc(w.hi) + speak(w.hi, 'hi') + '</div><div class="tiny muted">' + esc(w.hiR) + ' \u00b7 ' + esc(w.hiTa || '') + '</div></div>'
           + '</div>'
           + '<div class="w-gloss" style="margin-top:10px">' + esc(w.ta) + speak(w.ta, 'ta')
           +   '<span class="w-r"> ' + esc(w.taR) + '</span></div>'
@@ -185,7 +230,8 @@ TB.Views = (function () {
           + '</div>';
       }
     },
-    mount: function () {}
+    mount: function () {},
+    DEPARTMENTS: DEPARTMENTS
   };
 
   function themeName(id) {

@@ -514,8 +514,17 @@ section('FINDING THINGS');
   t('the tense chart is named in the sidebar', /Tense chart/.test(html));
   t('the home page offers them too',
     /#\/english\/words/.test(home) && /#\/english\/tense/.test(home));
-  t('writing and maths are on the home page too',
-    /quick\('#\/write'/.test(home) && /quick\('#\/maths'/.test(home));
+  /* The home page used to offer eleven of the twenty-four sections, and the
+     rest could only be found by reading a flat list in a drawer — which is
+     exactly how the synonyms stayed hidden. Every section must be reachable
+     from home now, and this test is here to keep it that way. */
+  (function () {
+    var routes = (app.match(/var ROUTES = \{[\s\S]*?\};/) || [''])[0];
+    var names = (routes.match(/(\w+):/g) || []).map(function (x) { return x.slice(0, -1); })
+      .filter(function (n) { return n !== 'home' && n !== 'ROUTES'; });
+    var missing = names.filter(function (n) { return home.indexOf("'#/" + n) < 0; });
+    t('every section is reachable from the home page', missing.length === 0, missing.join(', '));
+  })();
 
   /* A link into a tab must open that tab. */
   t('the section reads the address', /function startTab/.test(v8)
@@ -532,6 +541,84 @@ section('FINDING THINGS');
   t('speaking handlers do not stack up on redraw',
     (v8.match(/body\.addEventListener\('click'/g) || []).length === 1
       && /function onBody/.test(v8));
+})();
+
+/* ---------------- the views all load ---------------- */
+section('VIEWS LOAD');
+(function () {
+  var fs = require('fs'), vm = require('vm');
+
+  /* Load them exactly as index.html does, in the same order. */
+  var files = (fs.readFileSync(__dirname + '/index.html', 'utf8')
+    .match(/<script src="(js\/views[^"?]*)/g) || [])
+    .map(function (m) { return m.replace('<script src="', ''); });
+  t('the page loads a set of view files', files.length >= 8, files.join(' '));
+
+  var v = {};
+  v.window = v;
+  v.console = { log: function () {}, warn: function () {}, error: function () {} };
+  v.navigator = { onLine: false, language: 'en' };
+  v.location = { hash: '#/home', search: '', pathname: '/' };
+  v.setTimeout = setTimeout; v.clearTimeout = clearTimeout;
+  v.setInterval = function () {}; v.requestAnimationFrame = function () {};
+  v.localStorage = ctx.localStorage;
+  v.crypto = ctx.crypto;
+  v.fetch = function () { return Promise.reject(new Error('offline')); };
+  v.URLSearchParams = URLSearchParams;
+  v.Intl = Intl;
+
+  /* Enough of a document that a file can look things up while loading. */
+  function el() {
+    return {
+      style: {}, classList: { add: function () {}, remove: function () {}, toggle: function () {} },
+      addEventListener: function () {}, appendChild: function () {},
+      querySelector: function () { return el(); },
+      querySelectorAll: function () { return []; },
+      setAttribute: function () {}, getAttribute: function () { return null; },
+      focus: function () {}, textContent: '', innerHTML: '', value: ''
+    };
+  }
+  v.document = {
+    addEventListener: function () {}, head: el(), body: el(),
+    createElement: function () { return el(); },
+    getElementById: function () { return el(); },
+    querySelector: function () { return el(); },
+    querySelectorAll: function () { return []; },
+    documentElement: el()
+  };
+  vm.createContext(v);
+
+  /* the data and libraries the views expect to already be there */
+  ['data/vocab.js','data/vocab2.js','data/ensound.js','data/alphabet.js','data/phonics.js',
+   'data/lessons.js','data/lessons2.js','data/phrases.js','data/lexicon.js','data/grammar.js',
+   'data/grammar_hi.js','data/grammar_ta.js','data/wordpairs.js','data/wordpairs2.js',
+   'data/wordpairs3.js','data/wordpairs4.js','data/modern.js','data/spoken.js',
+   'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
+   'js/reader.js','js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js',
+   'js/numbers.js','js/conjugate.js','js/maths.js','js/writing.js','js/sentences.js',
+   'js/sync.js','js/search.js']
+    .forEach(function (f) {
+      try { vm.runInContext(fs.readFileSync(R + f, 'utf8'), v, { filename: f }); } catch (e) {}
+    });
+
+  var broke = [];
+  files.forEach(function (f) {
+    try { vm.runInContext(fs.readFileSync(R + f, 'utf8'), v, { filename: f }); }
+    catch (e) { broke.push(f + ': ' + e.message); }
+  });
+  t('every view file loads without throwing', broke.length === 0, broke.join(' | '));
+
+  /* And the router must find a view behind every address it accepts. */
+  var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+  var routes = (app.match(/var ROUTES = \{[\s\S]*?\};/) || [''])[0];
+  var names = (routes.match(/(\w+):/g) || []).map(function (x) { return x.slice(0, -1); });
+  var missing = names.filter(function (n) { return !(v.TB && v.TB.Views && v.TB.Views[n]); });
+  t('every route in the router has a view behind it', missing.length === 0, missing.join(', '));
+
+  /* The helpers the views share with each other. */
+  ['esc', 'speakBtn', 'readAid', 'D', 'saveD'].forEach(function (k) {
+    t('the shared helper ' + k + ' survives', !!(v.TB && v.TB.Views && v.TB.Views[k]));
+  });
 })();
 
 /* ---------------- signing in ---------------- */
