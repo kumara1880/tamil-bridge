@@ -672,7 +672,7 @@ section('SIGNING IN');
   t('a failed sign-in does not blame the person when the server lost the account',
     /This is very likely not your mistake/.test(app));
   t('the server says in its health whether it can send mail at all',
-    /mail: MAIL_READY/.test(srv) && /canReset/.test(srv));
+    /mail: MAIL_STATE\.ready/.test(srv) && /canReset/.test(srv));
   t('and refuses honestly rather than pretending, when it cannot',
     /cannot send email yet/.test(srv) && /cannot keep accounts yet/.test(srv));
 
@@ -692,6 +692,25 @@ section('SIGNING IN');
     /secure: SMTP_PORT === 465/.test(srv));
   t('the from address can carry a display name',
     /SMTP_FROM \|\| SMTP_USER/.test(srv));
+
+  /* Render's free tier blocks outbound SMTP, so a perfectly correct Gmail
+     password still cannot send a single email. An HTTP email API goes over
+     443, which nobody blocks. */
+  t('mail can be sent over HTTP, not only SMTP',
+    /api\.brevo\.com/.test(srv) && /api\.resend\.com/.test(srv));
+  t('and the reason to prefer it is written down',
+    /block outbound SMTP/.test(srv));
+
+  /* The health check used to report mail:true whenever two variables had
+     values — which was true of a server that could not send anything. */
+  t('the health check tries the mailer rather than assuming it',
+    /async function checkMail/.test(srv) && /t\.verify\(\)/.test(srv));
+  t('a blocked SMTP server is given up on rather than hung on',
+    /timed out/.test(srv) && /connectionTimeout/.test(srv));
+  t('health reports how mail is sent and why it cannot be',
+    /mailVia: MAIL_STATE\.how/.test(srv) && /mailReason: MAIL_STATE\.reason/.test(srv));
+  t('and canReset follows what was tried, not what was configured',
+    /canReset: MAIL_STATE\.ready && STORE\.durable/.test(srv));
 })();
 
 /* ---------------- the modern world ---------------- */

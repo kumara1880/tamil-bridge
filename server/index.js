@@ -14,6 +14,14 @@
                      Defaults to "*", which is fine for a public learning app.
      PORT          Supplied by Render.
 
+     BREVO_API_KEY   An HTTP email API key. PREFER THIS ON RENDER: the free
+                     tier blocks outbound SMTP, so Gmail cannot be reached at
+                     all, however correct the password is. Brevo's free plan
+                     sends 300 a day over plain HTTPS, which nobody blocks.
+     RESEND_API_KEY  The same idea, if you would rather use Resend.
+     MAIL_FROM       The address those APIs send from. Must be one you have
+                     verified with the provider.
+
      SMTP_USER     The address that sends password-reset links.
      SMTP_PASS     Its password. For Gmail this is an *app password*, never
                    the account password.
@@ -73,6 +81,45 @@ let transport = null;
 const SMTP_HOST = (process.env.SMTP_HOST || '').trim();
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 
+/* An HTTP email API, which is the only kind that works on a host that
+   blocks outbound SMTP \u2014 and Render's free tier does. */
+const BREVO_KEY = (process.env.BREVO_API_KEY || '').trim();
+const RESEND_KEY = (process.env.RESEND_API_KEY || '').trim();
+const MAIL_FROM = (process.env.MAIL_FROM || process.env.SMTP_FROM || SMTP_USER || '').trim();
+const HTTP_MAIL = !!(BREVO_KEY || RESEND_KEY);
+
+/* What sending actually costs us if it is broken: a person locked out of
+   their account for ever. So this is checked at boot and reported honestly,
+   rather than inferred from whether the variables have values. */
+let MAIL_STATE = { ready: false, how: 'none', reason: 'No email provider is configured.' };
+
+function fromAddress() {
+  return MAIL_FROM || SMTP_USER || '';
+}
+
+/* Brevo and Resend both take a small JSON POST over HTTPS. */
+async function sendHttpMail(to, subject, text, html) {
+  const from = fromAddress();
+  if (BREVO_KEY) {
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': BREVO_KEY, 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        sender: { email: from, name: 'Tamil Bridge' },
+        to: [{ email: to }], subject, textContent: text, htmlContent: html
+      })
+    });
+    if (!r.ok) throw new Error('Brevo refused it: ' + r.status + ' ' + (await r.text()).slice(0, 180));
+    return;
+  }
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { authorization: 'Bearer ' + RESEND_KEY, 'content-type': 'application/json' },
+    body: JSON.stringify({ from: 'Tamil Bridge <' + from + '>', to: [to], subject, text, html })
+  });
+  if (!r.ok) throw new Error('Resend refused it: ' + r.status + ' ' + (await r.text()).slice(0, 180));
+}
+
 function mailer() {
   if (transport) return transport;
   if (!MAIL_READY) return null;
@@ -80,8 +127,10 @@ function mailer() {
     const nodemailer = require('nodemailer');
     transport = nodemailer.createTransport(SMTP_HOST
       ? { host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465,
-          auth: { user: SMTP_USER, pass: SMTP_PASS } }
-      : { service: 'gmail', auth: { user: SMTP_USER, pass: SMTP_PASS } });
+          auth: { user: SMTP_USER, pass: SMTP_PASS },
+          connectionTimeout: 12000, greetingTimeout: 12000, socketTimeout: 20000 }
+      : { service: 'gmail', auth: { user: SMTP_USER, pass: SMTP_PASS },
+          connectionTimeout: 12000, greetingTimeout: 12000, socketTimeout: 20000 });
     return transport;
   } catch (e) {
     console.warn('[warn] nodemailer is not installed \u2014 run npm install in /server');
@@ -89,8 +138,53 @@ function mailer() {
   }
 }
 
-if (!MAIL_READY) {
-  console.warn('[warn] SMTP_USER / SMTP_PASS are not set \u2014 password reset by email is off.');
+/* One send, by whichever route is available. */
+async function sendMail(to, subject, text, html) {
+  if (HTTP_MAIL) return sendHttpMail(to, subject, text, html);
+  const t = mailer();
+  if (!t) throw new Error('No mailer.');
+  return t.sendMail({ from: process.env.SMTP_FROM || SMTP_USER, to, subject, text, html });
+}
+
+/* Find out at boot whether mail can really be sent, instead of assuming it
+   from the presence of a password. An SMTP host that is being blocked hangs
+   rather than refusing, so this gives up quickly and says so. */
+async function checkMail() {
+  if (HTTP_MAIL) {
+    MAIL_STATE = { ready: true, how: BREVO_KEY ? 'brevo' : 'resend', reason: '' };
+    if (!fromAddress()) {
+      MAIL_STATE = { ready: false, how: 'http', reason: 'MAIL_FROM is not set.' };
+    }
+    return;
+  }
+  if (!MAIL_READY) {
+    MAIL_STATE = { ready: false, how: 'none',
+      reason: 'No email provider is configured. Set BREVO_API_KEY (recommended on Render) '
+            + 'or SMTP_USER and SMTP_PASS.' };
+    return;
+  }
+  const t = mailer();
+  if (!t) {
+    MAIL_STATE = { ready: false, how: 'smtp', reason: 'nodemailer is not installed.' };
+    return;
+  }
+  try {
+    await Promise.race([
+      t.verify(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timed out')), 15000))
+    ]);
+    MAIL_STATE = { ready: true, how: 'smtp', reason: '' };
+  } catch (e) {
+    MAIL_STATE = { ready: false, how: 'smtp',
+      reason: 'Could not reach the SMTP server (' + e.message + '). Many hosts, including '
+            + "Render's free tier, block outbound SMTP entirely. Use BREVO_API_KEY instead \u2014 "
+            + 'it sends over HTTPS, which is never blocked.' };
+    console.warn('[warn] SMTP is not usable here:', e.message);
+  }
+}
+
+if (!MAIL_READY && !HTTP_MAIL) {
+  console.warn('[warn] No email provider is set \u2014 password reset by email is off.');
 }
 
 function appUrl(req) {
@@ -213,8 +307,13 @@ app.get('/api/health', (_req, res) => {
     reason: STORE.reason,
     /* The app asks for these so it can tell people the truth about what
        will and will not work, instead of failing mysteriously. */
-    mail: MAIL_READY,
-    canReset: MAIL_READY && STORE.durable,
+    /* This says what was tried, not what was configured. It used to report
+       mail:true whenever two variables had values, which was true of a
+       server that could not send a single email. */
+    mail: MAIL_STATE.ready,
+    mailVia: MAIL_STATE.how,
+    mailReason: MAIL_STATE.reason,
+    canReset: MAIL_STATE.ready && STORE.durable,
     time: new Date().toISOString()
   });
 });
@@ -304,11 +403,10 @@ app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000), async (req, res) => {
         canReset: false, reason: 'no-database'
       });
     }
-    if (!MAIL_READY) {
+    if (!MAIL_STATE.ready) {
       return res.status(503).json({
-        error: 'This server cannot send email yet, so a reset link cannot be sent. '
-             + 'SMTP_USER and SMTP_PASS have not been set on it.',
-        canReset: false, reason: 'no-mail'
+        error: 'This server cannot send email yet, so a reset link cannot be sent.',
+        detail: MAIL_STATE.reason, canReset: false, reason: 'no-mail'
       });
     }
     if (!email) {
@@ -329,21 +427,17 @@ app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000), async (req, res) => {
       });
 
       const link = appUrl(req) + '/?reset=' + raw;
-      const t = mailer();
-      if (t) {
-        await t.sendMail({
-          from: process.env.SMTP_FROM || SMTP_USER,
-          to: email,
-          subject: 'Reset your Tamil Bridge password',
-          text: 'Somebody asked to reset the password for this Tamil Bridge account.\n\n'
-              + 'Open this link within one hour to choose a new one:\n' + link
-              + '\n\nIf it was not you, ignore this email. Nothing has changed.\n',
-          html: '<p>Somebody asked to reset the password for this Tamil Bridge account.</p>'
-              + '<p><a href="' + link + '">Choose a new password</a></p>'
-              + '<p>The link works for one hour. If it was not you, ignore this email '
-              + '\u2014 nothing has changed.</p>'
-        });
-      }
+      await sendMail(
+        email,
+        'Reset your Tamil Bridge password',
+        'Somebody asked to reset the password for this Tamil Bridge account.\n\n'
+          + 'Open this link within one hour to choose a new one:\n' + link
+          + '\n\nIf it was not you, ignore this email. Nothing has changed.\n',
+        '<p>Somebody asked to reset the password for this Tamil Bridge account.</p>'
+          + '<p><a href="' + link + '">Choose a new password</a></p>'
+          + '<p>The link works for one hour. If it was not you, ignore this email '
+          + '\u2014 nothing has changed.</p>'
+      );
     }
 
     /* Same answer whether or not the account exists. */
@@ -408,6 +502,9 @@ app.put('/api/data', auth, async (req, res) => {
 });
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found.' }));
+
+/* Find out whether mail really works, without holding up the boot. */
+checkMail().catch(() => {});
 
 connect()
   .then(kind => {
