@@ -129,6 +129,11 @@ TB.Search = (function () {
       keys: 'sounds phonics pronounce syllable ipa' },
     { t: 'Vocabulary', href: '#/vocab', ic: '\u{1F4DA}',
       keys: 'vocabulary vocab words list themes' },
+    { t: 'Growing up now', href: '#/modern', ic: '\u{1F916}',
+      keys: 'modern technology ai artificial intelligence computer internet online safety '
+          + 'password privacy scam fake money saving screen sleep climate weather water '
+          + 'coding code learning feelings kids children today செயற்கை नुण்ணறிவு '
+          + 'कृत्रिम बुद्धिमत्ता' },
     { t: 'History', href: '#/history', ic: '\u{1F558}',
       keys: 'history recent past searches saved' },
     { t: 'Settings', href: '#/settings', ic: '⚙',
@@ -224,6 +229,17 @@ TB.Search = (function () {
 
     /* Every number a child writes or reads out. Typing 47 found nothing at
        all before this, which is a strange thing for a counting app. */
+    (T.MODERN || []).forEach(function (m) {
+      entry(out, {
+        t: m.title.en, s: m.what.en.slice(0, 90), kind: 'modern', ic: m.icon,
+        href: '#/modern/' + m.id,
+        keys: [m.title.en, m.title.ta, m.title.hi, m.id, m.group]
+          .concat(m.words.map(function (w) { return w.en; }))
+          .concat(m.words.map(function (w) { return w.ta; }))
+          .concat(m.words.map(function (w) { return w.hi; })), w: 300
+      });
+    });
+
     if (T.Numbers) {
       for (var n = 0; n <= 100; n++) {
         var en = T.Numbers.enIndian(n), ta = T.Numbers.ta(n), hi = T.Numbers.hi(n);
@@ -278,6 +294,7 @@ TB.Search = (function () {
     if (q.length < 1) return [];
     var idx = build();
     var fq = fold(q);
+    var terms = q.split(' ').filter(function (x) { return x; });
     var hits = [];
 
     for (var i = 0; i < idx.length; i++) {
@@ -301,6 +318,23 @@ TB.Search = (function () {
           var sf2 = score(e.fkeys[g2], fq) * 0.7;
           if (sf2 > best) best = sf2;
         }
+      }
+      /* A phrase like "artificial intelligence" is in no single key,
+         because keys are words. So a multi-word query also matches when
+         every word of it is found somewhere in the entry — worth less than
+         a phrase that really is one key, but far better than nothing. */
+      if (best === 0 && terms.length > 1) {
+        var sum = 0, all = true;
+        for (var ti = 0; ti < terms.length; ti++) {
+          var bestTerm = 0;
+          for (var ki = 0; ki < e.keys.length; ki++) {
+            var st = score(e.keys[ki], terms[ti]);
+            if (st > bestTerm) bestTerm = st;
+          }
+          if (!bestTerm) { all = false; break; }
+          sum += bestTerm;
+        }
+        if (all) best = (sum / terms.length) * 0.85;
       }
       if (best > 0) hits.push({ e: e, score: best + e.w });
     }

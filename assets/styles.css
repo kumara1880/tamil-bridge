@@ -1083,3 +1083,41 @@ table.chart td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); v
 @media (max-width: 400px) {
   .topbar .sub { display: none; }   /* at this width the subtitle is a luxury */
 }
+
+/* ------------------------------------------------- growing up now
+   A page a parent may read aloud to a child, so it is quiet: plenty of
+   room between the three languages, and the warning is marked without
+   shouting. */
+.mod { border-left: 3px solid var(--accent); }
+.mod-block { margin: 12px 0; }
+.mod-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 5px;
+}
+.mod-words {
+  margin: 14px 0 4px; padding: 11px 12px;
+  background: var(--bg-soft); border-radius: 11px;
+}
+.mod-word {
+  display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  padding: 5px 10px; margin: 0 5px 5px 0;
+  background: var(--bg); border: 1px solid var(--line-soft); border-radius: 9px;
+  font-size: 14px;
+}
+.mod-word .ta { color: var(--teal); }
+.mod-word .hi { color: var(--purple); }
+.mod-word .mini {
+  padding: 0 2px; font-size: 12px; line-height: 1;
+  background: none; border: 0; cursor: pointer; opacity: .6;
+}
+.mod-word .mini:hover { opacity: 1; }
+.mod-try, .mod-careful {
+  margin-top: 12px; padding: 11px 13px; border-radius: 11px;
+}
+.mod-try { background: rgba(21, 128, 61, .08); }
+.mod-careful { background: rgba(190, 18, 60, .07); }
+.mod-try .mod-label { color: var(--green); }
+.mod-careful .mod-label { color: var(--red); }
+@media (max-width: 640px) {
+  .mod-word { width: 100%; }
+}

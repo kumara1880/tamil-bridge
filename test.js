@@ -17,7 +17,8 @@ vm.createContext(ctx);
 
 ['data/vocab.js','data/vocab2.js','data/ensound.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
  'data/phrases.js','data/lexicon.js','data/grammar.js','data/grammar_hi.js','data/grammar_ta.js',
- 'data/wordpairs.js','data/wordpairs2.js','data/wordpairs3.js','data/wordpairs4.js','data/spoken.js','data/grammar.js','data/grammar_hi.js',
+ 'data/wordpairs.js','data/wordpairs2.js','data/wordpairs3.js','data/wordpairs4.js',
+ 'data/modern.js','data/spoken.js','data/grammar.js','data/grammar_hi.js',
  'data/wordpairs.js','data/wordpairs2.js','data/wordpairs3.js','data/wordpairs4.js','data/spoken.js',
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
@@ -531,6 +532,96 @@ section('FINDING THINGS');
   t('speaking handlers do not stack up on redraw',
     (v8.match(/body\.addEventListener\('click'/g) || []).length === 1
       && /function onBody/.test(v8));
+})();
+
+/* ---------------- the modern world ---------------- */
+section('GROWING UP NOW');
+(function () {
+  var M = TB.MODERN;
+  t('there are topics about the world a child lives in now', M.length >= 15, M.length);
+
+  var ids = M.map(function (x) { return x.id; });
+  t('topic ids are unique', new Set(ids).size === ids.length);
+
+  t('every topic is titled in all three languages',
+    M.every(function (x) { return x.title.en && x.title.ta && x.title.hi; }));
+  t('every topic explains itself in all three',
+    M.every(function (x) { return x.what.en && x.what.ta && x.what.hi; }));
+  t('and says why it matters in all three',
+    M.every(function (x) { return x.why.en && x.why.ta && x.why.hi; }));
+
+  /* Each of these can go wrong in a way that matters, so each carries the
+     warning and something to actually do. A lesson with no action is a
+     lecture. */
+  t('every topic gives something to try today',
+    M.every(function (x) { return x.todo && x.todo.en && x.todo.ta && x.todo.hi; }));
+  t('every topic names what to be careful about',
+    M.every(function (x) { return x.careful && x.careful.en && x.careful.ta && x.careful.hi; }));
+
+  t('every topic carries its vocabulary in all three languages',
+    M.every(function (x) {
+      return x.words.length >= 3
+        && x.words.every(function (w) { return w.en && w.ta && w.hi; });
+    }));
+
+  /* Right script in the right field, as everywhere else in this app. */
+  t('the Tamil is Tamil and the Hindi is Hindi',
+    M.every(function (x) {
+      var ta = [x.title.ta, x.what.ta, x.why.ta, x.todo.ta, x.careful.ta].join(' ');
+      var hi = [x.title.hi, x.what.hi, x.why.hi, x.todo.hi, x.careful.hi].join(' ');
+      return /[\u0b80-\u0bff]/.test(ta) && /[\u0900-\u097f]/.test(hi)
+        && !/[\u0c00-\u0d7f]/.test(ta + hi);
+    }));
+
+  /* A parent picks by age; a child picks by subject. Both have to work. */
+  t('every topic belongs to a real age band',
+    M.every(function (x) {
+      return TB.MODERN_BANDS.some(function (b) { return b.id === x.band; });
+    }));
+  t('every topic belongs to a real subject',
+    M.every(function (x) {
+      return TB.MODERN_GROUPS.some(function (g) { return g.id === x.group; });
+    }));
+  t('no age band is empty',
+    TB.MODERN_BANDS.every(function (b) {
+      return M.some(function (x) { return x.band === b.id; });
+    }));
+  t('no subject is empty',
+    TB.MODERN_GROUPS.every(function (g) {
+      return M.some(function (x) { return x.group === g.id; });
+    }));
+  t('the bands and groups are named in all three languages',
+    TB.MODERN_BANDS.concat(TB.MODERN_GROUPS).every(function (x) {
+      return x.en && x.ta && x.hi;
+    }));
+
+  /* The subjects a child actually meets, and the warnings that matter. */
+  ['ai-what', 'ai-check', 'password', 'private', 'scam', 'money', 'screen']
+    .forEach(function (id) {
+      t('there is a topic on ' + id, ids.indexOf(id) >= 0);
+    });
+  t('the AI topic says plainly that it can be confidently wrong',
+    /wrong/i.test(M.filter(function (x) { return x.id === 'ai-what'; })[0].why.en));
+  t('the money topic warns about OTPs',
+    /OTP/.test(M.filter(function (x) { return x.id === 'money'; })[0].careful.en));
+
+  /* Reachable from the shell, or it is another buried section. */
+  (function () {
+    var fs = require('fs');
+    var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+    var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+    var home = fs.readFileSync(__dirname + '/js/views.js', 'utf8');
+    t('it is in the sidebar', /href="#\/modern"/.test(html));
+    t('it is a real route', /modern: 'modern'/.test(app));
+    t('it is on the home page', /#\/modern/.test(home));
+    t('and every topic is searchable',
+      TB.Search.query('artificial intelligence', 5).some(function (x) {
+        return x.href.indexOf('#/modern') === 0;
+      }));
+    t('searching for a worry finds the topic about it',
+      TB.Search.query('scam', 3).some(function (x) { return x.href === '#/modern/scam'; }),
+      TB.Search.query('scam', 3).map(function (x) { return x.href; }).join(' '));
+  })();
 })();
 
 /* ---------------- rhyme in three scripts ---------------- */
