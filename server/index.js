@@ -52,8 +52,12 @@ if (!MONGODB_URI) {
 
 /* Nodemailer is loaded lazily so the server still boots without it
    installed, which keeps the app deployable while this is being set up. */
-const SMTP_USER = process.env.SMTP_USER || '';
-const SMTP_PASS = process.env.SMTP_PASS || '';
+const SMTP_USER = (process.env.SMTP_USER || '').trim();
+/* Google shows an app password as four blocks of four, and people paste it
+   exactly as shown. Gmail wants it without the spaces, so they come out
+   here rather than turning into an authentication failure nobody can
+   explain. */
+const SMTP_PASS = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
 const MAIL_READY = !!(SMTP_USER && SMTP_PASS);
 let transport = null;
 

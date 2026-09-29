@@ -679,6 +679,10 @@ section('SIGNING IN');
   /* Nothing here may cost anything or need a key. */
   t('the mailer is optional, so the server still boots without it',
     /Nodemailer is loaded lazily/.test(srv));
+  /* Google shows an app password as four blocks of four and people paste it
+     that way. Gmail wants it without spaces. */
+  t('an app password pasted with its spaces still works',
+    /SMTP_PASS = \(process\.env\.SMTP_PASS[^)]*\)\.replace\(/.test(srv));
 })();
 
 /* ---------------- the modern world ---------------- */
