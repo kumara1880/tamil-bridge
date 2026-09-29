@@ -16,11 +16,12 @@ ctx.document = { addEventListener() {}, head: { appendChild() {} }, createElemen
 vm.createContext(ctx);
 
 ['data/vocab.js','data/vocab2.js','data/ensound.js','data/alphabet.js','data/phonics.js','data/lessons.js','data/lessons2.js',
- 'data/phrases.js','data/lexicon.js',
+ 'data/phrases.js','data/lexicon.js','data/grammar.js','data/grammar_hi.js',
+ 'data/wordpairs.js','data/wordpairs2.js','data/spoken.js',
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
  'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js',
- 'js/maths.js','js/writing.js']
+ 'js/maths.js','js/writing.js','js/sentences.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
 const TB = ctx.TB;
@@ -212,6 +213,146 @@ section('WRITING');
     W.set('num').every(function (d) { return d.words.en && d.words.ta && d.words.hi; }));
   t('Tamil and Hindi sets are not empty',
     W.set('ta').length > 20 && W.set('hi').length > 20);
+})();
+
+/* ---------------- grammar, words, speaking ---------------- */
+section('GRAMMAR AND WORDS');
+(function () {
+  [['English', TB.GRAMMAR], ['Hindi', TB.GRAMMAR_HI]].forEach(function (pair) {
+    var name = pair[0], set = pair[1];
+    t(name + ' grammar has topics', set.length >= 12, set.length);
+    t(name + ' rule is written in all three languages',
+      set.every(function (x) { return x.rule.en && x.rule.ta && x.rule.hi; }));
+    t(name + ' title is written in all three',
+      set.every(function (x) { return x.title.en && x.title.ta && x.title.hi; }));
+    t(name + ' every topic shows examples',
+      set.every(function (x) { return x.examples.length >= 2; }));
+    t(name + ' every example is trilingual',
+      set.every(function (x) { return x.examples.every(function (e) { return e.en && e.ta && e.hi; }); }));
+    /* the mistake is the point of the topic: a rule without the error it
+       prevents is a rule nobody remembers */
+    t(name + ' every topic names the mistake and explains it in three languages',
+      set.every(function (x) {
+        return x.mistake && x.mistake.wrong && x.mistake.right &&
+               x.mistake.why.en && x.mistake.why.ta && x.mistake.why.hi;
+      }));
+    t(name + ' the wrong form is never the right form',
+      set.every(function (x) { return x.mistake.wrong !== x.mistake.right; }));
+    var ids = set.map(function (x) { return x.id; });
+    t(name + ' topic ids are unique', new Set(ids).size === ids.length);
+  });
+
+  [['English', TB.WORDPAIRS, 'en'], ['Hindi', TB.WORDPAIRS_HI, 'hi'], ['Tamil', TB.WORDPAIRS_TA, 'ta']]
+    .forEach(function (row) {
+      var name = row[0], set = row[1], lang = row[2];
+      t(name + ' word pairs exist', set.length >= 20, set.length);
+      t(name + ' every word has a headword in its own language',
+        set.every(function (w) { return !!w[lang]; }));
+      t(name + ' every word has synonyms and opposites',
+        set.every(function (w) { return w.syn.length >= 1 && w.ant.length >= 1; }));
+      t(name + ' every word carries a sentence in all three',
+        set.every(function (w) { return w.ex && w.ex.en && w.ex.ta && w.ex.hi; }));
+      /* a word listed as its own synonym or its own opposite teaches nothing */
+      t(name + ' no word is its own synonym or opposite',
+        set.every(function (w) {
+          return w.syn.indexOf(w[lang]) < 0 && w.ant.indexOf(w[lang]) < 0;
+        }));
+      t(name + ' nothing is both a synonym and an opposite',
+        set.every(function (w) {
+          return w.syn.every(function (x) { return w.ant.indexOf(x) < 0; });
+        }));
+    });
+
+  t('conversations exist', TB.SPOKEN.length >= 15, TB.SPOKEN.length);
+  t('every conversation is titled in all three languages',
+    TB.SPOKEN.every(function (d) { return d.title.en && d.title.ta && d.title.hi; }));
+  t('every line of every conversation is in all three',
+    TB.SPOKEN.every(function (d) {
+      return d.lines.every(function (l) { return l.en && l.ta && l.hi; });
+    }));
+  t('conversations take two people',
+    TB.SPOKEN.every(function (d) { return d.lines.some(function (l) { return l.who === 'A'; })
+                                      && d.lines.some(function (l) { return l.who === 'B'; }); }));
+  t('conversation ids are unique',
+    new Set(TB.SPOKEN.map(function (d) { return d.id; })).size === TB.SPOKEN.length);
+})();
+
+/* ---------------- generated sentences ---------------- */
+section('SENTENCES');
+(function () {
+  var S = TB.Sentences;
+  t('over a lakh of them', S.total() >= 100000, S.total().toLocaleString('en-IN'));
+
+  /* Walk a wide sample rather than a handful: a generator is only worth
+     having if every address in it is sound. */
+  var bad = [];
+  var step = Math.max(1, Math.floor(S.total() / 4000));
+  for (var i = 0; i < S.total(); i += step) {
+    var x = S.atIndex(i);
+    if (!x.en || !x.ta || !x.hi) { bad.push(i + ' missing a language'); continue; }
+    if (/undefined|NaN|\[object/.test(x.en + x.ta + x.hi)) { bad.push(i + ' has a hole'); continue; }
+    /* each language must be written in its own script */
+    if (/[\u0B80-\u0BFF\u0900-\u097F]/.test(x.en)) bad.push(i + ' English is not English');
+    if (!/[\u0B80-\u0BFF]/.test(x.ta)) bad.push(i + ' Tamil is not Tamil');
+    if (!/[\u0900-\u097F]/.test(x.hi)) bad.push(i + ' Hindi is not Hindi');
+  }
+  t('4000 sampled sentences are all sound', bad.length === 0, bad.slice(0, 3).join(' | '));
+
+  t('the same address always gives the same sentence',
+    S.atIndex(12345).en === S.atIndex(12345).en && S.atIndex(12345).hi === S.atIndex(12345).hi);
+  t('the space wraps rather than running off the end',
+    S.atIndex(S.total()).en === S.atIndex(0).en);
+
+  /* Hindi in the past of a transitive verb agrees with the object, not the
+     subject — मैंने किताब पढ़ी, not पढ़ा. That is the rule this generator
+     exists to get right. */
+  var c = S.chart('eat', 'statement');
+  t('a chart covers every person', c.rows.length === S.SUBJECTS.length);
+  t('the chart has all three tenses',
+    c.rows.every(function (r) { return r.past && r.present && r.future; }));
+  t('Hindi marks gender on the verb',
+    c.rows[0].present.hi !== c.rows[1].present.hi,
+    c.rows[0].present.hi + ' / ' + c.rows[1].present.hi);
+  t('the past of a transitive verb takes \u0928\u0947',
+    /\u0928\u0947/.test(c.rows[0].past.hi), c.rows[0].past.hi);
+  t('a named subject keeps its name rather than becoming a pronoun',
+    c.rows[7].present.hi.indexOf('\u0930\u0935\u093f') === 0, c.rows[7].present.hi);
+  t('and takes \u0928\u0947 after the name in the past',
+    c.rows[7].past.hi.indexOf('\u0930\u0935\u093f \u0928\u0947') === 0, c.rows[7].past.hi);
+
+  /* Tamil marks the person on the verb itself */
+  t('Tamil marks the person on the verb',
+    c.rows[0].present.ta !== c.rows[3].present.ta);
+  t('Tamil negatives use the infinitive plus \u0bb5\u0bbf\u0bb2\u0bcd\u0bb2\u0bc8',
+    /\u0bb5\u0bbf\u0bb2\u0bcd\u0bb2\u0bc8/.test(S.build(0, 0, 0, 0, 1).ta), S.build(0, 0, 0, 0, 1).ta);
+  t('and a future negative uses \u0bae\u0bbe\u0b9f\u0bcd\u0b9f',
+    /\u0bae\u0bbe\u0b9f\u0bcd\u0b9f/.test(S.build(0, 0, 0, 2, 1).ta), S.build(0, 0, 0, 2, 1).ta);
+  t('a Tamil question ends in \u0b86',
+    /\u0bbe\?$/.test(S.build(0, 0, 0, 0, 2).ta), S.build(0, 0, 0, 0, 2).ta);
+
+  /* English questions move the helper to the front */
+  t('an English question starts with a helper',
+    /^(Do|Does|Did|Will) /.test(S.build(0, 0, 0, 0, 2).en), S.build(0, 0, 0, 0, 2).en);
+  t('and a negative uses not',
+    / not /.test(S.build(0, 0, 0, 0, 1).en), S.build(0, 0, 0, 0, 1).en);
+  t('third person singular takes -s in the present',
+    / eats /.test(S.build(3, 0, 0, 0, 0).en), S.build(3, 0, 0, 0, 0).en);
+
+  /* a verb must only be offered objects it could act on */
+  t('every verb is only given objects it can act on',
+    S.VERBS.every(function (v, i) {
+      var pool = S.allowedFor(i);
+      if (!v.tr) return pool === null;
+      return pool && pool.length > 0 && pool.every(function (o) {
+        return v.takes.some(function (c) { return o.cat.indexOf(c) >= 0; });
+      });
+    }));
+  t('every object carries its Hindi gender',
+    S.OBJECTS.every(function (o) { return o.g === 'm' || o.g === 'f'; }));
+  t('every subject carries its own Hindi form',
+    S.SUBJECTS.every(function (x) { return x.hi && x.hiErg; }));
+  t('every verb has all four Tamil stems',
+    S.VERBS.every(function (v) { return v.ta.p && v.ta.d && v.ta.f && v.ta.inf; }));
 })();
 
 /* ---------------- clipboard ---------------- */
