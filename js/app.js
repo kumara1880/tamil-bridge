@@ -264,22 +264,140 @@ TB.App = (function () {
     var mode = 'in';
     var form = document.getElementById('authForm');
     var msg = document.getElementById('authMsg');
-    var tabIn = document.getElementById('tabIn'), tabUp = document.getElementById('tabUp');
+
+    /* One card at a time: signing in, asking for a reset, or choosing a new
+       password. Two tabs side by side made the screen ask a question before
+       the person had answered the one they came for. */
+    function show(which) {
+      ['authCard', 'forgotCard', 'resetCard'].forEach(function (id) {
+        document.getElementById(id).hidden = id !== which;
+      });
+      document.getElementById('authSwap').hidden = which !== 'authCard';
+      var first = document.querySelector('#' + which + ' input:not([type=checkbox])');
+      if (first) first.focus();
+    }
 
     function setMode(m) {
       mode = m;
-      tabIn.classList.toggle('on', m === 'in');
-      tabUp.classList.toggle('on', m === 'up');
-      document.getElementById('nameField').style.display = m === 'up' ? '' : 'none';
+      var up = m === 'up';
+      document.getElementById('nameField').style.display = up ? '' : 'none';
+      document.getElementById('authHead').textContent = up ? 'Create your account' : 'Sign in';
       var ph = document.getElementById('pwHint');
-      ph.style.display = m === 'up' ? '' : 'none';
-      if (m === 'up') ph.innerHTML = 'At least 8 characters, with a letter and a number.';
-      document.getElementById('authGo').textContent = m === 'up' ? 'Create account' : 'Sign in';
-      document.getElementById('fPw').setAttribute('autocomplete', m === 'up' ? 'new-password' : 'current-password');
+      ph.style.display = up ? '' : 'none';
+      if (up) ph.innerHTML = 'At least 8 characters, with a letter and a number.';
+      document.getElementById('authGo').textContent = up ? 'Create account' : 'Continue';
+      document.getElementById('fPw').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+      document.getElementById('forgotLink').style.display = up ? 'none' : '';
+      document.getElementById('swapLabel').textContent = up
+        ? 'Already have an account?' : 'New to Tamil Bridge?';
+      document.getElementById('swapBtn').textContent = up
+        ? 'Sign in instead' : 'Create your free account';
       msg.innerHTML = '';
+      show('authCard');
     }
-    tabIn.addEventListener('click', function () { setMode('in'); });
-    tabUp.addEventListener('click', function () { setMode('up'); });
+    document.getElementById('swapBtn').addEventListener('click', function () {
+      setMode(mode === 'up' ? 'in' : 'up');
+    });
+
+    /* ------------------------------------------------ what can this do?
+       A free server that has been given no database throws every account
+       away when it restarts, and the person who made one yesterday is then
+       told their password is wrong. That is not true and it is not kind, so
+       the screen finds out and says so. */
+    var serverCan = { asked: false, durable: false, mail: false };
+    if (TB.Sync.configured()) {
+      TB.Sync.health().then(function (h) {
+        serverCan = { asked: true, durable: !!(h && h.durable), mail: !!(h && h.mail) };
+        if (h && h.ok && !h.durable) {
+          msg.innerHTML = '<div class="msg msg-warn">'
+            + '<b>This device only, for now.</b> The sign-in server is running but has '
+            + 'no database yet, so accounts made on it do not survive a restart. '
+            + 'Your account and everything you learn are kept safely in this browser '
+            + 'instead — nothing is lost, but it will not follow you to another device.'
+            + '</div>';
+        }
+      }).catch(function () { serverCan.asked = true; });
+    }
+
+    /* ------------------------------------------------------ resetting */
+    var forgotCard = document.getElementById('forgotCard');
+    var forgotMsg = document.getElementById('forgotMsg');
+    var resetMsg = document.getElementById('resetMsg');
+
+    document.getElementById('forgotLink').addEventListener('click', function () {
+      forgotMsg.innerHTML = '';
+      var typed = document.getElementById('fId').value.trim();
+      if (typed) document.getElementById('fForgotId').value = typed;
+      if (!TB.Sync.configured()) {
+        forgotMsg.innerHTML = '<div class="msg msg-info">'
+          + '<b>There is no server to email you.</b> This account lives in this browser '
+          + 'only, so there is nowhere to send a link from. If you have forgotten the '
+          + 'password, create a new account — nothing you have learnt is lost, because '
+          + 'that is stored separately on this device.</div>';
+      }
+      show('forgotCard');
+    });
+    document.getElementById('forgotBack').addEventListener('click', function () { show('authCard'); });
+    document.getElementById('resetBack').addEventListener('click', function () { show('authCard'); });
+
+    document.getElementById('forgotForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var who = document.getElementById('fForgotId').value.trim();
+      var go = document.getElementById('forgotGo');
+      forgotMsg.innerHTML = '';
+      if (!TB.Auth.isEmail(who)) {
+        forgotMsg.innerHTML = '<div class="msg msg-err">Please type the email address you signed up with.</div>';
+        return;
+      }
+      if (!TB.Sync.configured()) return;
+      go.disabled = true;
+      var label = go.textContent;
+      go.innerHTML = '<span class="spin"></span> Sending…';
+      TB.Sync.forgot(who).then(function () {
+        go.disabled = false; go.textContent = label;
+        forgotMsg.innerHTML = '<div class="msg msg-ok">'
+          + '<b>Check your email.</b> If there is an account for that address, a link is '
+          + 'on its way. It works for one hour. Look in the spam folder too.</div>';
+      }).catch(function (err) {
+        go.disabled = false; go.textContent = label;
+        forgotMsg.innerHTML = '<div class="msg msg-err">' + TB.Views.esc(err.message) + '</div>';
+      });
+    });
+
+    /* A link from the email arrives as ?reset=... on the front page. */
+    (function () {
+      var token = null;
+      try { token = new URLSearchParams(location.search).get('reset'); } catch (e) {}
+      if (!token) return;
+      show('resetCard');
+      document.getElementById('resetForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var pw = document.getElementById('fNewPw').value;
+        var go = document.getElementById('resetGo');
+        var issue = TB.Auth.passwordIssue(pw);
+        resetMsg.innerHTML = '';
+        if (issue) {
+          resetMsg.innerHTML = '<div class="msg msg-err">' + TB.Views.esc(issue) + '</div>';
+          return;
+        }
+        go.disabled = true;
+        go.innerHTML = '<span class="spin"></span> Saving…';
+        TB.Sync.reset(token, pw).then(function (remoteUser) {
+          return TB.Auth.adopt(remoteUser, pw);
+        }).then(function () {
+          history.replaceState(null, '', location.pathname);
+          enter();
+        }).catch(function (err) {
+          go.disabled = false; go.textContent = 'Save it';
+          resetMsg.innerHTML = '<div class="msg msg-err">' + TB.Views.esc(err.message) + '</div>';
+        });
+      });
+      var eye = document.getElementById('newPwEye'), np = document.getElementById('fNewPw');
+      eye.addEventListener('click', function () {
+        np.type = np.type === 'password' ? 'text' : 'password';
+        eye.textContent = np.type === 'text' ? '\u{1F648}' : '\u{1F441}';
+      });
+    })();
 
     /* show / hide the password */
     var pwInput = document.getElementById('fPw');
@@ -412,6 +530,14 @@ TB.App = (function () {
         });
 
       function storageHint() {
+        /* If the server admitted it has no database, that is almost
+           certainly what happened, and it is not the person's fault. */
+        if (serverCan.asked && TB.Sync.configured() && !serverCan.durable) {
+          return '<b>This is very likely not your mistake.</b> The sign-in server has no '
+               + 'database yet, so any account made on it is thrown away when it restarts '
+               + '\u2014 which a free server does often. Create the account again here and it '
+               + 'will be kept in this browser, where it is safe.';
+        }
         return 'Accounts are saved <b>in this browser</b> unless you turn on Sync. '
              + 'An account created in a private/incognito window, in another browser, '
              + 'or on another device will not be found here. '

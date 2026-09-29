@@ -10,58 +10,109 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css?v=4f5a9965">
+<link rel="stylesheet" href="assets/styles.css?v=71235317">
 </head>
 <body>
 
 <!-- ======================================================= AUTH ======= -->
 <div id="auth">
-  <div class="auth-card">
-    <div class="brand">
-      <div class="brand-mark">த</div>
-      <div>
-        <h1>Tamil Bridge</h1>
-        <span>English &amp; Hindi for Tamil speakers</span>
-      </div>
-    </div>
+  <div class="auth-wrap">
 
-    <div class="auth-tabs">
-      <button id="tabIn" class="on" type="button">Sign in</button>
-      <button id="tabUp" type="button">Create account</button>
-    </div>
+    <a class="auth-brand" href="#/home">
+      <span class="brand-mark">த</span>
+      <span class="auth-brand-text">Tamil Bridge</span>
+    </a>
 
-    <div id="authMsg"></div>
+    <!-- ---------------------------------------------------- sign in --- -->
+    <div class="auth-card" id="authCard">
+      <h1 id="authHead">Sign in</h1>
 
-    <form id="authForm" autocomplete="on">
-      <div class="field" id="nameField" style="display:none">
-        <label for="fName">Name</label>
-        <input id="fName" type="text" autocomplete="name" placeholder="Your name">
-      </div>
+      <div id="authMsg"></div>
 
-      <div class="field">
-        <label for="fId">Email or phone number</label>
-        <input id="fId" type="text" autocomplete="username" placeholder="name@mail.com  /  9876543210" required>
-        <div class="hint">Use whichever you prefer.</div>
-      </div>
-
-      <div class="field">
-        <label for="fPw">Password</label>
-        <div class="pw-wrap">
-          <input id="fPw" type="password" autocomplete="current-password" placeholder="At least 8 characters" required>
-          <button type="button" id="pwEye" class="pw-eye" aria-label="Show password" title="Show password">👁</button>
+      <form id="authForm" autocomplete="on">
+        <div class="field" id="nameField" style="display:none">
+          <label for="fName">Your name</label>
+          <input id="fName" type="text" autocomplete="name" placeholder="What shall we call you?">
         </div>
-        <div class="hint" id="pwHint" style="display:none">At least 8 characters, with a letter and a number.</div>
-      </div>
 
-      <label class="row tiny muted" style="margin:4px 0 14px;cursor:pointer">
-        <input id="fRemember" type="checkbox" checked style="width:auto;margin:0">
-        Keep me signed in on this device
-      </label>
+        <div class="field">
+          <label for="fId">Email or mobile number</label>
+          <input id="fId" type="text" autocomplete="username"
+                 placeholder="name@mail.com  or  9876543210" required>
+        </div>
 
-      <button class="btn btn-primary btn-wide" id="authGo" type="submit">Sign in</button>
-    </form>
+        <div class="field">
+          <label for="fPw">
+            Password
+            <button type="button" class="link-btn" id="forgotLink">Forgot your password?</button>
+          </label>
+          <div class="pw-wrap">
+            <input id="fPw" type="password" autocomplete="current-password"
+                   placeholder="At least 8 characters" required>
+            <button type="button" id="pwEye" class="pw-eye"
+                    aria-label="Show password" title="Show password">👁</button>
+          </div>
+          <div class="hint" id="pwHint" style="display:none">
+            At least 8 characters, with a letter and a number.
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-wide btn-tall" id="authGo" type="submit">Continue</button>
+
+        <label class="auth-remember">
+          <input id="fRemember" type="checkbox" checked>
+          <span>Keep me signed in on this device</span>
+        </label>
+      </form>
+    </div>
+
+    <!-- ------------------------------------------------ forgot form --- -->
+    <div class="auth-card" id="forgotCard" hidden>
+      <h1>Password assistance</h1>
+      <div id="forgotMsg"></div>
+      <form id="forgotForm">
+        <div class="field">
+          <label for="fForgotId">Email address</label>
+          <input id="fForgotId" type="email" autocomplete="username" placeholder="name@mail.com">
+          <div class="hint">We will send a link that works for one hour.</div>
+        </div>
+        <button class="btn btn-primary btn-wide btn-tall" id="forgotGo" type="submit">
+          Send me the link
+        </button>
+        <button class="btn btn-wide btn-ghost mt" id="forgotBack" type="button">Back to sign in</button>
+      </form>
+    </div>
+
+    <!-- ------------------------------------------------- new password -- -->
+    <div class="auth-card" id="resetCard" hidden>
+      <h1>Choose a new password</h1>
+      <div id="resetMsg"></div>
+      <form id="resetForm">
+        <div class="field">
+          <label for="fNewPw">New password</label>
+          <div class="pw-wrap">
+            <input id="fNewPw" type="password" autocomplete="new-password"
+                   placeholder="At least 8 characters" required>
+            <button type="button" id="newPwEye" class="pw-eye" aria-label="Show password">👁</button>
+          </div>
+          <div class="hint" id="newPwHint">At least 8 characters, with a letter and a number.</div>
+        </div>
+        <button class="btn btn-primary btn-wide btn-tall" id="resetGo" type="submit">Save it</button>
+        <button class="btn btn-wide btn-ghost mt" id="resetBack" type="button">Back to sign in</button>
+      </form>
+    </div>
+
+    <!-- ---------------------------------------------------- the swap --- -->
+    <div class="auth-swap" id="authSwap">
+      <div class="auth-divider"><span id="swapLabel">New to Tamil Bridge?</span></div>
+      <button class="btn btn-wide" id="swapBtn" type="button">Create your free account</button>
+    </div>
 
     <div class="privacy-note" id="privacyNote"></div>
+
+    <div class="auth-foot">
+      Free for ever · no advertisements · nothing is sold
+    </div>
   </div>
 </div>
 
@@ -192,7 +243,7 @@
 <script src="js/numbers.js?v=9fe1dce1"></script>
 <script src="js/reader.js?v=a32b3b68"></script>
 <script src="js/ocr.js?v=08c5e35b"></script>
-<script src="js/sync.js?v=5d89b702"></script>
+<script src="js/sync.js?v=40034983"></script>
 <!-- ui -->
 <script src="js/views.js?v=32d208e2"></script>
 <script src="js/views2.js?v=4b9cc3ee"></script>
@@ -206,6 +257,6 @@
 <script src="js/views9.js?v=e0b27105"></script>
 <script src="js/search.js?v=0d913bde"></script>
 <script src="js/searchbar.js?v=efdfc8d1"></script>
-<script src="js/app.js?v=b8c48df7"></script>
+<script src="js/app.js?v=34477f37"></script>
 </body>
 </html>

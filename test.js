@@ -534,6 +534,66 @@ section('FINDING THINGS');
       && /function onBody/.test(v8));
 })();
 
+/* ---------------- signing in ---------------- */
+section('SIGNING IN');
+(function () {
+  var fs = require('fs');
+  var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+  var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+  var sync = fs.readFileSync(__dirname + '/js/sync.js', 'utf8');
+  var srv = fs.readFileSync(__dirname + '/server/index.js', 'utf8');
+  var css = fs.readFileSync(__dirname + '/assets/styles.css', 'utf8');
+
+  /* One job per screen. Two tabs side by side asked a question before the
+     person had answered the one they came for. */
+  t('the sign-in tabs are gone', !/id="tabIn"/.test(html) && !/tabIn/.test(app));
+  t('and the other choice sits below a divider instead',
+    /id="swapBtn"/.test(html) && /auth-divider/.test(css));
+  t('one card is shown at a time', /function show\(which\)/.test(app));
+
+  /* The thing asked for four times. */
+  t('there is a way out of a forgotten password', /id="forgotLink"/.test(html));
+  t('a card to ask for the link', /id="forgotCard"/.test(html));
+  t('and a card to choose the new one', /id="resetCard"/.test(html));
+  t('a link from the email is picked up from the address',
+    /URLSearchParams\(location\.search\)\.get\('reset'\)/.test(app));
+
+  t('the client can ask for a reset', /forgot: function/.test(sync));
+  t('and can set the new password', /reset: function/.test(sync));
+  t('the server has somewhere to ask', /\/api\/auth\/forgot/.test(srv));
+  t('and somewhere to set it', /\/api\/auth\/reset/.test(srv));
+
+  /* Security properties that matter more than the feature itself. */
+  t('only a hash of the reset token is stored, never the token',
+    /createHash\('sha256'\)/.test(srv) && /resetHash/.test(srv));
+  t('a reset link expires', /resetAt/.test(srv));
+  t('the token is single use',
+    /resetHash: null/.test(srv));
+  t('the reply never says whether an address is registered',
+    /Same answer whether or not the account exists/.test(srv));
+  t('asking for a reset is rate limited',
+    /forgot', rateLimit/.test(srv));
+  t('the new password must still pass the rules',
+    /needs at least 8 characters/.test(srv));
+
+  /* The lie this whole thing started from: somebody whose account had been
+     thrown away by a restart was told their password was wrong. */
+  t('the screen asks the server what it can actually do',
+    /TB\.Sync\.health\(\)/.test(app) && /serverCan/.test(app));
+  t('and says so plainly when the server cannot keep accounts',
+    /This device only, for now/.test(app));
+  t('a failed sign-in does not blame the person when the server lost the account',
+    /This is very likely not your mistake/.test(app));
+  t('the server says in its health whether it can send mail at all',
+    /mail: MAIL_READY/.test(srv) && /canReset/.test(srv));
+  t('and refuses honestly rather than pretending, when it cannot',
+    /cannot send email yet/.test(srv) && /cannot keep accounts yet/.test(srv));
+
+  /* Nothing here may cost anything or need a key. */
+  t('the mailer is optional, so the server still boots without it',
+    /Nodemailer is loaded lazily/.test(srv));
+})();
+
 /* ---------------- the modern world ---------------- */
 section('GROWING UP NOW');
 (function () {

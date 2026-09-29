@@ -117,17 +117,67 @@ a { color: var(--blue); }
 /* ----------------------------------------------------------- auth screen */
 #auth {
   position: fixed; inset: 0; z-index: 50;
-  display: grid; place-items: center; padding: 20px;
+  display: block; padding: 28px 16px 40px;
   background:
     radial-gradient(900px 500px at 15% -10%, rgba(240,136,62,.16), transparent 60%),
     radial-gradient(700px 500px at 100% 100%, rgba(45,212,191,.12), transparent 60%),
     var(--bg);
   overflow-y: auto;
 }
+
+/* One narrow column: the brand alone at the top, then one card doing one
+   job, then the other choice below a divider rather than beside it. */
+.auth-wrap { width: 100%; max-width: 384px; margin: 0 auto; }
+
+.auth-brand {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-bottom: 18px; text-decoration: none; color: var(--text);
+}
+.auth-brand-text { font-size: 23px; font-weight: 700; letter-spacing: -.3px; }
+
 .auth-card {
-  width: 100%; max-width: 420px;
   background: var(--panel); border: 1px solid var(--line);
-  border-radius: 18px; padding: 30px 28px; box-shadow: var(--shadow);
+  border-radius: 14px; padding: 20px 20px 22px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+.auth-card h1 {
+  margin: 0 0 14px; font-size: 27px; font-weight: 500; letter-spacing: -.4px;
+}
+.auth-card[hidden] { display: none; }
+
+.auth-remember {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 14px; font-size: 13px; color: var(--text-dim); cursor: pointer;
+}
+.auth-remember input { width: auto; margin: 2px 0 0; flex: none; }
+
+/* "Forgot your password?" sits on the label line, as a link rather than a
+   button, because it is a way out and not a thing to do. */
+.link-btn {
+  float: right; padding: 0; border: 0; background: none;
+  font: inherit; font-size: 12.5px; font-weight: 500;
+  color: var(--blue); cursor: pointer; text-decoration: none;
+}
+.link-btn:hover { text-decoration: underline; }
+
+.auth-swap { margin-top: 20px; }
+.auth-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px; font-size: 12.5px; color: var(--text-dim);
+}
+.auth-divider::before, .auth-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
+}
+.auth-foot {
+  margin-top: 18px; text-align: center;
+  font-size: 12px; color: var(--text-dim);
+}
+.btn-tall { min-height: 44px; font-size: 15px; }
+
+@media (max-width: 420px) {
+  #auth { padding: 20px 12px 32px; }
+  .auth-card { padding: 17px 16px 19px; }
+  .auth-card h1 { font-size: 23px; }
 }
 .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 6px; }
 .brand-mark {
@@ -138,13 +188,6 @@ a { color: var(--blue); }
 }
 .brand h1 { margin: 0; font-size: 20px; letter-spacing: -.2px; }
 .brand span { display: block; font-size: 12px; color: var(--text-dim); font-weight: 400; }
-
-.auth-tabs { display: flex; gap: 6px; margin: 20px 0 16px; background: var(--panel-2); padding: 4px; border-radius: 10px; }
-.auth-tabs button {
-  flex: 1; padding: 9px; border: 0; background: transparent; color: var(--text-dim);
-  border-radius: 7px; font-weight: 600; font-size: 14px;
-}
-.auth-tabs button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
 
 .field { margin-bottom: 13px; }
 .field label { display: block; font-size: 12.5px; color: var(--text-dim); margin-bottom: 5px; font-weight: 600; }

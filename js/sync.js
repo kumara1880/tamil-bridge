@@ -113,6 +113,24 @@ TB.Sync = (function () {
 
     me: function () { return req('/api/auth/me').then(function (j) { return j.user; }); },
 
+    /* Ask for a reset link. The server never says whether the address is
+       registered — only whether it is able to send mail at all, which is a
+       fact about the server and not about the person. */
+    forgot: function (identifier) {
+      return req('/api/auth/forgot', {
+        method: 'POST', body: JSON.stringify({ identifier: identifier })
+      }, 75000);
+    },
+
+    reset: function (token, password) {
+      return req('/api/auth/reset', {
+        method: 'POST', body: JSON.stringify({ token: token, password: password })
+      }, 75000).then(function (j) {
+        if (j.token) api.setToken(j.token);   /* signed in straight away */
+        return j.user;
+      });
+    },
+
     pull: function () { return req('/api/data').then(function (j) { return j.data; }); },
 
     push: function (data) {

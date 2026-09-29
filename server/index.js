@@ -12,7 +12,16 @@
                    every existing token on restart — always set it in Render.
      ALLOWED_ORIGIN  Comma-separated list of allowed frontends (your Vercel URL).
                      Defaults to "*", which is fine for a public learning app.
-     PORT          Supplied by Render.                                          */
+     PORT          Supplied by Render.
+
+     SMTP_USER     A Gmail address, for sending password-reset links.
+     SMTP_PASS     A Gmail *app password* — never the account password.
+     SMTP_FROM     Optional display address on the email. Defaults to SMTP_USER.
+     APP_URL       Where the reset link should point. Defaults to the first
+                   ALLOWED_ORIGIN, then to the request's own origin.
+
+     Without SMTP_USER and SMTP_PASS the reset endpoint still answers, and
+     says honestly that it cannot send mail yet, rather than pretending.    */
 
 const express = require('express');
 const cors = require('cors');
@@ -37,6 +46,41 @@ if (!process.env.JWT_SECRET) {
 if (!MONGODB_URI) {
   console.warn('[warn] MONGODB_URI is not set — using an in-memory store. Data will be LOST on restart.');
   console.warn('[warn] Create a free MongoDB Atlas M0 cluster and set MONGODB_URI.');
+}
+
+/* ------------------------------------------------------------------ mail */
+
+/* Nodemailer is loaded lazily so the server still boots without it
+   installed, which keeps the app deployable while this is being set up. */
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const MAIL_READY = !!(SMTP_USER && SMTP_PASS);
+let transport = null;
+
+function mailer() {
+  if (transport) return transport;
+  if (!MAIL_READY) return null;
+  try {
+    const nodemailer = require('nodemailer');
+    transport = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: SMTP_USER, pass: SMTP_PASS }
+    });
+    return transport;
+  } catch (e) {
+    console.warn('[warn] nodemailer is not installed \u2014 run npm install in /server');
+    return null;
+  }
+}
+
+if (!MAIL_READY) {
+  console.warn('[warn] SMTP_USER / SMTP_PASS are not set \u2014 password reset by email is off.');
+}
+
+function appUrl(req) {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/+$/, '');
+  if (ALLOWED[0] && ALLOWED[0] !== '*') return ALLOWED[0].replace(/\/+$/, '');
+  return (req.headers.origin || '').replace(/\/+$/, '');
 }
 
 /* --------------------------------------------------------------- storage */
@@ -151,6 +195,10 @@ app.get('/api/health', (_req, res) => {
     store: STORE.durable ? 'mongodb' : 'memory (data is not persisted)',
     durable: STORE.durable,
     reason: STORE.reason,
+    /* The app asks for these so it can tell people the truth about what
+       will and will not work, instead of failing mysteriously. */
+    mail: MAIL_READY,
+    canReset: MAIL_READY && STORE.durable,
     time: new Date().toISOString()
   });
 });
@@ -219,6 +267,100 @@ app.post('/api/auth/signin', rateLimit(20, 15 * 60 * 1000), async (req, res) => 
   } catch (e) {
     console.error('signin', e);
     res.status(500).json({ error: 'Could not sign in.' });
+  }
+});
+
+/* ---------------------------------------------------------------- reset */
+
+/* The reply never says whether the address is registered. Telling a
+   stranger which addresses have accounts is a gift to whoever is guessing.
+   It does say whether the server is able to send mail at all, because that
+   is about the server and not about the person. */
+app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000), async (req, res) => {
+  try {
+    const { identifier } = req.body || {};
+    const email = isEmail(identifier) ? String(identifier).trim().toLowerCase() : null;
+
+    if (!STORE.durable) {
+      return res.status(503).json({
+        error: 'This server cannot keep accounts yet, so there is nothing to reset. '
+             + 'MONGODB_URI has not been set on it.',
+        canReset: false, reason: 'no-database'
+      });
+    }
+    if (!MAIL_READY) {
+      return res.status(503).json({
+        error: 'This server cannot send email yet, so a reset link cannot be sent. '
+             + 'SMTP_USER and SMTP_PASS have not been set on it.',
+        canReset: false, reason: 'no-mail'
+      });
+    }
+    if (!email) {
+      return res.status(400).json({
+        error: 'A reset link can only be sent to an email address. '
+             + 'An account made with a phone number cannot be reset this way.'
+      });
+    }
+
+    const user = await users.findOne({ email });
+    if (user) {
+      /* Only the hash is stored, so a stolen database cannot be used to
+         reset anybody's password. */
+      const raw = crypto.randomBytes(32).toString('hex');
+      const hash = crypto.createHash('sha256').update(raw).digest('hex');
+      await users.updateOne({ _id: user._id }, {
+        $set: { resetHash: hash, resetAt: Date.now() + 60 * 60 * 1000 }
+      });
+
+      const link = appUrl(req) + '/?reset=' + raw;
+      const t = mailer();
+      if (t) {
+        await t.sendMail({
+          from: process.env.SMTP_FROM || SMTP_USER,
+          to: email,
+          subject: 'Reset your Tamil Bridge password',
+          text: 'Somebody asked to reset the password for this Tamil Bridge account.\n\n'
+              + 'Open this link within one hour to choose a new one:\n' + link
+              + '\n\nIf it was not you, ignore this email. Nothing has changed.\n',
+          html: '<p>Somebody asked to reset the password for this Tamil Bridge account.</p>'
+              + '<p><a href="' + link + '">Choose a new password</a></p>'
+              + '<p>The link works for one hour. If it was not you, ignore this email '
+              + '\u2014 nothing has changed.</p>'
+        });
+      }
+    }
+
+    /* Same answer whether or not the account exists. */
+    res.json({ ok: true, sent: true });
+  } catch (e) {
+    console.error('forgot', e);
+    res.status(500).json({ error: 'Could not send the reset link. Please try again later.' });
+  }
+});
+
+app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
+  try {
+    const { token, password } = req.body || {};
+    const pw = String(password || '');
+    if (pw.length < 8 || !/[a-zA-Z]/.test(pw) || !/\d/.test(pw)) {
+      return res.status(400).json({
+        error: 'The new password needs at least 8 characters, with a letter and a number.'
+      });
+    }
+    const hash = crypto.createHash('sha256').update(String(token || '')).digest('hex');
+    const user = await users.findOne({ resetHash: hash });
+    if (!user || !user.resetAt || user.resetAt < Date.now()) {
+      return res.status(400).json({
+        error: 'This reset link has expired or has already been used. Please ask for a new one.'
+      });
+    }
+    await users.updateOne({ _id: user._id }, {
+      $set: { hash: await bcrypt.hash(pw, 10), resetHash: null, resetAt: null }
+    });
+    res.json({ token: sign(user), user: publicUser(user) });
+  } catch (e) {
+    console.error('reset', e);
+    res.status(500).json({ error: 'Could not reset the password.' });
   }
 });
 
