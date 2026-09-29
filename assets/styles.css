@@ -569,3 +569,123 @@ a { color: var(--blue); }
 .conj-line { font-size: 16px; padding: 3px 0; }
 .conj-line.neg { color: var(--text-dim); }
 .conj-line.q   { color: var(--blue); }
+
+/* ----------------------------------------------------------------- maths */
+.msetup { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mnum {
+  flex: 1; min-width: 120px; padding: 13px 15px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg-soft); color: var(--text);
+  font-size: 26px; font-weight: 650; letter-spacing: 1px; text-align: right;
+}
+.mnum:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(240,136,62,.15); }
+#mOps .pill { font-size: 21px; padding: 6px 15px; line-height: 1.2; }
+
+.manswer {
+  font-size: 40px; font-weight: 750; letter-spacing: 1px; color: var(--accent-2);
+  word-break: break-all; line-height: 1.2; margin-bottom: 6px;
+}
+:root[data-theme="light"] .manswer { color: var(--accent); }
+.mwords { display: grid; gap: 10px; }
+.mword { padding-top: 9px; border-top: 1px solid var(--line-soft); }
+
+/* the sum written out in columns, as on paper */
+.msum {
+  display: inline-block; padding: 14px 18px; border-radius: 10px;
+  background: var(--bg-soft); font-variant-numeric: tabular-nums;
+  overflow-x: auto; max-width: 100%;
+}
+.mrow { display: flex; justify-content: flex-end; }
+.mcell {
+  width: 30px; height: 40px; display: grid; place-items: center;
+  font-size: 27px; font-weight: 650; font-family: ui-monospace, 'Consolas', monospace;
+}
+.mcell.mop { color: var(--text-dim); }
+.mcell.mans { color: var(--accent-2); }
+:root[data-theme="light"] .mcell.mans { color: var(--accent); }
+.mcell.mmark { height: 20px; font-size: 14px; color: var(--teal); font-weight: 700; }
+.mline { height: 2px; background: var(--line); margin: 5px 0; }
+
+/* counting dots, for anyone who cannot read the words yet */
+.mcount { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 22px; }
+.mdots { display: inline-flex; flex-wrap: wrap; gap: 4px; max-width: 220px; }
+.mdot { width: 15px; height: 15px; border-radius: 50%; display: inline-block; background: var(--accent); }
+.mdot.b { background: var(--teal); }
+.mplus { font-size: 24px; color: var(--text-dim); font-weight: 700; }
+.mgroup { padding: 6px; border: 1px dashed var(--line); border-radius: 9px; }
+.mgroup.mleft { border-style: dotted; opacity: .75; }
+
+/* the steps */
+.mstep {
+  display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start;
+  padding: 9px 11px; border-radius: 9px; margin-bottom: 4px; cursor: pointer;
+  line-height: 1.6; transition: background .15s;
+}
+.mstep:hover { background: var(--panel-2); }
+.mstep.now { background: var(--accent-dim); box-shadow: inset 3px 0 0 var(--accent); }
+.mstepn {
+  width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--panel-2); color: var(--text-dim); font-size: 12px; font-weight: 700;
+}
+.mstep.now .mstepn { background: var(--accent); color: #1a1004; }
+.mcheck {
+  margin-top: 11px; padding: 11px; border-radius: 9px;
+  background: rgba(45,212,191,.09); border: 1px solid rgba(45,212,191,.28); line-height: 1.6;
+}
+
+.mtable { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.mtrow {
+  display: flex; align-items: center; gap: 8px; padding: 7px 11px;
+  background: var(--bg-soft); border-radius: 8px; font-variant-numeric: tabular-nums;
+}
+.mtrow b { margin-left: auto; color: var(--accent-2); }
+:root[data-theme="light"] .mtrow b { color: var(--accent); }
+
+@media (max-width: 560px) {
+  .mcell { width: 23px; height: 33px; font-size: 21px; }
+  .manswer { font-size: 31px; }
+  .mnum { font-size: 21px; }
+}
+
+/* ------------------------------------------------------- the ruled page */
+:root {
+  --rule-base:  rgba(150,170,190,.9);
+  --rule-edge:  rgba(150,170,190,.55);
+  --rule-mid:   rgba(150,170,190,.34);
+  --rule-ghost: rgba(160,180,200,.30);
+}
+:root[data-theme="light"] {
+  --rule-base:  rgba(90,110,135,.85);
+  --rule-edge:  rgba(90,110,135,.45);
+  --rule-mid:   rgba(90,110,135,.28);
+  --rule-ghost: rgba(70,95,125,.26);
+}
+
+.rule-pad {
+  position: relative; width: 100%; margin-top: 14px;
+  background: var(--bg-soft); border: 1px solid var(--line); border-radius: 11px;
+  touch-action: none; overflow: hidden;
+}
+.rule-pad.rows-1 { height: 190px; }
+.rule-pad.rows-4 { height: 430px; }
+.rule-guides, .rule-ink { position: absolute; inset: 0; display: block; }
+.rule-ink { cursor: crosshair; }
+
+.trace-big {
+  font-size: 46px; font-weight: 700; line-height: 1;
+  display: flex; align-items: center; gap: 8px;
+}
+.trace-big.ta { font-family: var(--tamil); }
+.trace-big.hi { font-family: var(--deva); }
+
+@media (max-width: 560px) {
+  .rule-pad.rows-1 { height: 150px; }
+  .rule-pad.rows-4 { height: 330px; }
+  .trace-big { font-size: 36px; }
+}
+
+/* a printed practice sheet should be black on white with no app furniture */
+@media print {
+  .side, .head, .nav, #auth, .pill-row, .btn, .card-sub, .tiny { display: none !important; }
+  body, .card, .rule-pad { background: #fff !important; color: #000 !important; border: none !important; }
+  .rule-pad.rows-4 { height: 620px; }
+}

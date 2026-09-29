@@ -19,7 +19,8 @@ vm.createContext(ctx);
  'data/phrases.js','data/lexicon.js',
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
- 'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js']
+ 'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js',
+ 'js/maths.js','js/writing.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
 const TB = ctx.TB;
@@ -50,6 +51,105 @@ section('PAGE');
       && !require('fs').existsSync(__dirname + '/' + f);
   });
   t('every file the page loads exists', missing.length === 0, missing.join(' '));
+})();
+
+/* ---------------- arithmetic ---------------- */
+section('MATHS');
+(function () {
+  var M = TB.Maths;
+  /* the answer has to be right before the explanation is worth anything */
+  var cases = [[7, 'add', 5, '12'], [2856, 'add', 4791, '7647'],
+               [53, 'sub', 28, '25'], [1000, 'sub', 1, '999'],
+               [3, 'mul', 4, '12'], [234, 'mul', 56, '13104'],
+               [144, 'div', 12, '12'], [1000, 'div', 7, '142 r 6']];
+  var wrong = cases.filter(function (c) {
+    var r = M.solve(c[0], c[1], c[2]);
+    return !r.ok || r.answer !== c[3];
+  });
+  t('every worked example comes out right', wrong.length === 0,
+    wrong.map(function (c) { return c.join(' '); }).join(' | '));
+
+  /* digit arrays rather than floats, so it stays exact past 2^53 */
+  t('big multiplication stays exact',
+    M.solve(12345678, 'mul', 98765).answer === '1219320887670',
+    M.solve(12345678, 'mul', 98765).answer);
+  t('big addition stays exact',
+    M.solve(999999999, 'add', 999999999).answer === '1999999998');
+
+  var all = [];
+  ['add', 'sub', 'mul', 'div'].forEach(function (op) {
+    for (var i = 0; i < 60; i++) {
+      var p = M.practice(op, (i % 3) + 1);
+      var r = M.solve(p.a, op, p.b);
+      if (!r.ok) { all.push(op + ' ' + p.a + '/' + p.b + ': ' + r.error); continue; }
+      var want = op === 'add' ? p.a + p.b : op === 'sub' ? p.a - p.b
+               : op === 'mul' ? p.a * p.b : Math.floor(p.a / p.b);
+      var got = parseInt(String(r.answer).split(' ')[0], 10);
+      if (got !== want) all.push(op + ' ' + p.a + ' ' + p.b + ' -> ' + r.answer + ' want ' + want);
+    }
+  });
+  t('240 random sums across every level are correct', all.length === 0, all.slice(0, 3).join(' | '));
+
+  var r = M.solve(2856, 'add', 4791);
+  t('every step is written in all three languages',
+    r.steps.every(function (s) { return s.en && s.ta && s.hi; }));
+  t('no step leaves a language empty',
+    r.steps.every(function (s) { return s.ta.length > 5 && s.hi.length > 5; }));
+  t('the working is checkable', !!r.check && !!r.check.ta && !!r.check.hi);
+  t('carrying is explained where it happens',
+    r.steps.some(function (s) { return /carry/.test(s.en); }));
+  t('borrowing is explained where it happens',
+    M.solve(1000, 'sub', 1).steps.some(function (s) { return /borrow/.test(s.en); }));
+  t('a nought in the way is explained',
+    M.solve(1000, 'sub', 1).steps.some(function (s) { return /becomes 9/.test(s.en); }));
+  t('small multiplication is shown as repeated adding',
+    M.solve(3, 'mul', 4).steps.some(function (s) { return /added 4 times/.test(s.en); }));
+  t('dividing by zero is refused with a reason',
+    M.solve(5, 'div', 0).ok === false && /zero/.test(M.solve(5, 'div', 0).error));
+  t('and the reason is given in Tamil and Hindi too',
+    !!M.solve(5, 'div', 0).errorTa && !!M.solve(5, 'div', 0).errorHi);
+  t('a number too big to stay exact is refused',
+    M.solve(1e12, 'add', 1).ok === false);
+  t('commas and spaces in the input are understood',
+    M.parse('12,34,567') === 1234567 && M.parse(' 42 ') === 42);
+  t('nonsense input is not guessed at', M.parse('12a') === null && M.parse('') === null);
+  t('place names exist in all three languages',
+    M.PLACES.every(function (p) { return p.en && p.ta && p.hi; }));
+})();
+
+/* ---------------- ruled writing ---------------- */
+section('WRITING');
+(function () {
+  var W = TB.Writing;
+  t('English and digits default to four lines',
+    W.defaultRuling('en') === 'four' && W.defaultRuling('num') === 'four');
+  t('Tamil and Hindi default to two',
+    W.defaultRuling('ta') === 'two' && W.defaultRuling('hi') === 'two');
+
+  var g = W.geometry(600, 200, 'four', 1)[0];
+  t('four-ruled gives three equal bands',
+    Math.abs((g.xline - g.top) - (g.base - g.xline)) < 0.01 &&
+    Math.abs((g.base - g.xline) - (g.tail - g.base)) < 0.01);
+  t('the baseline sits between the middle and the tail',
+    g.top < g.xline && g.xline < g.base && g.base < g.tail);
+  var two = W.geometry(600, 200, 'two', 1)[0];
+  t('two-ruled has just the two', two.top < two.base && two.xline === undefined);
+  t('rows stack without overlapping', (function () {
+    var rows = W.geometry(600, 400, 'four', 4);
+    for (var i = 1; i < rows.length; i++) if (rows[i].top <= rows[i - 1].tail) return false;
+    return true;
+  })());
+
+  t('capitals, small letters and digits are all practisable',
+    W.set('caps').length === 26 && W.set('small').length === 26 && W.set('num').length === 10);
+  t('small letters really are small',
+    W.set('small').every(function (x) { return x.ch === x.ch.toLowerCase(); }));
+  t('capitals really are capital',
+    W.set('caps').every(function (x) { return x.ch === x.ch.toUpperCase(); }));
+  t('every digit carries its name in all three languages',
+    W.set('num').every(function (d) { return d.words.en && d.words.ta && d.words.hi; }));
+  t('Tamil and Hindi sets are not empty',
+    W.set('ta').length > 20 && W.set('hi').length > 20);
 })();
 
 /* ---------------- clipboard ---------------- */

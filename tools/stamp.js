@@ -39,6 +39,13 @@ function restamp(html) {
   return { html: out, stale: stale };
 }
 
+
+module.exports = { hash: hash, restamp: restamp };
+
+/* Only do anything when run directly. Required as a library — which is how
+   the suite checks the tags — it should stay silent. */
+if (require.main !== module) return;
+
 const html = fs.readFileSync(PAGE, 'utf8');
 const r = restamp(html);
 const check = process.argv.indexOf('--check') >= 0;
