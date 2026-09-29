@@ -140,6 +140,47 @@ section('WRITING');
     return true;
   })());
 
+  /* The ruling is only worth printing if the letters land on it. Measured in
+     the browser to the pixel; here the rule each letter follows is pinned so
+     it cannot drift. */
+  var g4 = W.geometry(600, 200, 'four', 1)[0];
+  function zone(ch) {
+    var z = W.zoneFor(ch, 'four', g4);
+    var name = function (v) {
+      return v === g4.top ? 'top' : v === g4.xline ? 'xline'
+           : v === g4.base ? 'base' : v === g4.tail ? 'tail' : '?';
+    };
+    return name(z.from) + '-' + name(z.to);
+  }
+  var ROOMS = {
+    'top-base':   'ABZ059bdfhklt'.split(''),
+    'xline-base': 'acemnorsuvwxz'.split(''),
+    'xline-tail': 'gjpqy'.split('')
+  };
+  var misplaced = [];
+  Object.keys(ROOMS).forEach(function (want) {
+    ROOMS[want].forEach(function (ch) {
+      if (zone(ch) !== want) misplaced.push(ch + ' is ' + zone(ch) + ', should be ' + want);
+    });
+  });
+  t('every letter is put in the right room', misplaced.length === 0, misplaced.slice(0, 4).join(' | '));
+  t('tall small letters reach the top line, like capitals',
+    zone('b') === zone('A') && zone('l') === zone('H'));
+  t('a tail drops below the baseline', zone('g') === 'xline-tail' && zone('y') === 'xline-tail');
+  t('a plain small letter never leaves the middle room', zone('a') === 'xline-base');
+  t('digits are full height', zone('0') === 'top-base' && zone('7') === 'top-base');
+  t('two-ruled has one room, so everything shares it', (function () {
+    var g2 = W.geometry(600, 200, 'two', 1)[0];
+    return ['a', 'b', 'g', 'A', '5'].every(function (ch) {
+      var z = W.zoneFor(ch, 'two', g2);
+      return z.from === g2.top && z.to === g2.base;
+    });
+  })());
+  t('the rooms are explained in all three languages',
+    W.explain('four').every(function (x) { return x.en && x.ta && x.hi; }) &&
+    W.explain('two').every(function (x) { return x.en && x.ta && x.hi; }));
+  t('four-ruled is explained as three rooms', W.explain('four').length === 4);
+
   t('capitals, small letters and digits are all practisable',
     W.set('caps').length === 26 && W.set('small').length === 26 && W.set('num').length === 10);
   t('small letters really are small',

@@ -689,3 +689,5 @@ a { color: var(--blue); }
   body, .card, .rule-pad { background: #fff !important; color: #000 !important; border: none !important; }
   .rule-pad.rows-4 { height: 620px; }
 }
+
+.room-line { padding: 8px 0; border-top: 1px solid var(--line-soft); line-height: 1.6; }

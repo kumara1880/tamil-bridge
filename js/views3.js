@@ -131,6 +131,47 @@
         c.addEventListener('touchend', end);
       }
 
+      /* Which room this letter lives in, and what the rooms are. Said in
+         all three languages, because the rule is the same in all three and
+         the child may only read one of them. */
+      function whichRoom(ch) {
+        if (ruling !== 'four') return null;
+        if (/[A-Z0-9]/.test(ch)) {
+          return { en: 'This one is full height: it fills the top room and the middle room, from the top line down to the baseline.',
+                   ta: '\u0b87\u0ba4\u0bc1 \u0bae\u0bc1\u0bb4\u0bc1 \u0b89\u0baf\u0bb0\u0bae\u0bcd: \u0bae\u0bc7\u0bb2\u0bcd \u0b95\u0bcb\u0b9f\u0bcd\u0b9f\u0bbf\u0bb2\u0bbf\u0bb0\u0bc1\u0ba8\u0bcd\u0ba4\u0bc1 \u0b85\u0b9f\u0bbf\u0b95\u0bcd\u0b95\u0bcb\u0b9f\u0bc1 \u0bb5\u0bb0\u0bc8.',
+                   hi: '\u092f\u0939 \u092a\u0942\u0930\u0940 \u090a\u0901\u091a\u093e\u0908 \u0915\u093e \u0939\u0948: \u090a\u092a\u0930 \u0915\u0940 \u0930\u0947\u0916\u093e \u0938\u0947 \u0906\u0927\u093e\u0930 \u0930\u0947\u0916\u093e \u0924\u0915\u0964' };
+        }
+        if ('bdfhklt'.indexOf(ch) >= 0) {
+          return { en: 'This small letter is tall: it climbs to the top line and stands on the baseline.',
+                   ta: '\u0b87\u0ba8\u0bcd\u0ba4 \u0b9a\u0bbf\u0bb1\u0bbf\u0baf \u0b8e\u0bb4\u0bc1\u0ba4\u0bcd\u0ba4\u0bc1 \u0b89\u0baf\u0bb0\u0bae\u0bbe\u0ba9\u0ba4\u0bc1: \u0bae\u0bc7\u0bb2\u0bcd \u0b95\u0bcb\u0b9f\u0bcd\u0b9f\u0bc1\u0bb5\u0bb0\u0bc8 \u0b8f\u0bb1\u0bbf, \u0b85\u0b9f\u0bbf\u0b95\u0bcd\u0b95\u0bcb\u0b9f\u0bcd\u0b9f\u0bbf\u0bb2\u0bcd \u0ba8\u0bbf\u0bb1\u0bcd\u0b95\u0bc1\u0bae\u0bcd.',
+                   hi: '\u092f\u0939 \u091b\u094b\u091f\u093e \u0905\u0915\u094d\u0937\u0930 \u0932\u0902\u092c\u093e \u0939\u0948: \u090a\u092a\u0930 \u0915\u0940 \u0930\u0947\u0916\u093e \u0924\u0915 \u091c\u093e\u0924\u093e \u0939\u0948\u0964' };
+        }
+        if ('gjpqy'.indexOf(ch) >= 0) {
+          return { en: 'This one has a tail: it sits in the middle room and drops into the basement.',
+                   ta: '\u0b87\u0ba4\u0bb1\u0bcd\u0b95\u0bc1 \u0bb5\u0bbe\u0bb2\u0bcd \u0b89\u0ba3\u0bcd\u0b9f\u0bc1: \u0ba8\u0b9f\u0bc1 \u0b85\u0bb1\u0bc8\u0baf\u0bbf\u0bb2\u0bcd \u0b85\u0bae\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc1, \u0b95\u0bc0\u0bb4\u0bc7 \u0ba4\u0bca\u0b99\u0bcd\u0b95\u0bc1\u0bae\u0bcd.',
+                   hi: '\u0907\u0938\u0915\u0940 \u092a\u0942\u0901\u091b \u0939\u0948: \u092c\u0940\u091a \u0915\u0947 \u0915\u092e\u0930\u0947 \u092e\u0947\u0902 \u092c\u0948\u0920\u0924\u093e \u0939\u0948 \u0914\u0930 \u0928\u0940\u091a\u0947 \u0932\u091f\u0915\u0924\u093e \u0939\u0948\u0964' };
+        }
+        return { en: 'This one lives in the middle room only: between the dotted line and the baseline.',
+                 ta: '\u0b87\u0ba4\u0bc1 \u0ba8\u0b9f\u0bc1 \u0b85\u0bb1\u0bc8\u0baf\u0bbf\u0bb2\u0bcd \u0bae\u0b9f\u0bcd\u0b9f\u0bc1\u0bae\u0bcd: \u0baa\u0bc1\u0bb3\u0bcd\u0bb3\u0bbf\u0b95\u0bcd \u0b95\u0bcb\u0b9f\u0bcd\u0b9f\u0bc1\u0b95\u0bcd\u0b95\u0bc1\u0bae\u0bcd \u0b85\u0b9f\u0bbf\u0b95\u0bcd\u0b95\u0bcb\u0b9f\u0bcd\u0b9f\u0bc1\u0b95\u0bcd\u0b95\u0bc1\u0bae\u0bcd \u0b87\u0b9f\u0bc8\u0baf\u0bbf\u0bb2\u0bcd.',
+                 hi: '\u092f\u0939 \u0938\u093f\u0930\u094d\u092b\u093c \u092c\u0940\u091a \u0915\u0947 \u0915\u092e\u0930\u0947 \u092e\u0947\u0902 \u0930\u0939\u0924\u093e \u0939\u0948\u0964' };
+      }
+
+      function rulingCard(L) {
+        if (ruling === 'plain') return '';
+        var room = L ? whichRoom(L.ch) : null;
+        var lines = W.explain(ruling);
+        return '<div class="card"><h3>' + (ruling === 'four' ? 'The three rooms' : 'The two lines') + '</h3>'
+          + (room ? '<div class="msg msg-info"><b>' + esc(room.en) + '</b>'
+              + '<div class="ta tiny">' + esc(room.ta) + '</div>'
+              + '<div class="hi tiny">' + esc(room.hi) + '</div></div>' : '')
+          + lines.map(function (x) {
+              return '<div class="room-line"><div>' + esc(x.en) + '</div>'
+                + '<div class="ta tiny" style="color:var(--teal)">' + esc(x.ta) + '</div>'
+                + '<div class="hi tiny" style="color:var(--purple)">' + esc(x.hi) + '</div></div>';
+            }).join('')
+          + '</div>';
+      }
+
       /* ----------------------------------------------------------- trace */
       function drawTrace() {
         var L = list[idx];
@@ -162,7 +203,8 @@
           +     '<button class="btn btn-primary btn-sm" id="wNext" type="button">Done, next →</button>'
           +   '</div>'
           +   '<div class="tiny muted center mt">Trace the faint letters, then write more of your own along the line.</div>'
-          + '</div>';
+          + '</div>'
+          + rulingCard(L);
 
         paint('t', L.ch + '  ' + L.ch + '  ' + L.ch, L.script, 1);
 
