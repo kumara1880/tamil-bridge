@@ -132,6 +132,16 @@ TB.App = (function () {
     history: 'history', settings: 'settings'
   };
 
+  /* Each section owns a colour; the header wears it so you always know
+     where you are without reading the title. */
+  function paintSection(view) {
+    var el = document.querySelector('.head');
+    if (!el) return;
+    var c = getComputedStyle(document.documentElement)
+      .getPropertyValue('--c-' + view).trim();
+    el.style.setProperty('--head-colour', c || 'var(--accent)');
+  }
+
   function parseHash() {
     var h = (location.hash || '#/home').replace(/^#\/?/, '');
     var parts = h.split('/');
@@ -146,6 +156,7 @@ TB.App = (function () {
     TB.Speech.stop();
     current = r.view;
 
+    paintSection(r.view);
     document.getElementById('viewTitle').textContent = v.title;
     document.getElementById('viewSub').textContent = v.sub || '';
     document.querySelectorAll('#nav a').forEach(function (a) {
@@ -208,6 +219,7 @@ TB.App = (function () {
     document.getElementById('themeBtn').addEventListener('click', function () {
       var d = TB.Store.data(TB.Auth.userId());
       d.prefs.theme = d.prefs.theme === 'dark' ? 'light' : 'dark';
+      d.prefs.themeChosen = true;
       TB.Store.saveData(TB.Auth.userId(), d);
       applyTheme(d.prefs.theme);
     });
@@ -402,7 +414,11 @@ TB.App = (function () {
     document.getElementById('auth').style.display = 'none';
     document.getElementById('app').classList.add('on');
     var d = TB.Store.data(TB.Auth.userId());
-    applyTheme(d.prefs.theme || 'dark');
+    /* Only a theme the person actually chose counts. Earlier builds wrote
+       'dark' into everyone's preferences by default, so an unflagged value
+       is not a choice and light — the better default for children, parents
+       and daylight — wins. */
+    applyTheme(d.prefs.themeChosen ? (d.prefs.theme || 'light') : 'light');
     applyTextSize(d.prefs.textSize || 'normal');
     paintUser();
     TB.buildIndexes();
@@ -444,7 +460,9 @@ TB.App = (function () {
     var restored = TB.Auth.restore();
     if (restored) enter();
     else {
-      applyTheme('dark');
+      /* the sign-in screen should look like the rest of the app, not like
+         the old default */
+      applyTheme('light');
       applyTextSize('normal');
       document.getElementById('fId').focus();
     }

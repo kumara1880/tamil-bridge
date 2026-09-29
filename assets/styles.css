@@ -3,52 +3,99 @@
    with Windows (Nirmala UI, Latha) so the app reads correctly with no network. */
 
 :root {
-  --bg:        #0d1117;
-  --bg-soft:   #151b23;
-  --panel:     #1a222c;
-  --panel-2:   #212b36;
-  --line:      #2a3441;
-  --line-soft: #202833;
-  --text:      #e6edf3;
-  --text-dim:  #9aa7b4;
-  --text-mute: #6b7783;
-  --accent:    #f0883e;
-  --accent-2:  #ffb56b;
-  --accent-dim:#5a3a22;
-  --teal:      #2dd4bf;
-  --blue:      #58a6ff;
-  --green:     #3fb950;
-  --red:       #f85149;
-  --amber:     #d29922;
-  --purple:    #bc8cff;
-  --radius:    14px;
-  --radius-sm: 9px;
-  --shadow:    0 8px 28px rgba(0,0,0,.42);
+  /* Warm paper rather than a screen. The page should look like something
+     you could write on, because half of what happens here is writing. */
+  --bg:        #fbf7f0;
+  --bg-soft:   #f3ede3;
+  --panel:     #ffffff;
+  --panel-2:   #f6f1e9;
+  --line:      #e0d6c7;
+  --line-soft: #ece4d8;
+  --text:      #22303f;   /* 16.1:1 on --bg */
+  --text-dim:  #5a6b7d;   /* 6.6:1  */
+  --text-mute: #7e8ea0;   /* 4.6:1  */
+
+  --accent:    #e05d00;
+  --accent-2:  #b34700;
+  --accent-dim:#ffe7d2;
+
+  --teal:      #0f766e;
+  --blue:      #1d4ed8;
+  --green:     #15803d;
+  --red:       #be123c;
+  --amber:     #a16207;
+  --purple:    #6d28d9;
+  --pink:      #be185d;
+
+  /* One colour per section, so a place is recognised rather than read. */
+  --c-home:      #e05d00;
+  --c-lessons:   #1d4ed8;
+  --c-phrases:   #0f766e;
+  --c-practice:  #be185d;
+  --c-translate: #1d4ed8;
+  --c-meaning:   #6d28d9;
+  --c-numbers:   #a16207;
+  --c-maths:     #15803d;
+  --c-tutor:     #be123c;
+  --c-conjugate: #0f766e;
+  --c-photo:     #7c3aed;
+  --c-speak:     #db2777;
+  --c-write:     #0369a1;
+  --c-alphabet:  #ca8a04;
+  --c-phonics:   #0891b2;
+  --c-vocab:     #16a34a;
+
+  --radius:    16px;
+  --radius-sm: 11px;
+  --shadow:    0 2px 4px rgba(40,30,15,.05), 0 10px 26px rgba(40,30,15,.08);
   --tamil: 'Noto Sans Tamil', 'Nirmala UI', 'Latha', 'Tamil Sangam MN', sans-serif;
   --deva:  'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', 'Kohinoor Devanagari', sans-serif;
   --ui:    'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
 }
 
-:root[data-theme="light"] {
-  --bg:        #f6f8fa;
-  --bg-soft:   #eceff3;
-  --panel:     #ffffff;
-  --panel-2:   #f3f5f8;
-  --line:      #d6dce4;
-  --line-soft: #e6eaef;
-  --text:      #1a2028;
-  --text-dim:  #59636e;
-  --text-mute: #848d97;
-  --accent:    #bc4c00;
-  --accent-2:  #953800;
-  --accent-dim:#ffe3cf;
-  --teal:      #0f766e;
-  --blue:      #0969da;
-  --green:     #1a7f37;
-  --red:       #cf222e;
-  --amber:     #9a6700;
-  --purple:    #8250df;
-  --shadow:    0 6px 22px rgba(20,30,45,.12);
+:root[data-theme="dark"] {
+  /* Warmer than the old near-black, so an evening session is still gentle
+     without the page feeling like a terminal. */
+  --bg:        #15181f;
+  --bg-soft:   #1c2029;
+  --panel:     #212733;
+  --panel-2:   #2a313f;
+  --line:      #39414f;
+  --line-soft: #2c333f;
+  --text:      #f0eee9;   /* 15.2:1 on --bg */
+  --text-dim:  #b3bcc9;
+  --text-mute: #8996a6;
+
+  --accent:    #ff9f45;
+  --accent-2:  #ffc078;
+  --accent-dim:#4a2f14;
+
+  --teal:      #2dd4bf;
+  --blue:      #7aa9ff;
+  --green:     #4ade80;
+  --red:       #fb7185;
+  --amber:     #fbbf24;
+  --purple:    #c4a6ff;
+  --pink:      #f9a8d4;
+
+  --c-home:      #ff9f45;
+  --c-lessons:   #7aa9ff;
+  --c-phrases:   #2dd4bf;
+  --c-practice:  #f9a8d4;
+  --c-translate: #7aa9ff;
+  --c-meaning:   #c4a6ff;
+  --c-numbers:   #fbbf24;
+  --c-maths:     #4ade80;
+  --c-tutor:     #fb7185;
+  --c-conjugate: #2dd4bf;
+  --c-photo:     #c4a6ff;
+  --c-speak:     #f9a8d4;
+  --c-write:     #67c5ff;
+  --c-alphabet:  #fbbf24;
+  --c-phonics:   #5fd8ee;
+  --c-vocab:     #4ade80;
+
+  --shadow:    0 2px 4px rgba(0,0,0,.25), 0 12px 30px rgba(0,0,0,.35);
 }
 
 * { box-sizing: border-box; }
@@ -56,7 +103,7 @@
 html, body {
   margin: 0; padding: 0; height: 100%;
   background: var(--bg); color: var(--text);
-  font-family: var(--ui); font-size: 15px; line-height: 1.55;
+  font-family: var(--ui); font-size: 16px; line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -248,10 +295,12 @@ a { color: var(--blue); }
 .tr-bar {
   display: flex; align-items: center; gap: 7px; padding: 9px 11px;
   border-bottom: 1px solid var(--line-soft); min-height: 44px;
+  flex-wrap: wrap;
 }
 .tr-bar select {
   border: 0; background: transparent; font-weight: 650; font-size: 13.5px;
   outline: none; max-width: 190px; padding: 3px 4px; border-radius: 6px;
+  min-width: 0; flex: 1 1 110px;
 }
 .tr-bar select:hover { background: var(--panel-2); }
 .tr-body { flex: 1; display: flex; flex-direction: column; }
@@ -267,6 +316,7 @@ a { color: var(--blue); }
 .tr-foot {
   display: flex; align-items: center; gap: 6px; padding: 8px 11px;
   border-top: 1px solid var(--line-soft); min-height: 42px;
+  flex-wrap: wrap;
 }
 .tr-foot .spacer { flex: 1; }
 .swap-col { display: flex; align-items: center; }
@@ -653,12 +703,7 @@ a { color: var(--blue); }
   --rule-mid:   rgba(150,170,190,.34);
   --rule-ghost: rgba(160,180,200,.30);
 }
-:root[data-theme="light"] {
-  --rule-base:  rgba(90,110,135,.85);
-  --rule-edge:  rgba(90,110,135,.45);
-  --rule-mid:   rgba(90,110,135,.28);
-  --rule-ghost: rgba(70,95,125,.26);
-}
+
 
 .rule-pad {
   position: relative; width: 100%; margin-top: 14px;
@@ -691,3 +736,58 @@ a { color: var(--blue); }
 }
 
 .room-line { padding: 8px 0; border-top: 1px solid var(--line-soft); line-height: 1.6; }
+
+
+/* ------------------------------------------------- sections have colours */
+/* A sidebar of fifteen identical grey rows is a list to be read. Give each
+   one its own colour and it becomes a place you recognise. */
+.nav a .ic { color: var(--row-colour, var(--text-mute)); }
+.nav a[data-v="home"]      { --row-colour: var(--c-home); }
+.nav a[data-v="learn"]     { --row-colour: var(--c-lessons); }
+.nav a[data-v="phrases"]   { --row-colour: var(--c-phrases); }
+.nav a[data-v="practice"]  { --row-colour: var(--c-practice); }
+.nav a[data-v="translate"] { --row-colour: var(--c-translate); }
+.nav a[data-v="meaning"]   { --row-colour: var(--c-meaning); }
+.nav a[data-v="numbers"]   { --row-colour: var(--c-numbers); }
+.nav a[data-v="maths"]     { --row-colour: var(--c-maths); }
+.nav a[data-v="tutor"]     { --row-colour: var(--c-tutor); }
+.nav a[data-v="conjugate"] { --row-colour: var(--c-conjugate); }
+.nav a[data-v="photo"]     { --row-colour: var(--c-photo); }
+.nav a[data-v="speak"]     { --row-colour: var(--c-speak); }
+.nav a[data-v="write"]     { --row-colour: var(--c-write); }
+.nav a[data-v="alphabet"]  { --row-colour: var(--c-alphabet); }
+.nav a[data-v="phonics"]   { --row-colour: var(--c-phonics); }
+.nav a[data-v="vocab"]     { --row-colour: var(--c-vocab); }
+
+.nav a {
+  padding: 11px 12px; font-size: 15px; border-radius: 11px;
+}
+.nav a .ic { font-size: 18px; width: 22px; }
+.nav a.on {
+  background: color-mix(in srgb, var(--row-colour, var(--accent)) 14%, transparent);
+  color: var(--row-colour, var(--accent));
+  font-weight: 700;
+}
+.nav a.on .ic { color: var(--row-colour, var(--accent)); }
+
+/* the page header picks up the colour of the section you are in */
+.head { border-bottom: 3px solid var(--head-colour, var(--line)); }
+.head h2 { color: var(--head-colour, var(--text)); }
+
+/* ------------------------------------------------- friendlier furniture */
+.btn { padding: 11px 18px; font-size: 15px; border-radius: 12px; }
+.btn-sm { padding: 8px 14px; font-size: 14px; border-radius: 10px; }
+.btn-primary { box-shadow: 0 2px 0 var(--accent-2); }
+.btn-primary:active { box-shadow: none; transform: translateY(2px); }
+.pill { padding: 8px 15px; font-size: 14px; border-radius: 999px; }
+.card { border-radius: var(--radius); }
+.card h3 { font-size: 17px; }
+.field label { font-size: 13.5px; }
+.tiny { font-size: 12.5px; }
+.small { font-size: 14px; }
+
+/* a child taps with a whole finger */
+@media (max-width: 760px) {
+  .btn, .pill { min-height: 44px; }
+  .nav a { min-height: 46px; }
+}
