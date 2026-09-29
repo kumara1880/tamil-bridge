@@ -533,6 +533,82 @@ section('FINDING THINGS');
       && /function onBody/.test(v8));
 })();
 
+/* ---------------- rhyme in three scripts ---------------- */
+section('RHYME');
+(function () {
+  var R = TB.Reader;
+
+  /* What rhymes in Devanagari and Tamil is the rime: the last vowel and
+     everything after it. This used to be decided after every vowel had been
+     deleted, because a matra is a Unicode Mark and the cleaner only kept
+     Letters — so है became ह and पानी became पन. */
+  t('a vowel sign survives into the rime',
+    R.ending('\u0935\u0939 \u0918\u0930 \u092e\u0947\u0902 \u0939\u0948') === '\u0948',
+    JSON.stringify(R.ending('\u0935\u0939 \u0918\u0930 \u092e\u0947\u0902 \u0939\u0948')));
+  t('\u0930\u093e\u092e and \u0928\u093e\u092e rhyme', R.rhymes('\u0930\u093e\u092e', '\u0928\u093e\u092e'));
+  t('\u0930\u093e\u092e and \u0915\u092e do not', !R.rhymes('\u0930\u093e\u092e', '\u0915\u092e'),
+    R.rime('\u0930\u093e\u092e') + ' / ' + R.rime('\u0915\u092e'));
+  t('\u092a\u093e\u0928\u0940 and \u0930\u093e\u0928\u0940 rhyme', R.rhymes('\u092a\u093e\u0928\u0940', '\u0930\u093e\u0928\u0940'));
+  t('\u0918\u0930 and \u0921\u0930 rhyme', R.rhymes('\u0918\u0930', '\u0921\u0930'));
+  t('a word-final consonant is a coda, not a syllable',
+    R.rime('\u0930\u093e\u092e') === '\u093e\u092e', JSON.stringify(R.rime('\u0930\u093e\u092e')));
+  t('an anusvara after the vowel is kept',
+    R.rime('\u092e\u0947\u0902') === '\u0947\u0902', JSON.stringify(R.rime('\u092e\u0947\u0902')));
+
+  /* Whole poems, in all three scripts, with and without punctuation. */
+  var HI = ['\u092e\u091b\u0932\u0940 \u091c\u0932 \u0915\u0940 \u0930\u093e\u0928\u0940 \u0939\u0948',
+            '\u091c\u0940\u0935\u0928 \u0909\u0938\u0915\u093e \u092a\u093e\u0928\u0940 \u0939\u0948',
+            '\u0939\u093e\u0925 \u0932\u0917\u093e\u0913 \u0921\u0930 \u091c\u093e\u090f\u0917\u0940',
+            '\u092c\u093e\u0939\u0930 \u0928\u093f\u0915\u093e\u0932\u094b \u092e\u0930 \u091c\u093e\u090f\u0917\u0940'];
+  var TA = ['\u0ba8\u0bbf\u0bb2\u0bbe \u0ba8\u0bbf\u0bb2\u0bbe \u0b93\u0b9f\u0bbf \u0bb5\u0bbe',
+            '\u0ba8\u0bbf\u0bb2\u0bcd\u0bb2\u0bbe\u0bae\u0bb2\u0bcd \u0b93\u0b9f\u0bbf \u0bb5\u0bbe',
+            '\u0bae\u0bb2\u0bc8 \u0bae\u0bc7\u0bb2\u0bc7 \u0b8f\u0bb1\u0bbf \u0bb5\u0bbe',
+            '\u0bae\u0bb2\u0bcd\u0bb2\u0bbf\u0b95\u0bc8\u0baa\u0bcd \u0baa\u0bc2 \u0b95\u0bca\u0ba3\u0bcd\u0b9f\u0bc1 \u0bb5\u0bbe'];
+  var EN = ['Twinkle twinkle little star', 'How I wonder what you are',
+            'Up above the world so high', 'Like a diamond in the sky'];
+
+  t('a Hindi rhyme is heard as verse', R.looksLikeVerse(HI), R.scheme(HI).join(''));
+  t('and its scheme is AABB', R.scheme(HI).join('') === 'AABB', R.scheme(HI).join(''));
+  t('a Tamil rhyme is heard as verse', R.looksLikeVerse(TA), R.scheme(TA).join(''));
+  t('an English rhyme is heard as verse', R.looksLikeVerse(EN), R.scheme(EN).join(''));
+
+  /* The other half of getting this right: prose must not be chanted. In
+     Hindi a great many words end in -ी, so a loose test finds rhymes
+     everywhere and reads the newspaper as a nursery rhyme. */
+  var HI_PROSE = ['\u092f\u0939 \u090f\u0915 \u0938\u093e\u0927\u093e\u0930\u0923 \u0935\u093e\u0915\u094d\u092f \u0939\u0948\u0964',
+                  '\u0907\u0938\u092e\u0947\u0902 \u0915\u094b\u0908 \u0924\u0941\u0915 \u0928\u0939\u0940\u0902 \u092e\u093f\u0932\u0924\u0940\u0964',
+                  '\u0939\u092e \u092c\u093e\u091c\u093c\u093e\u0930 \u0917\u090f \u0925\u0947 \u0915\u0932 \u0936\u093e\u092e \u0915\u094b\u0964',
+                  '\u0935\u0939\u093e\u0901 \u092c\u0939\u0941\u0924 \u092d\u0940\u0921\u093c \u0925\u0940 \u0914\u0930 \u0917\u0930\u092e\u0940 \u092d\u0940\u0964'];
+  var EN_PROSE = ['The school opens at nine in the morning.',
+                  'Students must wear the uniform every day.',
+                  'Lunch is served in the hall.',
+                  'Parents may visit on Friday.'];
+  t('Hindi prose is not chanted', !R.looksLikeVerse(HI_PROSE), R.scheme(HI_PROSE).join(''));
+  t('English prose is not chanted', !R.looksLikeVerse(EN_PROSE), R.scheme(EN_PROSE).join(''));
+
+  /* But a punctuated poem is still a poem. */
+  var HI_PUNCT = ['\u091a\u0902\u0926\u093e \u092e\u093e\u092e\u093e \u0926\u0942\u0930 \u0915\u0947,',
+                  '\u092a\u0941\u090f \u092a\u0915\u093e\u090f \u092c\u0942\u0930 \u0915\u0947\u0964',
+                  '\u0906\u092a \u0916\u093e\u090f\u0901 \u0925\u093e\u0932\u0940 \u092e\u0947\u0902,',
+                  '\u092e\u0941\u0928\u094d\u0928\u0947 \u0915\u094b \u0926\u0947\u0902 \u092a\u094d\u092f\u093e\u0932\u0940 \u092e\u0947\u0902\u0964'];
+  t('a punctuated rhyme is still a rhyme', R.looksLikeVerse(HI_PUNCT), R.scheme(HI_PUNCT).join(''));
+
+  /* Verse keeps its line breaks; prose is sewn back into sentences. */
+  t('verse is left exactly as the poet broke it',
+    R.reflow(HI).units.length === 4 && R.reflow(HI).isVerse);
+  t('prose wrapped by a camera is sewn back into sentences',
+    R.reflow(['The school opens at', 'nine in the morning.']).units.length === 1,
+    JSON.stringify(R.reflow(['The school opens at', 'nine in the morning.']).units));
+
+  /* And the chant itself must actually differ from plain reading. */
+  var plain = R.plan(HI, 'hi', 'read', {});
+  var sung = R.plan(HI, 'hi', 'rhyme', {});
+  t('the sing-song voice is not the reading voice',
+    JSON.stringify(plain) !== JSON.stringify(sung));
+  t('every step of a Hindi chant is still Hindi',
+    sung.every(function (s) { return !s.text || s.lang === 'hi'; }));
+})();
+
 /* ---------------- sounding out the unknown ---------------- */
 section('ENGLISH IN TAMIL LETTERS');
 (function () {

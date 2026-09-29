@@ -42,16 +42,45 @@ TB.Reader = (function () {
     return w;
   }
 
+  /* A letter and the marks that hang off it — प + ा is one thing on the
+     page and one sound in the mouth. */
+  var CLUSTER = /[\s\S][\u0900-\u0903\u093a-\u094d\u0951-\u0957\u0962\u0963\u0b82\u0b83\u0bbe-\u0bcd\u0bd7]*/g;
+  var SIGN = /[\u093e-\u094c\u0962\u0963\u0bbe-\u0bcc]/;      /* a vowel hanging off a letter */
+  var INDEP = /^[\u0904-\u0914\u0b85-\u0b94]/;                 /* a vowel standing alone */
+  var VIRAMA = /[\u094d\u0bcd]/;                               /* the vowel-killer */
+
+  /* The rime of an Indic word: its last vowel and everything after it.
+
+     राम and नाम both end ाम and rhyme; कम ends in a bare म after an
+     inherent a and does not. A word-final consonant with no mark on it is
+     a coda, not a syllable — Hindi drops that last schwa, which is why
+     राम is raam and not raama. */
+  function rime(word) {
+    var cl = word.match(CLUSTER) || [];
+    var coda = '';
+    for (var i = cl.length - 1; i >= 0; i--) {
+      var c = cl[i];
+      var m = c.match(SIGN);
+      if (m) return c.slice(c.indexOf(m[0])) + coda;
+      if (INDEP.test(c)) return c + coda;
+      if (i === cl.length - 1 || VIRAMA.test(c)) {
+        coda = c.replace(VIRAMA, '') + coda;   /* still in the coda */
+        continue;
+      }
+      return 'a' + coda;                        /* the inherent vowel */
+    }
+    return coda || word.slice(-2);
+  }
+
   function ending(line) {
+    /* Marks are kept: a Devanagari matra is a Mark and not a Letter, and
+       throwing it away throws away the vowel the rhyme is made of. */
     var w = String(line || '')
-      .replace(/[^\p{L}\p{N}\s]/gu, '')
+      .replace(/[^\p{L}\p{N}\p{M}\s]/gu, '')
       .trim().split(/\s+/).pop() || '';
     w = w.toLowerCase();
     if (!w) return '';
-    if (!/^[a-z0-9]+$/.test(w)) {
-      /* a script that spells what it says */
-      return w.length <= 3 ? w : w.slice(-3);
-    }
+    if (!/^[a-z0-9]+$/.test(w)) return rime(w);
     w = fold(w);
     /* the last run of vowels, and everything after it: sky -> ai, night -> ait */
     var end = -1, i;
@@ -96,7 +125,16 @@ TB.Reader = (function () {
     var paired = 0;
     Object.keys(counts).forEach(function (k) { if (counts[k] > 1) paired += counts[k]; });
     var shortLines = real.filter(function (l) { return l.trim().split(/\s+/).length <= 12; }).length;
-    return paired / real.length >= 0.5 && shortLines / real.length >= 0.7;
+
+    /* Prose that happens to end two lines the same way is not a poem. In
+       Hindi half the words in the language end in -ी, so a loose rhyme
+       test finds rhymes everywhere; and prose punctuates every sentence
+       while a rhyme usually lets the line break do that work. So a
+       punctuated passage has to rhyme much more convincingly before it is
+       chanted rather than simply read. */
+    var ended = real.filter(function (l) { return END.test(l.trim()); }).length;
+    var need = ended / real.length > 0.5 ? 0.75 : 0.5;
+    return paired / real.length >= need && shortLines / real.length >= 0.7;
   }
 
   /* Sentence enders across the scripts the app reads. */
@@ -151,6 +189,7 @@ TB.Reader = (function () {
     scheme: scheme,
     rhymes: rhymes,
     ending: ending,
+    rime: rime,
     looksLikeVerse: looksLikeVerse,
     reflow: reflow,
 
