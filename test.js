@@ -671,6 +671,13 @@ section('SIGNING IN');
     /This device only, for now/.test(app));
   t('a failed sign-in does not blame the person when the server lost the account',
     /This is very likely not your mistake/.test(app));
+  /* Once the server keeps accounts properly, telling somebody their account
+     might be in another browser sends them hunting for something that is
+     not anywhere. */
+  t('and once the server is durable it says the account is simply not there',
+    /not on the server, and not in this browser either/.test(app));
+  t('and explains that an account lost before the database cannot come back',
+    /it cannot be brought/.test(app) && /create it again/i.test(app));
   t('the server says in its health whether it can send mail at all',
     /mail: MAIL_STATE\.ready/.test(srv) && /canReset/.test(srv));
   t('and refuses honestly rather than pretending, when it cannot',

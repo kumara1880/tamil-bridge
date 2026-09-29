@@ -538,6 +538,20 @@ TB.App = (function () {
                + '\u2014 which a free server does often. Create the account again here and it '
                + 'will be kept in this browser, where it is safe.';
         }
+
+        /* The server keeps accounts now, and it was asked, and it had never
+           heard of this one. Saying "accounts live in this browser" here
+           would send somebody hunting through other browsers for an account
+           that is simply not anywhere. */
+        if (serverCan.asked && serverCan.durable) {
+          return '<b>This account is not on the server, and not in this browser either.</b> '
+               + 'If you made it before the server had its database \u2014 earlier today or '
+               + 'before \u2014 it was lost when the server restarted, and it cannot be brought '
+               + 'back. Please create it again: accounts are kept properly now, and this one '
+               + 'will follow you to any device. Otherwise, check for a typo in the address '
+               + 'or number.';
+        }
+
         return 'Accounts are saved <b>in this browser</b> unless you turn on Sync. '
              + 'An account created in a private/incognito window, in another browser, '
              + 'or on another device will not be found here. '
