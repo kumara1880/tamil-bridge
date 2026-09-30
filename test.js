@@ -192,6 +192,27 @@ section('WRITING');
     t('a sentence is written once per line, not repeated',
       seen.length <= 4 && seen.every(function (o) { return o.t.indexOf(' ') >= 0 || o.t.length > 2; }),
       seen.map(function (o) { return o.t; }).join(' | '));
+
+    /* A typeface may paint outside the width it reports, and the Indic ones
+       do. Laid out on the advance alone the arithmetic said the last copy
+       fitted, the glyph was painted wider than promised, and the sheet's own
+       overflow:hidden cut it in half — which is what अ looked like. */
+    var painted = [];
+    var overhangs = {
+      font: '', fillStyle: '', textBaseline: '',
+      measureText: function () {
+        return { width: 100, actualBoundingBoxAscent: 70, actualBoundingBoxDescent: 20,
+                 actualBoundingBoxLeft: 0, actualBoundingBoxRight: 160 };
+      },
+      fillText: function (t, x) { painted.push(x); }
+    };
+    W.drawGhost(overhangs, 'X', 'en', 600, 200, 1, '#000', true);
+    t('a glyph that paints wider than it claims still fits the sheet',
+      painted.length > 0 && painted[painted.length - 1] + 160 <= 600 - 22 + 0.5,
+      'ink ends at ' + (painted[painted.length - 1] + 160) + ', sheet at ' + (600 - 22));
+    t('and the row is spaced on the ink, not on the claim',
+      painted.length < 2 || (painted[1] - painted[0]) >= 160,
+      painted.length + ' copies, step ' + (painted[1] - painted[0]));
   })();
 
   /* The practice set must be reachable: a hundred numbers behind a Next
@@ -1048,6 +1069,17 @@ section('VOICE');
   t('a voice the device has is still preferred: the network is only asked',
     /if \(api\.missing\(lang\) && !opts\.force\) \{[\s\S]{0,320}netSpeak\(/.test(sp));
   t('stopping stops the network voice too', /netAudio\.pause\(\)/.test(sp));
+  /* A phone grants permission to an audio element while a person is
+     tapping, not to a page. A new element made for the second half of a
+     sentence is refused, so a rhyme would say its first line and go quiet
+     — which looks broken rather than unavailable. */
+  t('one audio element is reused, so a phone keeps letting it play',
+    /function netElement/.test(sp) && /netEl = new Audio\(\)/.test(sp));
+  t('and it is woken by the first tap anywhere',
+    /function unlockAudio/.test(sp) && /pointerdown/.test(sp) && /once: true/.test(sp));
+  t('no new element is made for each piece',
+    (sp.match(/new Audio\(\)/g) || []).length === 1,
+    (sp.match(/new Audio\(\)/g) || []).length + ' places make one');
   t('and it is not attempted with no connection', /navigator\.onLine === false/.test(sp));
   /* Load-bearing: the voice endpoint answers a request that carries no
      Referer and returns 404 to one that does. A browser always sends it

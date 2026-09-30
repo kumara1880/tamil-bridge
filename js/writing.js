@@ -101,21 +101,38 @@ TB.Writing = (function () {
       var f = fit(ctx, ch, family, line[0].height);
       if (!f) return { rows: line };
       ctx.font = f.size + 'px ' + family;
-      var cw = ctx.measureText(ch).width;
+      var m = ctx.measureText(ch);
+
+      /* Lay the row out by the ink, not by the advance. A typeface is free
+         to paint outside the width it reports, and the Indic ones do — so
+         measured on the advance alone the arithmetic says the last copy
+         fits, the glyph is painted wider than promised, and the sheet's
+         own overflow:hidden slices it in half. */
+      var cw = m.width;
+      var inkL = m.actualBoundingBoxLeft || 0;
+      var inkR = m.actualBoundingBoxRight != null ? m.actualBoundingBoxRight : cw;
+      var unit = Math.max(cw, inkL + inkR);
+      if (!(unit > 0)) return { rows: line };
 
       /* how many fit with a comfortable gap, then spread the leftover space
          evenly so the row reads as deliberate rather than truncated */
       var space = w - SIDE * 2;
-      var want = cw * 1.85;
-      var count = Math.max(1, Math.floor((space + (want - cw)) / want));
-      var gap = count > 1 ? (space - count * cw) / (count - 1) : 0;
-      var x = SIDE;
+      var want = unit * 1.85;
+      var count = Math.max(1, Math.floor((space + (want - unit)) / want));
+      var gap = count > 1 ? (space - count * unit) / (count - 1) : 0;
+
+      /* Start where the ink starts, not where the pen starts. */
+      var x = SIDE + inkL;
       var y = baselineFor(f, line[0]);
+      var drawn = 0;
       for (var i = 0; i < count; i++) {
+        /* Nothing is painted past the edge, whatever the metrics claim. */
+        if (x + inkR > w - SIDE + 0.5) break;
         ctx.fillText(ch, x, y);
-        x += cw + gap;
+        drawn++;
+        x += unit + gap;
       }
-      return { rows: line, size: f.size, count: count, centred: true };
+      return { rows: line, size: f.size, count: drawn, centred: true };
     }
 
     /* A word or a sentence: one size for the run, wrapped onto the rows. */

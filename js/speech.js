@@ -134,7 +134,40 @@ TB.Speech = (function () {
      word boundaries and the pieces are played one after another. Nothing is
      fetched — an <audio> element loads it directly, which needs no
      permission from the other end.                                        */
+  /* One element for the whole app. A phone grants permission to an audio
+     element, not to a page, and only while a person is actually tapping —
+     so a new element made for the second half of a sentence is refused. */
   var netAudio = null;
+  var netEl = null;
+
+  function netElement() {
+    if (netEl) return netEl;
+    if (typeof Audio === 'undefined') return null;
+    netEl = new Audio();
+    netEl.preload = 'auto';
+    return netEl;
+  }
+
+  /* Wake it on the first tap anywhere, so it is already permitted by the
+     time a second piece of a long line needs to play. */
+  function unlockAudio() {
+    var a = netElement();
+    if (!a || a.__unlocked) return;
+    a.__unlocked = true;
+    try {
+      a.muted = true;
+      var p = a.play();
+      if (p && p.then) p.then(function () { a.pause(); a.muted = false; },
+                              function () { a.muted = false; });
+      else { a.pause(); a.muted = false; }
+    } catch (e) { a.muted = false; }
+  }
+
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) {
+      document.addEventListener(ev, unlockAudio, { once: true, passive: true });
+    });
+  }
 
   function netChunks(text, limit) {
     var words = String(text).split(/(\s+)/);
@@ -158,13 +191,15 @@ TB.Speech = (function () {
 
   function netPlay(url) {
     return new Promise(function (resolve) {
-      var a = new Audio();
+      var a = netElement();
+      if (!a) return resolve(false);
       netAudio = a;
       var done = false;
       function finish(ok) {
         if (done) return;
         done = true;
         clearTimeout(guard);
+        a.onended = null; a.onerror = null;
         if (netAudio === a) netAudio = null;
         resolve(ok);
       }
@@ -172,6 +207,8 @@ TB.Speech = (function () {
       a.onerror = function () { finish(false); };
       /* If the network is slow or absent this never fires an event at all. */
       var guard = setTimeout(function () { try { a.pause(); } catch (e) {} finish(false); }, 20000);
+      try { a.pause(); } catch (e) {}
+      a.currentTime = 0;
       a.src = url;
       var p = a.play();
       if (p && p.catch) p.catch(function () { finish(false); });
@@ -326,7 +363,7 @@ TB.Speech = (function () {
       queueToken++;
       if (api.supported()) { try { window.speechSynthesis.cancel(); } catch (e) {} }
       /* and whatever is coming over the network */
-      if (netAudio) { try { netAudio.pause(); netAudio.src = ''; } catch (e) {} netAudio = null; }
+      if (netAudio) { try { netAudio.pause(); } catch (e) {} netAudio = null; }
     },
     pause: function () { if (api.supported()) { try { window.speechSynthesis.pause(); } catch (e) {} } },
     resume: function () { if (api.supported()) { try { window.speechSynthesis.resume(); } catch (e) {} } },
