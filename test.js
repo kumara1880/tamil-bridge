@@ -998,6 +998,30 @@ section('WHAT IS NOT TEXT');
     return all.lines.length === 2 && all.dropped.length === 0;
   })());
 
+  /* What a real photograph of that poster actually produced. The drawn
+     title scored 27 and 0 while the rhyme scored 96 and 97 — and one of the
+     titles is the real word "Teapot", so only the score separates them. */
+  t('a title the reader could not read is set aside, however word-like', (function () {
+    var c = R.clean([
+      { text: 'limalLitie', confidence: 27 }, { text: 'Teapot', confidence: 0 },
+      { text: "I'm a little teapot", confidence: 96 }, { text: 'Short and stout', confidence: 96 },
+      { text: 'Here is my handle', confidence: 97 }, { text: 'Here is my spout', confidence: 97 },
+      { text: 'When I get all steamed up', confidence: 96 }, { text: 'I just shout', confidence: 97 },
+      { text: 'Tip me over and pour me out', confidence: 97 }
+    ]);
+    return c.dropped.length === 2 && c.lines.length === 7 && R.looksLikeVerse(c.lines);
+  })());
+
+  /* But a poor photograph, where the reader did badly everywhere, has
+     nothing better to compare against and keeps all of its lines. */
+  t('a poor photograph keeps every line', (function () {
+    var c = R.clean([
+      { text: 'The sun is hot', confidence: 41 }, { text: 'The sky is blue', confidence: 38 },
+      { text: 'We went outside', confidence: 44 }, { text: 'It was a good day', confidence: 40 }
+    ]);
+    return c.lines.length === 4 && c.dropped.length === 0;
+  })());
+
   /* And the photo reader has to use it. */
   (function () {
     var fs = require('fs');

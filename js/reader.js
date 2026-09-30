@@ -195,15 +195,27 @@ TB.Reader = (function () {
      that separates a watermark reading "Oe" from a real short line: the
      text is identical, and the reader knew it was guessing. */
   function clean(lines) {
+    var all = (lines || []).map(function (l) {
+      return {
+        text: String((l && l.text != null) ? l.text : (l == null ? '' : l)),
+        conf: (l && typeof l.confidence === 'number') ? l.confidence : null
+      };
+    });
+
+    /* How well the reader did on this page. A poster's drawn title scores
+       27 and its watermark 0 while the text beside them scores 96 — so a
+       line is judged against its own page, not against a fixed number. A
+       photograph where everything scores badly keeps all of its lines,
+       because there is nothing better to compare against. */
+    var scored = all.filter(function (x) { return x.conf !== null && x.text.trim(); });
+    var confident = scored.filter(function (x) { return x.conf >= 70; }).length;
+    var useScore = confident >= 3;
+
     var kept = [], dropped = [];
-    (lines || []).forEach(function (l) {
-      var t = String((l && l.text != null) ? l.text : (l == null ? '' : l));
-      var conf = (l && typeof l.confidence === 'number') ? l.confidence : null;
-
-      /* A line the reader could barely make out, and which is too short to
-         carry much anyway, is a mark on the page rather than a line of it. */
-      var unsure = conf !== null && conf < 45 && t.trim().replace(/\s/g, '').length <= 4;
-
+    all.forEach(function (x) {
+      var t = x.text;
+      /* The reader itself said it could not read this one. */
+      var unsure = useScore && x.conf !== null && x.conf < 50;
       if (unsure || looksLikeRubble(t)) { if (t.trim()) dropped.push(t.trim()); return; }
       kept.push(mendLetters(t));
     });
