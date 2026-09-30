@@ -61,14 +61,22 @@
       var n = 0;
       var target = null, answered = false;
 
+      /* The same three names as the number chart, so the same button to
+         hear them read one after another. */
+      var named = null;
+
       function names(k) {
         var en = TB.Numbers.enIndian(k), ta = TB.Numbers.ta(k), hi = TB.Numbers.hi(k);
-        return '<div class="lang-line"><div class="en">' + esc(en) + speak(en, 'en') + '</div>'
+        named = { en: en, ta: ta, hi: hi };
+        return '<div class="say-all">'
+          + '<div class="lang-line"><div class="en">' + esc(en) + speak(en, 'en') + '</div>'
           + readAid(en, 'en') + '</div>'
           + '<div class="lang-line"><div class="ta">' + esc(ta) + speak(ta, 'ta') + '</div>'
           + readAid(ta, 'ta') + '</div>'
           + '<div class="lang-line"><div class="hi">' + esc(hi) + speak(hi, 'hi') + '</div>'
-          + readAid(hi, 'hi') + '</div>';
+          + readAid(hi, 'hi') + '</div>'
+          + '<button class="btn btn-sm mt" data-all="1" type="button">'
+          +   '\u{1F50A} Hear all three</button></div>';
       }
 
       function make() {
@@ -143,6 +151,10 @@
         if (e.target.closest('#tBack')) { n = Math.max(0, n - 1); draw(); return; }
         if (e.target.closest('#tClear')) { n = 0; draw(); return; }
         if (e.target.closest('#tNext')) { target = null; draw(); return; }
+        var all = e.target.closest('[data-all]');
+        if (all && named) {
+          V.sayAllThree(named.en, named.ta, named.hi, all.closest('.say-all'));
+        }
       });
 
       draw();

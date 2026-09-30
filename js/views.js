@@ -150,6 +150,40 @@ TB.Views = (function () {
     ] }
   ];
 
+  /* One thing said in all three languages, in order, with the line being
+     read lit up — so you can see which language you are hearing as well as
+     hear it. Numbers are where this matters most: one, ஒன்று and एक
+     share nothing, so hearing them back to back is the whole lesson.
+
+     Built on Speech.sequence, which already orders the lesson voice, waits
+     between lines and gives up when something else starts speaking. */
+  function sayAllThree(en, ta, hi, scope) {
+    var steps = [
+      { text: en, lang: 'en', rate: 0.80 },
+      { text: ta, lang: 'ta', rate: 0.75 },
+      { text: hi, lang: 'hi', rate: 0.78 }
+    ].filter(function (s) { return s.text; });
+
+    function lines() {
+      return scope ? scope.querySelectorAll('.lang-line') : [];
+    }
+    function clear() {
+      var l = lines();
+      for (var i = 0; i < l.length; i++) l[i].classList.remove('saying');
+    }
+
+    clear();
+    return TB.Speech.sequence(steps, {
+      pause: 400,
+      onStep: function (step, i) {
+        clear();
+        var l = lines();
+        if (l[i]) l[i].classList.add('saying');
+      }
+    }).then(function (ok) { clear(); return ok; },
+            function ()   { clear(); return false; });
+  }
+
   var home = {
     title: 'Home', sub: 'Today\u2019s learning',
     html: function () {
@@ -725,7 +759,7 @@ TB.Views = (function () {
        later files should use. */
     esc: esc, speak: speak, speakBtn: speak, tappable: tappable, ago: ago,
     hiRead: hiRead, readAid: readAid, copy: copy, copyWithToast: copyWithToast,
-    themeName: themeName, langLabel: langLabel,
+    themeName: themeName, langLabel: langLabel, sayAllThree: sayAllThree,
     D: D, saveD: saveD,
     home: home, translate: translate, meaning: meaning, tutor: tutor,
     remount: function () { if (TB.App && TB.App.render) TB.App.render(); }

@@ -263,14 +263,27 @@
         +     '<button class="pill" data-r="big" type="button">Big numbers</button>'
         +   '</div>'
         + '</div>'
-        + '<div class="tiny muted mt">Tap any number to hear it. The name is underneath in all '
-        +   'three languages, with the pronunciation below that.</div></div>'
+        /* Which voices a tap plays. All three by default, because the three
+           names share nothing and hearing them together is the point; one at
+           a time for when a learner wants to drill just the one. */
+        + '<div class="row mt"><span class="tiny muted">Hear:</span>'
+        +   '<div class="pill-row" id="cVoice">'
+        +     '<button class="pill on" data-v="all" type="button">\u{1F50A} All three</button>'
+        +     '<button class="pill" data-v="en" type="button">English</button>'
+        +     '<button class="pill" data-v="ta" type="button">\u0ba4\u0bae\u0bbf\u0bb4\u0bcd</button>'
+        +     '<button class="pill" data-v="hi" type="button">\u0939\u093f\u0902\u0926\u0940</button>'
+        +   '</div>'
+        + '</div>'
+        + '<div class="tiny muted mt">Tap any number to hear it read in English, \u0ba4\u0bae\u0bbf\u0bb4\u0bcd '
+        +   'and \u0939\u093f\u0902\u0926\u0940, one after another. The name is underneath in all three, '
+        +   'with the pronunciation below that.</div></div>'
         + '<div id="cBody"></div></div>';
     },
 
     mount: function (root) {
       var body = root.querySelector('#cBody');
       var range = '1-20';
+      var voice = 'all';
 
       function numbersFor(r) {
         var out = [], i;
@@ -299,6 +312,14 @@
           + '<div id="cOne"></div>';
       }
 
+      root.querySelector('#cVoice').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-v]');
+        if (!b) return;
+        root.querySelectorAll('#cVoice .pill').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        voice = b.getAttribute('data-v');
+      });
+
       root.querySelector('#cRange').addEventListener('click', function (e) {
         var b = e.target.closest('[data-r]');
         if (!b) return;
@@ -308,22 +329,42 @@
         draw();
       });
 
+      /* Kept outside the handler so the button under the chart can play the
+         same number again without it being tapped a second time. */
+      var shown = null;
+
+      function say(all) {
+        if (!shown) return;
+        var one = body.querySelector('#cOne');
+        if (all || voice === 'all') { V.sayAllThree(shown.en, shown.ta, shown.hi, one); return; }
+        var text = voice === 'en' ? shown.en : voice === 'hi' ? shown.hi : shown.ta;
+        TB.Speech.speak(text, voice, { rate: 0.78 });
+      }
+
       body.addEventListener('click', function (e) {
+        /* Hear the three again, whatever the chooser is set to — that is
+           what the button says it does. */
+        if (e.target.closest('#cAll')) { say(true); return; }
+
         var cell = e.target.closest('[data-n]');
         if (!cell) return;
         var n = +cell.getAttribute('data-n');
         var en = TB.Numbers.enIndian(n), ta = TB.Numbers.ta(n), hi = TB.Numbers.hi(n);
+        shown = { n: n, en: en, ta: ta, hi: hi };
         body.querySelectorAll('.num-cell').forEach(function (x) { x.classList.remove('on'); });
         cell.classList.add('on');
-        root.querySelector('#cOne').innerHTML = '<div class="card">'
+        body.querySelector('#cOne').innerHTML = '<div class="card">'
           + '<div class="ab-value">' + n.toLocaleString('en-IN') + '</div>'
           + '<div class="lang-line"><div class="en">' + esc(en) + speak(en, 'en') + '</div>'
           + readAid(en, 'en') + '</div>'
           + '<div class="lang-line"><div class="ta">' + esc(ta) + speak(ta, 'ta') + '</div>'
           + readAid(ta, 'ta') + '</div>'
           + '<div class="lang-line"><div class="hi">' + esc(hi) + speak(hi, 'hi') + '</div>'
-          + readAid(hi, 'hi') + '</div></div>';
-        TB.Speech.speak(ta, 'ta', { rate: 0.75 });
+          + readAid(hi, 'hi') + '</div>'
+          + '<button class="btn btn-primary mt" id="cAll" type="button">'
+          +   '\u{1F50A} Hear all three again</button>'
+          + '</div>';
+        say(false);
       });
 
       draw();

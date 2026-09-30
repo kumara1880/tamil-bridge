@@ -645,6 +645,49 @@ section('VIEWS LOAD');
   var missing = names.filter(function (n) { return !(v.TB && v.TB.Views && v.TB.Views[n]); });
   t('every route in the router has a view behind it', missing.length === 0, missing.join(', '));
 
+
+  /* ---------------- one number, three voices ----------------
+     The chart named every number in English, Tamil and Hindi, and reading
+     one aloud said the Tamil and nothing else \u2014 so the two names a Tamil
+     speaker is here to learn were the two you could not hear. */
+  (function () {
+    var V = v.TB && v.TB.Views;
+    t('there is a way to say one thing in all three',
+      typeof (V && V.sayAllThree) === 'function');
+    if (!V || typeof V.sayAllThree !== 'function') return;
+
+    function ask(en, ta, hi) {
+      var got = null, real = v.TB.Speech.sequence;
+      v.TB.Speech.sequence = function (steps, opts) {
+        got = { steps: steps, opts: opts };
+        return { then: function (ok) { try { ok(true); } catch (e) {} return { then: function () {} }; } };
+      };
+      try { V.sayAllThree(en, ta, hi, null); } catch (e) { got = { err: e.message }; }
+      v.TB.Speech.sequence = real;
+      return got;
+    }
+
+    var r = ask('seventeen', '\u0baa\u0ba4\u0bbf\u0ba9\u0bc7\u0bb4\u0bc1', '\u0938\u0924\u094d\u0930\u0939');
+    t('it speaks without throwing', r && !r.err, r && r.err);
+    t('and says all three', r && r.steps && r.steps.length === 3,
+      r && r.steps && r.steps.length);
+    /* The order the page prints them in, so the voice and the page agree. */
+    t('in the order the chart shows them',
+      r && r.steps.map(function (s) { return s.lang; }).join(',') === 'en,ta,hi');
+    t('slowly enough to copy',
+      r && r.steps.every(function (s) { return s.rate > 0 && s.rate <= 0.85; }));
+    t('with a gap between them, not running together',
+      r && r.opts && r.opts.pause >= 250, r && r.opts && r.opts.pause);
+    /* The chart must be able to light the line it is reading. */
+    t('and it reports which one it is on', r && typeof r.opts.onStep === 'function');
+
+    /* An empty utterance hangs the speech queue on some browsers, so a
+       missing name is dropped rather than spoken. */
+    var e2 = ask('two', '', '\u0926\u094b');
+    t('nothing empty is ever spoken', e2 && e2.steps.length === 2,
+      e2 && e2.steps.length);
+  })();
+
   /* The helpers the views share with each other. */
   ['esc', 'speakBtn', 'readAid', 'D', 'saveD'].forEach(function (k) {
     t('the shared helper ' + k + ' survives', !!(v.TB && v.TB.Views && v.TB.Views[k]));
@@ -2396,6 +2439,47 @@ section('DICTIONARY (offline)');
     /* And the view has to actually show the example, or none of it lands. */
     var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
     t('the page shows the word, not just the symbol', /class="ph-ex"/.test(v2));
+  })();
+
+
+  /* ---------------- the number chart speaks ---------------- */
+  section('THREE VOICES');
+  (function () {
+    var v11 = fs.readFileSync(R + 'js/views11.js', 'utf8');
+    var v12 = fs.readFileSync(R + 'js/views12.js', 'utf8');
+    var vw  = fs.readFileSync(R + 'js/views.js', 'utf8');
+    var css = fs.readFileSync(R + 'assets/styles.css', 'utf8');
+
+    t('the helper is shared, not copied into one view',
+      /sayAllThree: sayAllThree/.test(vw)
+      && !/function sayAllThree/.test(v11) && !/function sayAllThree/.test(v12));
+
+    /* A tap used to read the Tamil and stop. */
+    t('the chart no longer reads only the Tamil',
+      !/TB\.Speech\.speak\(ta, 'ta'/.test(v11));
+    t('it reads all three', /V\.sayAllThree\(shown\.en, shown\.ta, shown\.hi/.test(v11));
+
+    /* And you can ask for one language when you want to drill it. */
+    t('there is a chooser for which voices play', /id="cVoice"/.test(v11));
+    ['all', 'en', 'ta', 'hi'].forEach(function (k) {
+      t('with ' + k + ' on it', v11.indexOf('data-v="' + k + '"') > 0);
+    });
+    t('all three is what it starts on', /class="pill on" data-v="all"/.test(v11));
+    t('one language selected plays that one only',
+      /voice === 'en' \? shown\.en : voice === 'hi' \? shown\.hi : shown\.ta/.test(v11));
+
+    /* The button says "all three", so it gives all three whatever the
+       chooser is set to \u2014 otherwise it lies. */
+    t('the replay button is there', /id="cAll"/.test(v11));
+    t('and gives all three whatever the chooser says', /say\(true\)/.test(v11));
+
+    /* The same three names on the counting page get the same button. */
+    t('counting can hear its number in all three', /data-all="1"/.test(v12)
+      && /V\.sayAllThree\(named\.en, named\.ta, named\.hi/.test(v12));
+
+    /* Three languages in a row only teach if you can see which one you are
+       hearing. */
+    t('the line being read lights up', /\.lang-line\.saying \{/.test(css));
   })();
 
   /* ---------------- accounts ---------------- */
