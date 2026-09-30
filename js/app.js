@@ -265,6 +265,11 @@ TB.App = (function () {
     });
   }
 
+  /* Set while a reset link is being acted on. It lives out here because
+     wireAuth() takes the token out of the address bar, and boot() still
+     needs to know one arrived. */
+  var resetPending = false;
+
   /* ---------------------------------------------------------------- auth */
   function wireAuth() {
     var mode = 'in';
@@ -373,8 +378,21 @@ TB.App = (function () {
     /* A link from the email arrives as ?reset=... on the front page. */
     (function () {
       var token = null;
-      try { token = new URLSearchParams(location.search).get('reset'); } catch (e) {}
+      try {
+        var qs = new URLSearchParams(location.search);
+        token = qs.get('reset');
+        if (token) {
+          /* Out of the address bar at once. A reset token has no business
+             sitting in browser history or in a bookmark, and while it is
+             there every reload \u2014 including the one that follows signing out
+             \u2014 drops the person back on this card when they wanted to leave. */
+          qs.delete('reset');
+          var rest = qs.toString();
+          history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+        }
+      } catch (e) {}
       if (!token) return;
+      resetPending = true;
       show('resetCard');
       document.getElementById('resetForm').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -400,7 +418,7 @@ TB.App = (function () {
              they just chose actually works. */
           TB.Auth.signOut();
           TB.Sync.clear();
-          history.replaceState(null, '', location.pathname);
+          resetPending = false;
           setMode('in');
           var id = document.getElementById('fId');
           id.value = (remoteUser && remoteUser.email) || '';
@@ -638,9 +656,10 @@ TB.App = (function () {
 
     /* A reset link has to beat a remembered session. Somebody who clicked
        one means to choose a new password; signing them straight into the
-       app instead makes the link look broken — it opens and vanishes. */
-    var resetting = false;
-    try { resetting = !!new URLSearchParams(location.search).get('reset'); } catch (e) {}
+       app instead makes the link look broken — it opens and vanishes.
+       wireAuth() has already taken the token out of the address by now, so
+       the answer comes from the flag rather than from location.search. */
+    var resetting = resetPending;
 
     var restored = TB.Auth.restore();
     if (restored && !resetting) enter();

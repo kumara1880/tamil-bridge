@@ -652,7 +652,15 @@ section('SIGNING IN');
   t('a card to ask for the link', /id="forgotCard"/.test(html));
   t('and a card to choose the new one', /id="resetCard"/.test(html));
   t('a link from the email is picked up from the address',
-    /URLSearchParams\(location\.search\)\.get\('reset'\)/.test(app));
+    /qs\.get\('reset'\)/.test(app));
+  /* And taken straight back out of it. A reset token has no business in
+     browser history or a bookmark, and while it is there every reload —
+     including the one after signing out — drops the person back on the
+     reset card when they wanted to leave it. */
+  t('and taken out of the address bar at once',
+    /qs\.delete\('reset'\)/.test(app) && /history\.replaceState/.test(app));
+  t('so restoring a session is decided by a flag, not by the address',
+    /var resetting = resetPending/.test(app) && /resetPending = true/.test(app));
   /* A remembered session used to win the race: the reset card appeared and
      was wiped by the app a few milliseconds later, so the link looked
      broken — it opened and vanished. */
@@ -669,8 +677,7 @@ section('SIGNING IN');
     /Please sign in with it now/.test(app));
   t('with the address filled in and the password box empty',
     /id\.value = \(remoteUser && remoteUser\.email\)/.test(app));
-  t('and the token taken out of the address bar',
-    /history\.replaceState\(null, '', location\.pathname\)/.test(app));
+  t('and the reset is marked finished', /resetPending = false/.test(app));
 
   t('the client can ask for a reset', /forgot: function/.test(sync));
   /* req() is what turns the body into JSON. Handing it a string encodes it
