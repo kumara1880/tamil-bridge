@@ -397,7 +397,10 @@
           + esc(TB.Reader.MODES[modes.suggested].hint)
           + ' · ' + esc(TB.Translate.langName(lang)) + ' voice</span></div>'
           + (TB.Speech.missing(lang)
-              ? '<div class="msg msg-warn tiny">' + esc(TB.Speech.missingVoiceMessage(lang)) + '</div>' : '');
+              ? '<div class="msg msg-info tiny">This device has no ' + esc(TB.Translate.langName(lang))
+                + ' voice, so it is read aloud over the internet instead \u2014 which works, but '
+                + 'needs a connection. Installing the voice makes it work offline and start '
+                + 'faster.</div>' : '');
       }
 
       function mountReader(id, lines, lang) {
@@ -481,7 +484,17 @@
       /* ------------------------------------------------------ the result */
       function render(res, target) {
         var srcLang = res.lang;
-        var raw = res.lines.map(function (l) { return l.text; });
+        /* Passed whole rather than flattened to strings: each line carries
+           the score the reader gave itself, which is the only thing that
+           tells a watermark from a short real line. */
+        var found = res.lines;
+        /* A poster has a title drawn in letters nobody can read and a
+           watermark at the foot, and OCR returns both as rubble. Kept, they
+           are read aloud, translated, and stop the page looking like a poem
+           at all — so the verse gets flattened into prose. */
+        var swept = TB.Reader.clean(found);
+        var raw = swept.lines;
+        res.dropped = swept.dropped;
         /* A poem's line breaks are the poem. A paragraph's are just where the
            page ran out, and translating those fragments gives fragments. */
         var flow = TB.Reader.reflow(raw);
@@ -513,6 +526,8 @@
           + '<div class="card-sub">'
           + esc(TB.OCR.packLabel(res.pack)) + (res.autoDetected ? ' (detected)' : '')
           + ' · ' + res.lines.length + (res.lines.length === 1 ? ' line' : ' lines')
+          + (res.dropped && res.dropped.length
+              ? ' · ' + res.dropped.length + ' of decoration set aside' : '')
           + ' · score ' + res.score + '/100'
           + (modes.isVerse ? ' · read as a rhyme'
                            : (flow.reflowed ? ' · joined into ' + lines.length

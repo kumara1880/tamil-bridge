@@ -125,11 +125,95 @@ TB.Speech = (function () {
 
   function bcp47(lang) { return (LANGS[lang] && LANGS[lang][0]) || lang; }
 
+  /* ------------------------------------------------------------ network
+
+     A voice for a language the device has never heard of.
+
+     The endpoint is the one Google Translate's own speaker button uses. It
+     takes about two hundred characters at a time, so a long line is cut at
+     word boundaries and the pieces are played one after another. Nothing is
+     fetched — an <audio> element loads it directly, which needs no
+     permission from the other end.                                        */
+  var netAudio = null;
+
+  function netChunks(text, limit) {
+    var words = String(text).split(/(\s+)/);
+    var out = [], buf = '';
+    words.forEach(function (w) {
+      if ((buf + w).length > limit && buf.trim()) { out.push(buf.trim()); buf = w; }
+      else buf += w;
+    });
+    if (buf.trim()) out.push(buf.trim());
+    return out.length ? out : [String(text)];
+  }
+
+  function netUrl(piece, lang, slow, idx, total, textlen) {
+    return 'https://translate.google.com/translate_tts'
+      + '?ie=UTF-8&client=tw-ob'
+      + '&tl=' + encodeURIComponent(bcp47(lang).split('-')[0])
+      + '&ttsspeed=' + (slow ? '0.24' : '1')
+      + '&total=' + total + '&idx=' + idx + '&textlen=' + textlen
+      + '&q=' + encodeURIComponent(piece);
+  }
+
+  function netPlay(url) {
+    return new Promise(function (resolve) {
+      var a = new Audio();
+      netAudio = a;
+      var done = false;
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        clearTimeout(guard);
+        if (netAudio === a) netAudio = null;
+        resolve(ok);
+      }
+      a.onended = function () { finish(true); };
+      a.onerror = function () { finish(false); };
+      /* If the network is slow or absent this never fires an event at all. */
+      var guard = setTimeout(function () { try { a.pause(); } catch (e) {} finish(false); }, 20000);
+      a.src = url;
+      var p = a.play();
+      if (p && p.catch) p.catch(function () { finish(false); });
+    });
+  }
+
+  function netSpeak(text, lang, opts) {
+    if (typeof Audio === 'undefined') return Promise.resolve(false);
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.resolve(false);
+    var t = String(text || '').trim();
+    if (!t) return Promise.resolve(false);
+
+    var slow = (opts && opts.rate != null) ? opts.rate < 0.8 : false;
+    var pieces = netChunks(t, 190);
+    var token = queueToken;
+    var i = 0, anyPlayed = false;
+
+    function next() {
+      if (token !== queueToken) return Promise.resolve(anyPlayed);
+      if (i >= pieces.length) return Promise.resolve(anyPlayed);
+      var idx = i++;
+      return netPlay(netUrl(pieces[idx], lang, slow, idx, pieces.length, t.length))
+        .then(function (ok) {
+          if (ok) anyPlayed = true;
+          /* The first piece failing means the whole thing is unavailable;
+             a later one failing has at least said something. */
+          if (!ok && idx === 0) return false;
+          return next();
+        });
+    }
+    return next();
+  }
+
+
   /* exposed so the test suite can confirm every translate language is covered */
   function langTags() { return LANGS; }
 
   var api = {
     supported: function () { return 'speechSynthesis' in window; },
+    /* exposed so the suite can check the chunking and the address */
+    netChunks: netChunks,
+    netUrl: netUrl,
     recognitionSupported: function () {
       return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
     },
@@ -143,8 +227,19 @@ TB.Speech = (function () {
     langTags: langTags,
     bcp47: bcp47,
 
-    /* True when the OS has no voice at all for this language. */
+    /* True when the OS has no voice at all for this language. It does not
+       mean the language cannot be spoken: when there is no local voice the
+       network one is used, which is why nothing calls this to decide
+       whether to speak \u2014 only to explain what will happen. */
     missing: function (lang) { return voices.length > 0 && !pickVoice(lang); },
+
+    /* What this language will actually be read with. */
+    voiceSource: function (lang) {
+      if (!api.supported()) return 'none';
+      if (pickVoice(lang)) return 'device';
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'none';
+      return 'online';
+    },
 
     /* Speak one phrase. Resolves when finished (or immediately if unsupported). */
     speak: function (text, lang, opts) {
@@ -153,8 +248,14 @@ TB.Speech = (function () {
       /* Reading Hindi aloud in an English voice produces nonsense and teaches
          the wrong pronunciation, so refuse rather than substitute. The caller
          surfaces missingVoiceMessage(lang). */
+      /* No voice on the device: ask the network before telling somebody
+         their machine cannot do it. */
       if (api.missing(lang) && !opts.force) {
-        return Promise.resolve({ noVoice: true, lang: lang });
+        queueToken++;
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+        return netSpeak(text, lang, opts).then(function (ok) {
+          return ok ? true : { noVoice: true, lang: lang };
+        });
       }
       var myToken = ++queueToken;
       try { window.speechSynthesis.cancel(); } catch (e) {}
@@ -224,6 +325,8 @@ TB.Speech = (function () {
     stop: function () {
       queueToken++;
       if (api.supported()) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+      /* and whatever is coming over the network */
+      if (netAudio) { try { netAudio.pause(); netAudio.src = ''; } catch (e) {} netAudio = null; }
     },
     pause: function () { if (api.supported()) { try { window.speechSynthesis.pause(); } catch (e) {} } },
     resume: function () { if (api.supported()) { try { window.speechSynthesis.resume(); } catch (e) {} } },
@@ -341,10 +444,12 @@ TB.Speech = (function () {
     missingVoiceMessage: function (lang) {
       var name = (window.TB && TB.Translate && TB.Translate.langName)
         ? TB.Translate.langName(lang) : lang;
-      return 'No ' + name + ' voice is installed on this device, so it cannot be read aloud '
-           + 'correctly. Windows: Settings → Time & language → Language & region → '
-           + 'Add a language → ' + name + ', and tick "Speech". Android/iOS: install the '
-           + name + ' voice in your system text-to-speech settings.';
+      return 'This device has no ' + name + ' voice, and the online one could not be '
+           + 'reached either \u2014 check your connection. To have ' + name + ' read aloud '
+           + 'without a connection, install the voice: Windows: Settings \u2192 Time & '
+           + 'language \u2192 Language & region \u2192 Add a language \u2192 ' + name + ', and tick '
+           + '"Speech". Android and iPhone: add the ' + name + ' voice in your '
+           + 'text-to-speech settings.';
     },
 
     /* Tamil feedback text for a score. */

@@ -937,6 +937,111 @@ section('GROWING UP NOW');
   })();
 })();
 
+/* ---------------- sweeping a photograph ---------------- */
+section('WHAT IS NOT TEXT');
+(function () {
+  var R = TB.Reader;
+
+  /* A real photograph of a nursery-rhyme poster. The rhyme was read
+     perfectly; the title, drawn in bubble letters, and the watermark at the
+     foot of the page came back as rubble — and because rubble is not verse,
+     the whole poem was then flattened into two prose sentences and its
+     shape thrown away. */
+  var POSTER = [
+    'Af (0}y7 J A = 5 =v) \\ $ \u00a2 | / % \u00a33 \u00bb py \u201c2',
+    "I'm a little teapot",
+    'Short and stout',
+    'Here is my handle',
+    'Here is my spout',
+    'When | get all steamed up',
+    '| just shout',
+    'Tip me over and pour me out',
+    'Oe'
+  ];
+  /* as OCR returns them: the text, and the score the reader gave itself */
+  var POSTER_LINES = POSTER.map(function (t, i) {
+    return { text: t, confidence: (i === 0 ? 22 : i === POSTER.length - 1 ? 31 : 88) };
+  });
+  var swept = R.clean(POSTER_LINES);
+
+  t('the drawn title is set aside', swept.dropped.length === 2, swept.dropped.join(' | '));
+  t('and the poem is kept whole', swept.lines.length === 7, swept.lines.length);
+  t('a bar becomes the I it was',
+    swept.lines[4] === 'When I get all steamed up' && swept.lines[5] === 'I just shout',
+    swept.lines[4] + ' / ' + swept.lines[5]);
+  t('and what is left reads as verse', R.looksLikeVerse(swept.lines),
+    R.scheme(swept.lines).join(''));
+  t('so the lines survive instead of being joined into prose',
+    R.reflow(swept.lines).units.length === 7,
+    R.reflow(swept.lines).units.length);
+  t('stout, spout, shout and out all rhyme', (function () {
+    var sc = R.scheme(swept.lines);
+    return sc[1] === sc[3] && sc[3] === sc[5] && sc[5] === sc[6];
+  })(), R.scheme(swept.lines).join(''));
+
+  /* What must never be mistaken for decoration. */
+  ['I am a little teapot.', 'Short and stout', '\u0ba8\u0bbf\u0bb2\u0bbe \u0ba8\u0bbf\u0bb2\u0bbe \u0b93\u0b9f\u0bbf \u0bb5\u0bbe',
+   '\u092e\u091b\u0932\u0940 \u091c\u0932 \u0915\u0940 \u0930\u093e\u0928\u0940 \u0939\u0948', 'Rs 250 only', 'Chapter 3 \u2014 The Sun',
+   'a', '\u0b85'].forEach(function (line) {
+    t('kept: ' + line.slice(0, 26), !R.looksLikeRubble(line));
+  });
+
+  /* What must be. */
+  ['Af (0}y7 J A = 5 =v)', '\\ $ \u00a2 | / % \u00a33 \u00bb', '~~~~~~~~', '\u00a9 2024 ...',
+   '|||', '. . . . .', '>> << >>'].forEach(function (line) {
+    t('swept: ' + line.slice(0, 26), R.looksLikeRubble(line));
+  });
+
+  /* A picture that is genuinely odd must not come back empty. */
+  t('nothing is thrown away when everything looks odd', (function () {
+    var all = R.clean(['#### ####', '$$$ %%%']);
+    return all.lines.length === 2 && all.dropped.length === 0;
+  })());
+
+  /* And the photo reader has to use it. */
+  (function () {
+    var fs = require('fs');
+    var v2 = fs.readFileSync(__dirname + '/js/views2.js', 'utf8');
+    t('the photo reader sweeps before it reads', /TB\.Reader\.clean\(found\)/.test(v2));
+    t('and says how much it set aside', /decoration set aside/.test(v2));
+  })();
+})();
+
+/* ---------------- a voice for every language ---------------- */
+section('VOICE');
+(function () {
+  var fs = require('fs');
+  var sp = fs.readFileSync(__dirname + '/js/speech.js', 'utf8');
+
+  /* The browser only has the voices the operating system installed, and a
+     normal Windows machine ships English and nothing else — so Tamil and
+     Hindi could not be read aloud at all. */
+  t('there is a voice for a language the device does not have',
+    /translate_tts/.test(sp) && /function netSpeak/.test(sp));
+  t('it is played rather than fetched, so no permission is needed',
+    /new Audio\(\)/.test(sp));
+  t('a long line is cut at word boundaries', /function netChunks/.test(sp));
+  t('a voice the device has is still preferred: the network is only asked',
+    /if \(api\.missing\(lang\) && !opts\.force\) \{[\s\S]{0,320}netSpeak\(/.test(sp));
+  t('stopping stops the network voice too', /netAudio\.pause\(\)/.test(sp));
+  t('and it is not attempted with no connection', /navigator\.onLine === false/.test(sp));
+  t('the old message only appears once the network has failed too',
+    /could not be \\n?\s*'?\s*\+?\s*'?reached either|reached either/.test(sp));
+  t('Settings can say which voice will be used', /voiceSource: function/.test(sp));
+
+  t('the chunker keeps whole words', (function () {
+    var out = TB.Speech.netChunks('one two three four five six seven eight nine ten', 20);
+    return out.every(function (p) { return p.length <= 20 || p.indexOf(' ') < 0; })
+      && out.join(' ') === 'one two three four five six seven eight nine ten';
+  })());
+  t('and never returns nothing', TB.Speech.netChunks('x', 190).length === 1);
+  t('the address names the language and the text',
+    /tl=ta/.test(TB.Speech.netUrl('\u0bb5\u0ba3\u0b95\u0bcd\u0b95\u0bae\u0bcd', 'ta', false, 0, 1, 7))
+      && /q=%E0%AE/.test(TB.Speech.netUrl('\u0bb5\u0ba3\u0b95\u0bcd\u0b95\u0bae\u0bcd', 'ta', false, 0, 1, 7)));
+  t('and asks for the slow one when reading slowly',
+    /ttsspeed=0\.24/.test(TB.Speech.netUrl('a', 'ta', true, 0, 1, 1)));
+})();
+
 /* ---------------- rhyme in three scripts ---------------- */
 section('RHYME');
 (function () {

@@ -137,6 +137,84 @@ TB.Reader = (function () {
     return paired / real.length >= need && shortLines / real.length >= 0.7;
   }
 
+  /* ------------------------------------------------------------ cleaning
+
+     A photograph of a page is not all text. There is a title drawn in
+     letters no reader can make out, a logo, a watermark, a border. OCR
+     returns all of it, as the rubble it looks like:
+
+       Af (0}y7 J A = 5 =v) \ $ ¢ | / % £3 » py "2
+
+     Kept, that rubble is read aloud, translated, and \u2014 worst of all \u2014 stops
+     the page looking like a poem, so the verse is flattened into prose and
+     the shape of the rhyme is lost. A line that is mostly not letters is
+     not a line of the text.                                               */
+  function looksLikeRubble(line) {
+    var t = String(line || '').trim();
+    if (!t) return false;
+    /* Marks count as letters. A Tamil or Devanagari vowel sign is a Mark
+       and not a Letter, so நிலா is two Letters and two Marks — counted
+       without them, every line of Tamil in the world looks like rubble. */
+    var letters = (t.match(/[\p{L}\p{M}]/gu) || []).length;
+    if (!letters) return true;                         /* no letters at all */
+
+    var junk = (t.match(/[^\p{L}\p{M}\p{N}\s'’\-.,!?;:()"“”।॥]/gu) || []).length;
+    var ratio = letters / t.replace(/\s/g, '').length;
+
+    /* Real writing is mostly letters. Decoration is mostly everything
+       else, and the pieces of it that are letters are scattered singles. */
+    if (ratio < 0.55) return true;
+    if (junk >= 3 && ratio < 0.75) return true;
+
+    /* A run of lone letters with no word among them \u2014 "Af J A v py" \u2014 is
+       a title that was drawn rather than written. */
+    var words = t.split(/\s+/).filter(Boolean);
+    var real = words.filter(function (w) {
+      return /[\p{L}\p{M}]{3,}/u.test(w) && /[aeiouAEIOU\u0B80-\u0BFF\u0900-\u097F]/u.test(w);
+    }).length;
+    if (words.length >= 4 && real / words.length < 0.34) return true;
+
+    /* A stray mark at the very edge of the page: one or two letters, alone. */
+    if (t.length <= 2 && !/^[\p{L}\p{M}]+$/u.test(t)) return true;
+
+    return false;
+  }
+
+  /* OCR reads a capital I in many display faces as a bar, so "When I get"
+     comes back as "When | get". Only fixed where a word cannot be a bar. */
+  function mendLetters(line) {
+    return String(line || '')
+      .replace(/(^|\s)[|¦l](?=\s)/g, '$1I')
+      .replace(/(^|\s)[|¦](?=[a-z]{1,3}\b)/g, '$1I');
+  }
+
+  /* Drop the decoration, mend what is left.
+
+     Takes either plain strings or the lines as OCR returns them, which
+     carry the score the reader gave itself. That score is the only thing
+     that separates a watermark reading "Oe" from a real short line: the
+     text is identical, and the reader knew it was guessing. */
+  function clean(lines) {
+    var kept = [], dropped = [];
+    (lines || []).forEach(function (l) {
+      var t = String((l && l.text != null) ? l.text : (l == null ? '' : l));
+      var conf = (l && typeof l.confidence === 'number') ? l.confidence : null;
+
+      /* A line the reader could barely make out, and which is too short to
+         carry much anyway, is a mark on the page rather than a line of it. */
+      var unsure = conf !== null && conf < 45 && t.trim().replace(/\s/g, '').length <= 4;
+
+      if (unsure || looksLikeRubble(t)) { if (t.trim()) dropped.push(t.trim()); return; }
+      kept.push(mendLetters(t));
+    });
+    /* If almost everything looked like rubble the picture probably is
+       unusual rather than decorated, so nothing is thrown away. */
+    if (kept.filter(function (x) { return x.trim(); }).length === 0) {
+      return { lines: lines.slice(), dropped: [] };
+    }
+    return { lines: kept, dropped: dropped };
+  }
+
   /* Sentence enders across the scripts the app reads. */
   var END = /[.!?।॥؟。！？]["'”’)\]]*$/;
 
@@ -190,6 +268,9 @@ TB.Reader = (function () {
     rhymes: rhymes,
     ending: ending,
     rime: rime,
+    clean: clean,
+    looksLikeRubble: looksLikeRubble,
+    mendLetters: mendLetters,
     looksLikeVerse: looksLikeVerse,
     reflow: reflow,
 

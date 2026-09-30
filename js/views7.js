@@ -260,7 +260,8 @@
 
         out.querySelector('#mPlay').addEventListener('click', function () {
           if (reading) { stop(); return; }
-          if (TB.Speech.missing(lang)) { TB.App.toast(TB.Speech.missingVoiceMessage(lang), 'err'); return; }
+          /* Do not refuse before trying: with no voice on the device the
+             online one is used, and only if that fails is there nothing. */
           var prefs = D().prefs;
           this.textContent = '⏹ Stop';
           reading = TB.Speech.sequence(res.steps.map(function (s) {
