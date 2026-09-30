@@ -1529,8 +1529,7 @@ section('READINGS (all Indian scripts)');
       var r = TB.Translit.readings(SAMPLE[l], l);
       return !/[ऀ-୿ఀ-෿]/.test(r.roman + r.tamil);
     }));
-  t('Tamil reads as itself', TB.Translit.readings('நான்', 'ta').roman === 'nāẉ'
-    || TB.Translit.readings('நான்', 'ta').roman === 'nāṉ',
+  t('Tamil reads as itself', TB.Translit.readings('நான்', 'ta').roman === 'nān',
     TB.Translit.readings('நான்', 'ta').roman);
   /* English written in Tamil letters must come from the pronunciation, never
      from the spelling: school is ஸ்கூல், not ஸ்சூல் */
@@ -1689,7 +1688,30 @@ section('TRANSLITERATION');
   .forEach(([i, o]) => t('ta ' + i, TB.Translit.toTamil(i) === o, TB.Translit.toTamil(i)));
 [['namaste','नमस्ते'],['dhanyavaad','धन्यवाद'],['kitaab','किताब'],['paani','पानी'],['ghar','घर']]
   .forEach(([i, o]) => t('hi ' + i, TB.Translit.toHindi(i) === o, TB.Translit.toHindi(i)));
-t('roman வணக்கம்', TB.Translit.romanTamil('வணக்கம்') === 'vaṇakkam');
+/* Tamil spelling does not mark voicing, so a letter-for-letter reading is
+   not a pronunciation: அழகு is said azhagu, not aḻaku, and சாப்பிடு is
+   saappidu, not cāppiṭu — the c being read as a k by everybody who meets
+   it. The reading is built from position now. */
+t('roman வணக்கம்', TB.Translit.romanTamil('வணக்கம்') === 'vanakkam',
+  TB.Translit.romanTamil('வணக்கம்'));
+t('ச is an s, not a c', TB.Translit.romanTamil('சாப்பிடு') === 'sāppidu',
+  TB.Translit.romanTamil('சாப்பிடு'));
+t('a stop between vowels is voiced', TB.Translit.romanTamil('அழகு') === 'azhagu',
+  TB.Translit.romanTamil('அழகு'));
+t('and doubled it is not', TB.Translit.romanTamil('பச்சை') === 'pachchai',
+  TB.Translit.romanTamil('பச்சை'));
+t('a stop after its nasal is voiced too', TB.Translit.romanTamil('தம்பி') === 'thambi'
+  && TB.Translit.romanTamil('பஞ்சு') === 'panju',
+  TB.Translit.romanTamil('தம்பி') + ' / ' + TB.Translit.romanTamil('பஞ்சு'));
+t('and the nasal does not double the sound', TB.Translit.romanTamil('அங்கே') === 'angē',
+  TB.Translit.romanTamil('அங்கே'));
+t('ழ is written zh, as everybody writes it',
+  TB.Translit.romanTamil('தமிழ்') === 'thamizh', TB.Translit.romanTamil('தமிழ்'));
+t('every stored Tamil reading agrees with the reader', (function () {
+  return TB.VOCAB.every(function (w) {
+    return !w.ta || !w.taR || TB.Translit.romanTamil(w.ta) === w.taR;
+  });
+})());
 t('roman किताब', TB.Translit.romanHindi('किताब') === 'kitāb');
 
 /* ---------------- sentence analysis ---------------- */
