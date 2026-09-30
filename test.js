@@ -1303,16 +1303,27 @@ section('VOCABULARY');
 
 /* ---------------- Hindi readings ---------------- */
 section('HINDI READINGS (roman + Tamil)');
-[['करोड़', 'karor', 'கரோர்'],
+/* Spelt the way somebody reads them aloud, not the way a grammar of Hindi
+   writes them. ख़ was x, च was c and श was ś, so बुख़ार came out "buxār",
+   चाय came out "cāy" and शाम came out "śām" — each of them precise, and
+   each of them read wrongly by every learner who has not been taught the
+   notation. The dots that stay are the ones that only say "curl your
+   tongue back": ṭ, ḍ, ṛ. */
+[['करोड़', 'karoṛ', 'கரோர்'],
  ['किताब', 'kitāb', 'கிதாப்'],
- ['सड़क', 'sarak', 'ஸரக்'],
- ['खिड़की', 'khirkī', 'கிர்கீ'],
- ['डॉक्टर', 'ḍākṭar', 'டாக்டர்'],
- ['पाँच', 'pāñc', 'பாஞ்ச்'],
- ['आँख', 'āṅkh', 'ஆங்க்'],
+ ['सड़क', 'saṛak', 'ஸரக்'],
+ ['खिड़की', 'khiṛkī', 'கிர்கீ'],
+ ['डॉक्टर', 'ḍokṭar', 'டோக்டர்'],
+ ['पाँच', 'pānch', 'பாஞ்ச்'],
+ ['आँख', 'ānkh', 'ஆங்க்'],
  ['बेटा', 'beṭā', 'பேட்டா'],
- ['ठंडा', 'ṭhaṇḍā', 'டண்டா'],
- ['नमस्ते', 'namaste', 'நமஸ்தே']]
+ ['ठंडा', 'ṭhanḍā', 'டண்டா'],
+ ['नमस्ते', 'namaste', 'நமஸ்தே'],
+ ['बुख़ार', 'bukhār', 'புஃகார்'],
+ ['चाय', 'chāy', 'சாய்'],
+ ['शाम', 'shām', 'ஷாம்'],
+ ['कंपनी', 'kampanī', 'கம்பனீ'],
+ ['ग़लत', 'ghalat', 'ஃகலத்']]
   .forEach(function (row) {
     t('roman ' + row[0], TB.Translit.romanHindi(row[0]) === row[1], TB.Translit.romanHindi(row[0]));
     t('tamil ' + row[0], TB.Translit.hindiToTamilScript(row[0]) === row[2], TB.Translit.hindiToTamilScript(row[0]));
@@ -1458,7 +1469,7 @@ section('READINGS (all Indian scripts)');
   [['hi', 'मैं स्कूल जाता हूँ', 'maiṁ skūl jātā hūṁ'],
    ['te', 'నేను', 'nenu'],
    ['kn', 'ನಾನು', 'nānu'],
-   ['ml', 'ഞാൻ', 'ñān'],
+   ['ml', 'ഞാൻ', 'nān'],
    ['bn', 'আমি', 'āmi'],
    ['gu', 'હું', 'huṁ'],
    ['pa', 'ਮੈਂ', 'maiṁ']]
@@ -1480,10 +1491,39 @@ section('READINGS (all Indian scripts)');
     TB.Translit.romanHindi('हिंदी') === 'hindī',
     TB.Translit.romanHindi('हिंदी'));
   t('southern short e survives',
-    TB.Translit.readings('ಶಾಲೆ', 'kn').roman === 'śāle',
+    TB.Translit.readings('ಶಾಲೆ', 'kn').roman === 'shāle',
     TB.Translit.readings('ಶಾಲೆ', 'kn').roman);
   t('Malayalam chillu is a bare consonant',
-    TB.Translit.readings('ഞാൻ', 'ml').roman === 'ñān');
+    TB.Translit.readings('ഞാൻ', 'ml').roman === 'nān',
+    TB.Translit.readings('ഞാൻ', 'ml').roman);
+  /* The fault that started this: notation nobody outside a linguistics
+     department reads correctly. */
+  t('no reading uses x for the kh sound',
+    !/x/.test(TB.Translit.romanHindi('बुख़ार')), TB.Translit.romanHindi('बुख़ार'));
+  t('ch is written ch, not c',
+    TB.Translit.romanHindi('चाय').charAt(0) === 'c'
+      && TB.Translit.romanHindi('चाय').charAt(1) === 'h',
+    TB.Translit.romanHindi('चाय'));
+  t('sh is written sh',
+    /^sh/.test(TB.Translit.romanHindi('शाम')), TB.Translit.romanHindi('शाम'));
+  t('a nasal is n, or m before a lip sound',
+    TB.Translit.romanHindi('पाँच') === 'pānch'
+      && TB.Translit.romanHindi('कंपनी') === 'kampanī',
+    TB.Translit.romanHindi('पाँच') + ' / ' + TB.Translit.romanHindi('कंपनी'));
+  t('and Tamil keeps the nasal its own spelling needs',
+    TB.Translit.hindiToTamilScript('पाँच') === 'பாஞ்ச்',
+    TB.Translit.hindiToTamilScript('पाँच'));
+  t('a schwa survives after a closed syllable',
+    TB.Translit.romanHindi('कंपनी') === 'kampanī',
+    TB.Translit.romanHindi('कंपनी'));
+  t('but still drops where it should',
+    TB.Translit.romanHindi('खिड़की') === 'khiṛkī'
+      && TB.Translit.romanHindi('सड़क') === 'saṛak',
+    TB.Translit.romanHindi('खिड़की') + ' / ' + TB.Translit.romanHindi('सड़क'));
+  t('Tamil marks the foreign fricative with \u0b83',
+    TB.Translit.hindiToTamilScript('बुख़ार') === 'புஃகார்',
+    TB.Translit.hindiToTamilScript('बुख़ार'));
+
   t('nothing leaks its own script into the reading',
     ['hi', 'te', 'kn', 'ml', 'bn', 'gu', 'pa'].every(function (l) {
       var r = TB.Translit.readings(SAMPLE[l], l);
