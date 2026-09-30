@@ -495,6 +495,25 @@
         var swept = TB.Reader.clean(found);
         var raw = swept.lines;
         res.dropped = swept.dropped;
+
+        /* Score what is being shown, not what was thrown away. The pack was
+           chosen on the whole picture, which is right — that decision needs
+           everything. But the number a person is shown, and the warning that
+           hangs off it, are about the words in front of them: a poster whose
+           rhyme reads at 96 while its drawn title reads at 27 is not a
+           doubtful reading, and saying so sends people to change a language
+           that was never wrong. */
+        if (swept.dropped.length) {
+          var keptConf = res.lines
+            .filter(function (l) { return swept.lines.indexOf(TB.Reader.mendLetters(l.text)) >= 0; })
+            .map(function (l) { return l.confidence; })
+            .filter(function (c) { return typeof c === 'number'; });
+          var avg = keptConf.length
+            ? keptConf.reduce(function (a, b) { return a + b; }, 0) / keptConf.length
+            : res.confidence;
+          res.score = TB.OCR.plausibility({ text: raw.join('\n'), confidence: avg });
+          res.lowConfidence = res.score < TB.OCR.TRUST;
+        }
         /* A poem's line breaks are the poem. A paragraph's are just where the
            page ran out, and translating those fragments gives fragments. */
         var flow = TB.Reader.reflow(raw);

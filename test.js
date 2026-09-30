@@ -1049,6 +1049,20 @@ section('VOICE');
     /if \(api\.missing\(lang\) && !opts\.force\) \{[\s\S]{0,320}netSpeak\(/.test(sp));
   t('stopping stops the network voice too', /netAudio\.pause\(\)/.test(sp));
   t('and it is not attempted with no connection', /navigator\.onLine === false/.test(sp));
+  /* Load-bearing: the voice endpoint answers a request that carries no
+     Referer and returns 404 to one that does. A browser always sends it
+     unless the page says not to, so this is what makes the voice work at
+     all — not a privacy nicety that can be quietly reverted. */
+  (function () {
+    var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+    var vercel = fs.readFileSync(__dirname + '/vercel.json', 'utf8');
+    t('the page tells the browser to send no referrer',
+      /<meta name="referrer" content="no-referrer">/.test(html));
+    t('and the deployed site sends the same header',
+      /"value": "no-referrer"/.test(vercel));
+    t('with the reason written down beside it',
+      /refuses outright when it is told|needs to know which page asked/.test(html));
+  })();
   t('the old message only appears once the network has failed too',
     /could not be \\n?\s*'?\s*\+?\s*'?reached either|reached either/.test(sp));
   t('Settings can say which voice will be used', /voiceSource: function/.test(sp));
