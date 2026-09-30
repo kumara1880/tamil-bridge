@@ -28,7 +28,7 @@
   function line(text, lang, big) {
     if (!text) return '';
     return '<div class="lang-line">'
-      + '<div class="' + lang + '"' + (big ? ' style="font-size:19px;font-weight:600"' : '') + '>'
+      + '<div class="' + lang + '"' + (big ? ' style="font-size:calc(19px * var(--fs,1));font-weight:600"' : '') + '>'
       + esc(text) + speak(text, lang) + '</div>'
       + readAid(text, lang) + '</div>';
   }
@@ -72,12 +72,15 @@
           + '</div>'
           + '<div class="spacer" style="flex:1"></div>'
           + '<span class="tiny muted">' + set.length + ' rules</span></div></div>'
+          /* Sixteen rules open at once is a wall. Shut, they are a list of
+             what there is to learn, and the first one is open so nobody has
+             to guess that they open at all. */
           + set.map(function (t, i) {
-              return '<div class="card gram" data-g="' + i + '">'
-                + '<div class="card-head"><div>'
+              return '<details class="card gram fold" data-g="' + i + '"' + (i === 0 ? ' open' : '') + '>'
+                + '<summary class="fold-head"><div>'
                 + '<h3>' + esc(t.title.en) + '</h3>'
                 + '<div class="card-sub ta">' + esc(t.title.ta) + ' · <span class="hi">' + esc(t.title.hi) + '</span></div>'
-                + '</div><div class="spacer"></div><span class="chip">Level ' + t.level + '</span></div>'
+                + '</div><div class="spacer"></div><span class="chip">Level ' + t.level + '</span></summary>'
                 + '<div class="gram-rule">' + trio(t.rule) + '</div>'
                 + '<div class="tiny muted mt mb">Examples</div>'
                 + t.examples.map(function (x) {
@@ -92,7 +95,7 @@
                 + '<div class="tiny mt">' + esc(t.mistake.why.en) + '</div>'
                 + '<div class="tiny ta" style="color:var(--teal)">' + esc(t.mistake.why.ta) + '</div>'
                 + '<div class="tiny hi" style="color:var(--purple)">' + esc(t.mistake.why.hi) + '</div>'
-                + '</div></div>';
+                + '</div></details>';
             }).join('');
 
         body.querySelector('#gLang').addEventListener('click', function (e) {
@@ -141,7 +144,7 @@
           + set.map(function (w) {
               var head = w[wLang];
               return '<div class="card pair">'
-                + '<div class="' + wLang + '" style="font-size:21px;font-weight:700">'
+                + '<div class="' + wLang + '" style="font-size:calc(21px * var(--fs,1));font-weight:700">'
                 + esc(head) + speak(head, wLang) + '</div>'
                 + readAid(head, wLang)
                 + '<div class="pair-gloss">'
@@ -305,11 +308,12 @@
           + '</div>'
           + TB.SPOKEN.map(function (d, i) {
               var others = ['en', 'ta', 'hi'].filter(function (l) { return l !== spLang; });
-              return '<div class="card"><div class="card-head"><div>'
+              return '<details class="card fold"' + (i === 0 ? ' open' : '') + '>'
+                + '<summary class="fold-head"><div>'
                 + '<h3>' + esc(d.title[spLang] || d.title.en) + '</h3>'
                 + '<div class="card-sub">' + esc(d.title.en) + '</div></div>'
                 + '<div class="spacer"></div>'
-                + '<button class="btn btn-sm" data-play="' + i + '" type="button">▶ Play</button></div>'
+                + '<span class="btn btn-sm" data-play="' + i + '">▶ Play</span></summary>'
                 + d.lines.map(function (l, j) {
                     return '<div class="talk talk-' + l.who + '" data-d="' + i + '" data-l="' + j + '">'
                       + '<span class="talk-who">' + l.who + '</span><div>'
@@ -318,7 +322,7 @@
                       + others.map(function (o) { return '<div class="' + o + ' tiny muted">' + esc(l[o]) + '</div>'; }).join('')
                       + '</div></div>';
                   }).join('')
-                + '</div>';
+                + '</details>';
             }).join('');
 
         body.querySelector('#spLang').addEventListener('click', function (e) {

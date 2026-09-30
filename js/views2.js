@@ -105,7 +105,7 @@
   function lessonHtml(u, d) {
     var h = '<div class="view">';
     h += '<div class="card"><div class="card-head"><div>'
-       + '<h3 style="font-size:19px">' + esc(u.title.en) + '</h3>'
+       + '<h3 style="font-size:calc(19px * var(--fs,1))">' + esc(u.title.en) + '</h3>'
        + '<div class="card-sub ta">' + esc(u.title.ta) + '</div></div>'
        + '<div class="spacer"></div><a class="btn btn-sm" href="#/learn">← All lessons</a></div>'
        + '<p class="small">' + esc(u.goal) + '</p>'
@@ -116,8 +116,8 @@
     h += '<div class="card"><h3>Sentences</h3><div class="card-sub">Listen to each one, then say it</div>';
     u.lines.forEach(function (l, i) {
       h += '<div style="padding:12px 0;border-top:1px solid var(--line-soft)">';
-      h += '<div style="font-size:18px;font-weight:600">' + tappable(l.en, 'en') + speak(l.en, 'en') + '</div>';
-      h += '<div class="hi" style="font-size:17px;margin-top:3px">' + tappable(l.hi, 'hi') + speak(l.hi, 'hi') + '</div>';
+      h += '<div style="font-size:calc(18px * var(--fs,1));font-weight:600">' + tappable(l.en, 'en') + speak(l.en, 'en') + '</div>';
+      h += '<div class="hi" style="font-size:calc(17px * var(--fs,1));margin-top:3px">' + tappable(l.hi, 'hi') + speak(l.hi, 'hi') + '</div>';
       h += V.hiRead(l.hi);
       h += '<div class="w-gloss" style="margin-top:4px">' + tappable(l.ta, 'ta') + speak(l.ta, 'ta') + '</div>';
       if (l.gloss && l.gloss.length) {
@@ -198,7 +198,7 @@
           return;
         }
         if (idx >= queue.length) {
-          area.innerHTML = '<div class="card center"><div style="font-size:34px">✅</div>'
+          area.innerHTML = '<div class="card center"><div style="font-size:calc(34px * var(--fs,1))">✅</div>'
             + '<h3>Round complete</h3><div class="muted">' + correct + '/' + queue.length + ' correct</div>'
             + '<button class="btn btn-primary mt" id="again" type="button">Again</button></div>';
           area.querySelector('#again').addEventListener('click', start);
@@ -300,7 +300,7 @@
         +       '<div class="hint">Change this any time — the picture is not read again.</div></div>'
         +   '</div>'
         +   '<div class="drop" id="drop">'
-        +     '<div style="font-size:34px">🖼️</div>'
+        +     '<div style="font-size:calc(34px * var(--fs,1))">🖼️</div>'
         +     '<div style="font-weight:650;margin-top:6px">Choose a picture, or drop one here</div>'
         +     '<div class="tiny muted">JPG · PNG · WEBP</div>'
         +   '</div>'
@@ -683,7 +683,7 @@
         var area = root.querySelector('#spArea');
         area.innerHTML = '<div class="card center">'
           + '<div class="tiny muted">Say this</div>'
-          + '<div class="' + lang + '" style="font-size:28px;font-weight:700;margin:8px 0">' + esc(target) + speak(target, lang) + '</div>'
+          + '<div class="' + lang + '" style="font-size:calc(28px * var(--fs,1));font-weight:700;margin:8px 0">' + esc(target) + speak(target, lang) + '</div>'
           + '<div class="small muted mb">' + esc(hint) + '</div>'
           + '<button class="mic-btn" id="mic" type="button">🎤</button>'
           + '<div class="tiny muted mt" id="micHint">Tap the mic and speak</div>'
@@ -860,7 +860,7 @@
     h += '<div class="card"><h3>All letters (26)</h3><div class="grid gauto">';
     A.letters.forEach(function (l) {
       h += '<div class="wcard" data-speak="' + esc(l.ch) + '" data-lang="en">'
-        + '<div class="row"><div style="font-size:26px;font-weight:700">' + esc(l.ch) + ' ' + esc(l.low) + '</div>'
+        + '<div class="row"><div style="font-size:calc(26px * var(--fs,1));font-weight:700">' + esc(l.ch) + ' ' + esc(l.low) + '</div>'
         + '<div class="spacer" style="flex:1"></div>'
         + '<span class="chip' + (l.type === 'vowel' ? ' accent' : (l.type === 'semi-vowel' ? ' amber' : '')) + '">'
         + (l.type === 'vowel' ? 'vowel' : (l.type === 'semi-vowel' ? 'semi' : 'consonant')) + '</span></div>'
@@ -873,39 +873,53 @@
 
   /* ============================================================= PHONICS */
   V.phonics = {
-    title: 'Sounds', sub: '44 English sounds · Hindi contrasts',
+    title: 'Sounds', sub: '44 English sounds · 52 Hindi · 61 Tamil — each with a word to hear it in',
     html: function (param) {
       var which = param || 'en';
       var P = TB.PHONICS[which];
       var h = '<div class="view"><div class="card"><div class="pill-row">'
         + '<a class="pill' + (which === 'en' ? ' on' : '') + '" href="#/phonics/en">English (44)</a>'
         + '<a class="pill' + (which === 'hi' ? ' on' : '') + '" href="#/phonics/hi">Hindi</a>'
-        + '<a class="pill' + (which === 'ta' ? ' on' : '') + '" href="#/phonics/ta">Tamil</a>'
+        + '<a class="pill' + (which === 'ta' ? ' on' : '') + '" href="#/phonics/ta">Tamil (247)</a>'
         + '</div></div>';
 
-      P.groups.forEach(function (g) {
-        h += '<div class="card"><h3>' + esc(g.name.ta) + '</h3><div class="card-sub">' + esc(g.name.en) + '</div>';
+      P.groups.forEach(function (g, gi) {
+        /* Forty-four sounds, or sixty-one, is a lesson in groups — not one
+           list. The first group is open; the rest are a line each. */
+        h += '<details class="card fold"' + (gi === 0 ? ' open' : '') + '>'
+          + '<summary class="fold-head"><div><h3>' + esc(g.name.ta) + '</h3>'
+          + '<div class="card-sub">' + esc(g.name.en) + '</div></div>'
+          + '<span class="chip">' + g.items.length + '</span></summary>';
         h += '<div class="grid gauto">';
         g.items.forEach(function (it) {
           var sp = it.ex || it.hi || it.ta;
           var spLang = which === 'en' ? 'en' : which;
           h += '<div class="wcard' + (it.hard ? '' : '') + '" data-speak="' + esc(sp) + '" data-lang="' + spLang + '">';
           if (it.ipa) {
-            h += '<div class="row"><span class="mono" style="font-size:18px;color:var(--teal)">' + esc(it.ipa) + '</span>'
+            h += '<div class="row"><span class="mono" style="font-size:calc(18px * var(--fs,1));color:var(--teal)">' + esc(it.ipa) + '</span>'
               + '<div class="spacer" style="flex:1"></div>'
               + (it.hard ? '<span class="chip red">not in Tamil</span>' : '') + '</div>'
-              + '<div style="font-size:17px;font-weight:650;margin-top:3px">' + esc(it.ex) + '</div>'
+              + '<div style="font-size:calc(17px * var(--fs,1));font-weight:650;margin-top:3px">' + esc(it.ex) + '</div>'
               + '<div class="small ta">' + esc(it.exTa) + '  ·  Tamil sound: ' + esc(it.ta) + '</div>';
           } else {
-            h += '<div class="row"><span class="' + which + '" style="font-size:24px;font-weight:700">' + esc(it.hi || it.ta) + '</span>'
+            h += '<div class="row"><span class="' + which + '" style="font-size:calc(24px * var(--fs,1));font-weight:700">' + esc(it.hi || it.ta) + '</span>'
               + '<div class="spacer" style="flex:1"></div>'
               + (it.hard ? '<span class="chip red">new sound</span>' : (it.asp ? '<span class="chip amber">aspirated</span>' : '')) + '</div>'
-              + '<div class="small">' + esc(it.hiR || it.taR || '') + (it.ta && it.hi ? ' · ' + esc(it.ta) : '') + '</div>';
+              + '<div class="small">' + esc(it.hiR || it.taR || '') + (it.ta && it.hi ? ' · ' + esc(it.ta) : '') + '</div>'
+              /* A sound on its own teaches nothing. A word you already know,
+                 with the sound in it, teaches it in one go. */
+              + (it.ex
+                 ? '<div class="ph-ex"><span class="' + which + '">' + esc(it.ex) + '</span>'
+                   + speak(it.ex, which)
+                   + (it.exR ? '<span class="ph-ex-r">' + esc(it.exR) + '</span>' : '')
+                   + (it.exEn ? '<span class="ph-ex-en">' + esc(it.exEn) + '</span>' : '')
+                   + '</div>'
+                 : '');
           }
           if (it.note) h += '<div class="tiny muted ta" style="margin-top:4px">' + esc(it.note) + '</div>';
           h += '</div>';
         });
-        h += '</div></div>';
+        h += '</div></details>';
       });
 
       if (P.rules && P.rules.length) {
@@ -963,8 +977,13 @@
         list.forEach(function (w) { (byTheme[w.th] = byTheme[w.th] || []).push(w); });
 
         var h = '';
-        Object.keys(byTheme).forEach(function (th) {
-          h += '<div class="card"><h3>' + esc(themeName(th)) + '</h3><div class="grid gauto">';
+        /* Three thousand words in one column meant scrolling past ten themes
+           to reach the eleventh. Shut, the page is the list of themes. */
+        Object.keys(byTheme).forEach(function (th, gi) {
+          h += '<details class="card fold"' + (gi === 0 ? ' open' : '') + '>'
+             + '<summary class="fold-head"><div><h3>' + esc(themeName(th)) + '</h3></div>'
+             + '<span class="chip">' + byTheme[th].length + '</span></summary>'
+             + '<div class="grid gauto">';
           byTheme[th].forEach(function (w) {
             /* English and Hindi lead; Tamil sits underneath as the reading aid */
             h += '<div class="wcard">'
@@ -977,7 +996,7 @@
               + (w.tip ? '<div class="tiny muted" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line-soft)">💡 ' + esc(w.tip) + '</div>' : '')
               + '</div>';
           });
-          h += '</div></div>';
+          h += '</div></details>';
         });
         el.innerHTML = h;
       }

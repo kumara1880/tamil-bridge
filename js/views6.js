@@ -24,7 +24,7 @@
         +       '<button class="pill" data-cl="en" type="button">English</button>'
         +     '</div>'
         +     '<input id="cVerb" type="text" placeholder="करना  /  to do"'
-        +       ' style="flex:1;min-width:170px;padding:11px 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg-soft);font-size:18px">'
+        +       ' style="flex:1;min-width:170px;padding:11px 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg-soft);font-size:calc(18px * var(--fs,1))">'
         +     '<button class="btn btn-primary" id="cGo" type="button">Show all forms</button>'
         +   '</div>'
         +   '<div class="row">'
@@ -64,7 +64,7 @@
         if (!c) return '<div class="card"><div class="msg msg-warn">Type a Hindi verb, for example करना.</div></div>';
 
         var h = '<div class="card">';
-        h += '<div class="row"><div><div style="font-size:30px;font-weight:700" class="hi">'
+        h += '<div class="row"><div><div style="font-size:calc(30px * var(--fs,1));font-weight:700" class="hi">'
            + esc(c.infinitive) + speak(c.infinitive, 'hi') + '</div>'
            + V.hiRead(c.infinitive) + '</div>'
            + '<div class="spacer" style="flex:1"></div>'
@@ -111,7 +111,7 @@
         var f = c.forms;
 
         var h = '<div class="card"><div class="row">'
-          + '<div style="font-size:30px;font-weight:700">' + esc(f.base) + speak(f.base, 'en') + '</div>'
+          + '<div style="font-size:calc(30px * var(--fs,1));font-weight:700">' + esc(f.base) + speak(f.base, 'en') + '</div>'
           + '<div class="spacer" style="flex:1"></div>'
           + (f.irregular ? '<span class="chip amber">irregular</span>' : '<span class="chip green">regular</span>')
           + '</div>'
@@ -167,7 +167,7 @@
             +   '<div style="flex:1"></div>'
             +   '<button class="btn btn-sm btn-ghost" id="qClose" type="button">✕</button></div>'
             + '<div class="tiny muted mt">' + esc(q.prompt) + '</div>'
-            + '<div style="font-size:22px;font-weight:700;margin:8px 0" class="' + (lang === 'hi' ? 'hi' : '') + '">'
+            + '<div style="font-size:calc(22px * var(--fs,1));font-weight:700;margin:8px 0" class="' + (lang === 'hi' ? 'hi' : '') + '">'
             +   esc(q.subject) + '</div>'
             + '<input id="qIn" class="spell-in ' + (lang === 'hi' ? 'hi' : '') + '" autocomplete="off" '
             +   'spellcheck="false" placeholder="type the form">'
@@ -195,7 +195,7 @@
             } else {
               host.querySelector('#qFeed').innerHTML =
                   '<div class="msg msg-warn">Not quite. The answer is:</div>'
-                + '<div style="font-size:20px;font-weight:650" class="' + (lang === 'hi' ? 'hi' : '') + '">'
+                + '<div style="font-size:calc(20px * var(--fs,1));font-weight:650" class="' + (lang === 'hi' ? 'hi' : '') + '">'
                 + esc(q.answer) + speak(q.answer, lang) + '</div>'
                 + (q.why ? '<div class="explain tip" style="text-align:left">' + esc(q.why) + '</div>' : '');
             }
@@ -206,7 +206,7 @@
           inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') check(); });
           host.querySelector('#qShow').addEventListener('click', function () {
             host.querySelector('#qFeed').innerHTML =
-              '<div class="msg msg-info" style="font-size:19px">' + esc(q.answer) + '</div>';
+              '<div class="msg msg-info" style="font-size:calc(19px * var(--fs,1))">' + esc(q.answer) + '</div>';
           });
           host.querySelector('#qNext').addEventListener('click', ask);
         }

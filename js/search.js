@@ -104,6 +104,11 @@ TB.Search = (function () {
     { t: 'Number chart', href: '#/chart', ic: '\u{1F4CA}',
       keys: 'number chart table names one hundred counting list 1 100 tens hundreds '
           + 'எண் அட்டவணை संख्या तालिका' },
+    { t: 'Counting on a slate', href: '#/count', ic: '\u{1F590}\uFE0F',
+      keys: 'tally tallies counting count marks strokes slate five fives gate '
+          + 'vertical line cross bundle score five-bar fingers \u0b95\u0ba3\u0bcd\u0ba3\u0bc1 '
+          + '\u0b8e\u0ba3\u0bcd\u0ba3\u0bc1\u0ba4\u0bb2\u0bcd \u0b95\u0bcd\u0bb0\u0bc7\u0bb5\u0bbe\u0bb2\u0bcd '
+          + '\u0917\u093f\u0928\u0924\u0940 \u092A\u093E\u0902\u0925\u0940' },
     { t: 'Abacus', href: '#/abacus', ic: '\u{1F9EE}',
       keys: 'abacus soroban beads counting frame rods place value mental maths '
           + 'மணிச்சட்டம் गणनपट्टिका' },

@@ -205,29 +205,132 @@ TB.PHONICS = {
     ]
   },
 
-  /* ================= TAMIL (anchor reference) ================= */
+  /* ================= TAMIL =================
+     Not a list of letters — they are already known — but the two things
+     about them that are hard to find written down: which sound a letter
+     takes depending on where it sits in the word, and how to tell apart the
+     three l's, the two r's and the three n's. */
   ta: {
-    label: { ta: 'Tamil letters (reference)', en: 'Tamil alphabet' },
+    label: { ta: '\u0ba4\u0bae\u0bbf\u0bb4\u0bcd \u0b92\u0bb2\u0bbf\u0b95\u0bb3\u0bcd (247)', en: 'Tamil sounds' },
     groups: [
       {
-        name: { ta: 'Vowels — uyir (12)', en: 'Vowels' },
+        name: { ta: '\u0b89\u0baf\u0bbf\u0bb0\u0bcd \u0b8e\u0bb4\u0bc1\u0ba4\u0bcd\u0ba4\u0bc1 (12)', en: 'Vowels \u2014 uyir, the living letters' },
         items: [
-          { ta: 'அ', taR: 'a' }, { ta: 'ஆ', taR: 'ā' }, { ta: 'இ', taR: 'i' }, { ta: 'ஈ', taR: 'ī' },
-          { ta: 'உ', taR: 'u' }, { ta: 'ஊ', taR: 'ū' }, { ta: 'எ', taR: 'e' }, { ta: 'ஏ', taR: 'ē' },
-          { ta: 'ஐ', taR: 'ai' }, { ta: 'ஒ', taR: 'o' }, { ta: 'ஓ', taR: 'ō' }, { ta: 'ஔ', taR: 'au' }
+          { ta: '\u0b85', taR: 'a',  ex: '\u0b85\u0bae\u0bcd\u0bae\u0bbe',      exR: 'amm\u0101',    exEn: 'mother',  note: 'Short. The mouth barely opens.' },
+          { ta: '\u0b86', taR: '\u0101',  ex: '\u0b86\u0b9f\u0bc1',        exR: '\u0101\u1e0du',      exEn: 'goat',    note: 'The same sound held twice as long. Length alone changes the word.' },
+          { ta: '\u0b87', taR: 'i',  ex: '\u0b87\u0bb2\u0bc8',        exR: 'ilai',     exEn: 'leaf',    note: 'Short and tight, like the i in English sit.' },
+          { ta: '\u0b88', taR: '\u012b',  ex: '\u0b88',            exR: '\u012b',        exEn: 'a fly',   note: 'Held long, like the ee in see. \u0b87 and \u0b88 are different words, never the same word said fast.' },
+          { ta: '\u0b89', taR: 'u',  ex: '\u0b89\u0b9f\u0bb2\u0bcd',      exR: 'u\u1e0dal',     exEn: 'body',    note: 'Lips rounded, short.' },
+          { ta: '\u0b8a', taR: '\u016b',  ex: '\u0b8a\u0bb0\u0bcd',        exR: '\u016br',       exEn: 'town',    note: 'The same, held long.' },
+          { ta: '\u0b8e', taR: 'e',  ex: '\u0b8e\u0bb2\u0bbf',        exR: 'eli',      exEn: 'rat',     note: 'Short, like the e in bed.' },
+          { ta: '\u0b8f', taR: '\u0113',  ex: '\u0b8f\u0ba3\u0bbf',        exR: '\u0113\u1e47i',     exEn: 'ladder',  note: 'Long. \u0b8e\u0bb2\u0bbf is a rat, \u0b8f\u0bb2\u0bcd is to rule \u2014 the length is the whole difference.' },
+          { ta: '\u0b90', taR: 'ai', ex: '\u0b90\u0ba8\u0bcd\u0ba4\u0bc1',      exR: 'aindu',    exEn: 'five',    note: 'A glide: \u0b85 sliding into \u0b87, in one beat.' },
+          { ta: '\u0b92', taR: 'o',  ex: '\u0b92\u0b9f\u0bcd\u0b9f\u0b95\u0bae\u0bcd',  exR: 'o\u1e6d\u1e6dagam', exEn: 'camel',  note: 'Short, lips rounded.' },
+          { ta: '\u0b93', taR: '\u014d',  ex: '\u0b93\u0b9f\u0bc1',        exR: '\u014d\u1e0du',      exEn: 'run',     note: 'The same, held long.' },
+          { ta: '\u0b94', taR: 'au', ex: '\u0b94\u0bb5\u0bc8',        exR: 'auvai',    exEn: 'Auvaiyar', note: 'A glide from \u0b85 to \u0b89. The rarest of the twelve \u2014 a handful of words use it.' }
         ]
       },
       {
-        name: { ta: 'Consonants — mei (18)', en: 'Consonants' },
+        name: { ta: '\u0bb5\u0bb2\u0bcd\u0bb2\u0bbf\u0ba9\u0bae\u0bcd (6)', en: 'Hard consonants \u2014 vallinam' },
         items: [
-          { ta: 'க்', taR: 'k' }, { ta: 'ங்', taR: 'ṅ' }, { ta: 'ச்', taR: 'c' }, { ta: 'ஞ்', taR: 'ñ' },
-          { ta: 'ட்', taR: 'ṭ' }, { ta: 'ண்', taR: 'ṇ' }, { ta: 'த்', taR: 't' }, { ta: 'ந்', taR: 'n' },
-          { ta: 'ப்', taR: 'p' }, { ta: 'ம்', taR: 'm' }, { ta: 'ய்', taR: 'y' }, { ta: 'ர்', taR: 'r' },
-          { ta: 'ல்', taR: 'l' }, { ta: 'வ்', taR: 'v' }, { ta: 'ழ்', taR: 'ḻ' }, { ta: 'ள்', taR: 'ḷ' },
-          { ta: 'ற்', taR: 'ṟ' }, { ta: 'ன்', taR: 'ṉ' }
+          { ta: '\u0b95\u0bcd', taR: 'k / g / h', ex: '\u0b95\u0bb2\u0bcd \u00b7 \u0bae\u0b95\u0ba9\u0bcd \u00b7 \u0b85\u0b95\u0bcd\u0b95\u0bbe', exR: 'kal \u00b7 magan \u00b7 akk\u0101', exEn: 'stone \u00b7 son \u00b7 elder sister',
+            note: 'One letter, three sounds, and which one you say is decided by where it sits: k starting a word, g between two vowels, k again when doubled. Nobody writes this down, and it is the single biggest reason Tamil read aloud from the page sounds wrong.', hard: true },
+          { ta: '\u0b9a\u0bcd', taR: 's / ch / j', ex: '\u0b9a\u0bb0\u0bbf \u00b7 \u0baa\u0b9a\u0bcd\u0b9a\u0bc8 \u00b7 \u0b95\u0b9a\u0b95\u0bc1', exR: 'sari \u00b7 pacchai \u00b7 kasagu', exEn: 'correct \u00b7 green \u00b7 rubbish',
+            note: 'Starts a word as s, doubles as ch, and softens to j between vowels in borrowed words.', hard: true },
+          { ta: '\u0b9f\u0bcd', taR: '\u1e6d / \u1e0d', ex: '\u0b95\u0b9f\u0bcd\u0b9f\u0bbf \u00b7 \u0baa\u0bbe\u0b9f\u0bae\u0bcd', exR: 'ka\u1e6d\u1e6di \u00b7 p\u0101\u1e0dam', exEn: 'brick \u00b7 lesson',
+            note: 'Curl the tongue back to the roof of the mouth. Hard when doubled, soft (d) between vowels.' },
+          { ta: '\u0ba4\u0bcd', taR: 'th / dh', ex: '\u0ba4\u0bae\u0bbf\u0bb4\u0bcd \u00b7 \u0baa\u0bbe\u0ba4\u0bae\u0bcd', exR: 'thami\u1e93 \u00b7 p\u0101dham', exEn: 'Tamil \u00b7 foot',
+            note: 'Tongue on the back of the top teeth, not on the ridge behind them. Softens to dh between vowels.' },
+          { ta: '\u0baa\u0bcd', taR: 'p / b', ex: '\u0baa\u0bb2\u0bcd \u00b7 \u0ba4\u0baa\u0bbe\u0bb2\u0bcd', exR: 'pal \u00b7 tab\u0101l', exEn: 'tooth \u00b7 post',
+            note: 'p starting a word, b between vowels. Tamil has no separate letter for b \u2014 it never needed one.' },
+          { ta: '\u0bb1\u0bcd', taR: '\u1e5f / \u1e6dr', ex: '\u0b8e\u0bb1\u0bc1\u0bae\u0bcd\u0baa\u0bc1 \u00b7 \u0b95\u0bb1\u0bcd\u0bb1\u0bc1', exR: 'e\u1e5fumbu \u00b7 ka\u1e6dru', exEn: 'ant \u00b7 learnt',
+            note: 'A hard, rolled r made further back than \u0bb0. Doubled it becomes a tr sound. Saying \u0bb1 where \u0bb0 belongs changes the word.', hard: true }
+        ]
+      },
+      {
+        name: { ta: '\u0bae\u0bc6\u0bb2\u0bcd\u0bb2\u0bbf\u0ba9\u0bae\u0bcd (6)', en: 'Nasal consonants \u2014 mellinam' },
+        items: [
+          { ta: '\u0b99\u0bcd', taR: '\u1e45', ex: '\u0b85\u0b99\u0bcd\u0b95\u0bc7', exR: 'a\u1e45g\u0113', exEn: 'there',
+            note: 'The ng of sing. It appears almost only in front of \u0b95\u0bcd.' },
+          { ta: '\u0b9e\u0bcd', taR: '\u00f1', ex: '\u0ba8\u0b9e\u0bcd\u0b9a\u0bc1', exR: 'na\u00f1ju', exEn: 'poison',
+            note: 'The ny of canyon. It appears almost only in front of \u0b9a\u0bcd.' },
+          { ta: '\u0ba3\u0bcd', taR: '\u1e47', ex: '\u0bae\u0ba3\u0bcd', exR: 'ma\u1e47', exEn: 'soil',
+            note: 'The curled-back n \u2014 tongue on the roof of the mouth, the same place as \u0b9f\u0bcd.' },
+          { ta: '\u0ba8\u0bcd', taR: 'n', ex: '\u0ba8\u0ba3\u0bcd\u0baa\u0ba9\u0bcd', exR: 'na\u1e47ban', exEn: 'friend',
+            note: 'The n that starts a word \u2014 tongue on the teeth, the same place as \u0ba4\u0bcd.' },
+          { ta: '\u0bae\u0bcd', taR: 'm', ex: '\u0bae\u0bb0\u0bae\u0bcd', exR: 'maram', exEn: 'tree', note: 'Lips closed. The same m as everywhere else.' },
+          { ta: '\u0ba9\u0bcd', taR: '\u1e49', ex: '\u0baa\u0ba9\u0bcd\u0ba9\u0bbf', exR: 'pa\u1e49\u1e49i', exEn: 'pig',
+            note: 'The n used inside and at the end of words \u2014 tongue on the ridge behind the teeth.' }
+        ]
+      },
+      {
+        name: { ta: '\u0b87\u0b9f\u0bc8\u0baf\u0bbf\u0ba9\u0bae\u0bcd (6)', en: 'Medium consonants \u2014 idaiyinam' },
+        items: [
+          { ta: '\u0baf\u0bcd', taR: 'y', ex: '\u0baf\u0bbe\u0ba9\u0bc8', exR: 'y\u0101\u1e49ai', exEn: 'elephant', note: 'The y of yes.' },
+          { ta: '\u0bb0\u0bcd', taR: 'r', ex: '\u0bae\u0bb0\u0bae\u0bcd', exR: 'maram', exEn: 'tree', note: 'A single light tap of the tongue \u2014 softer than \u0bb1\u0bcd, and never rolled.' },
+          { ta: '\u0bb2\u0bcd', taR: 'l', ex: '\u0baa\u0bb2\u0bcd', exR: 'pal', exEn: 'tooth', note: 'Tongue tip on the ridge behind the top teeth. The plain l.' },
+          { ta: '\u0bb5\u0bcd', taR: 'v', ex: '\u0bb5\u0bbe\u0ba9\u0bae\u0bcd', exR: 'v\u0101\u1e49am', exEn: 'sky', note: 'Lips and teeth, softer than the English v.' },
+          { ta: '\u0bb4\u0bcd', taR: '\u1e93', ex: '\u0ba4\u0bae\u0bbf\u0bb4\u0bcd', exR: 'thami\u1e93', exEn: 'Tamil',
+            note: 'The sound the language is named after, and it exists in almost no other language on earth. Curl the tongue back towards the roof of the mouth \u2014 but do not let it touch \u2014 and voice it. Not l, not r, not zh.', hard: true },
+          { ta: '\u0bb3\u0bcd', taR: '\u1e37', ex: '\u0bb5\u0bbe\u0bb3\u0bcd', exR: 'v\u0101\u1e37', exEn: 'sword',
+            note: 'The curled-back l: tongue on the roof of the mouth. \u0baa\u0bb2\u0bcd is a tooth, \u0baa\u0bb3\u0bcd is a hollow \u2014 the same word but for where the tongue sits.', hard: true }
+        ]
+      },
+      {
+        name: { ta: '\u0b86\u0baf\u0bcd\u0ba4 \u0b8e\u0bb4\u0bc1\u0ba4\u0bcd\u0ba4\u0bc1 (1)', en: 'Aytham \u2014 the third kind' },
+        items: [
+          { ta: '\u0b83', taR: 'k / \u1e25', ex: '\u0b8e\u0b83\u0b95\u0bc1', exR: 'ehku', exEn: 'steel',
+            note: 'Belongs to neither the vowels nor the consonants \u2014 Tamil counts it on its own. Rare in old words, but it is what carries borrowed sounds today: \u0b83\u0baa = f, \u0b83\u0b9c = z.' }
+        ]
+      },
+      {
+        name: { ta: '\u0b95\u0bbf\u0bb0\u0ba8\u0bcd\u0ba4 \u0b8e\u0bb4\u0bc1\u0ba4\u0bcd\u0ba4\u0bc1\u0b95\u0bb3\u0bcd (6)', en: 'Grantha \u2014 the borrowed letters' },
+        items: [
+          { ta: '\u0b9c', taR: 'ja', ex: '\u0b9c\u0ba9\u0bcd\u0ba9\u0bb2\u0bcd', exR: 'jannal', exEn: 'window', note: 'Borrowed for Sanskrit, Hindi and English words. Not one of the eighteen.' },
+          { ta: '\u0bb7', taR: '\u1e63a', ex: '\u0b95\u0bb7\u0bcd\u0b9f\u0bae\u0bcd', exR: 'ka\u1e63\u1e6dam', exEn: 'trouble', note: 'The curled-back sh. Hindi \u0937.' },
+          { ta: '\u0bb8', taR: 'sa', ex: '\u0bb8\u0bc2\u0bb0\u0bbf\u0baf\u0ba9\u0bcd', exR: 's\u016briyan', exEn: 'sun', note: 'The plain s. Hindi \u0938.' },
+          { ta: '\u0bb9', taR: 'ha', ex: '\u0bb9\u0bbf\u0ba8\u0bcd\u0ba4\u0bbf', exR: 'hindi', exEn: 'Hindi', note: 'The h of hat. Hindi \u0939.' },
+          { ta: '\u0b95\u0bcd\u0bb7', taR: 'k\u1e63a', ex: '\u0bb0\u0b9f\u0bcd\u0b9a\u0bbf\u0ba4\u0bae\u0bcd', exR: 'ra\u1e63itham', exEn: 'protected', note: 'Two letters written as one, as in Hindi \u0915\u094d\u0937.' },
+          { ta: '\u0bb6\u0bcd\u0bb0\u0bc0', taR: '\u015br\u012b', ex: '\u0bb6\u0bcd\u0bb0\u0bc0', exR: '\u015br\u012b', exEn: 'Shri', note: 'Used almost only in names and titles.' }
+        ]
+      },
+      {
+        name: { ta: '\u0b89\u0baf\u0bbf\u0bb0\u0bcd\u0bae\u0bc6\u0baf\u0bcd \u2014 \u0b95 \u0bb5\u0bb0\u0bbf\u0b9a\u0bc8', en: 'A consonant through all twelve vowels' },
+        items: [
+          { ta: '\u0b95',   taR: 'ka',  note: '\u0b95\u0bcd + \u0b85' },
+          { ta: '\u0b95\u0bbe', taR: 'k\u0101',  note: '\u0b95\u0bcd + \u0b86' },
+          { ta: '\u0b95\u0bbf', taR: 'ki',  note: '\u0b95\u0bcd + \u0b87' },
+          { ta: '\u0b95\u0bc0', taR: 'k\u012b',  note: '\u0b95\u0bcd + \u0b88' },
+          { ta: '\u0b95\u0bc1', taR: 'ku',  note: '\u0b95\u0bcd + \u0b89' },
+          { ta: '\u0b95\u0bc2', taR: 'k\u016b',  note: '\u0b95\u0bcd + \u0b8a' },
+          { ta: '\u0b95\u0bc6', taR: 'ke',  note: '\u0b95\u0bcd + \u0b8e' },
+          { ta: '\u0b95\u0bc7', taR: 'k\u0113',  note: '\u0b95\u0bcd + \u0b8f' },
+          { ta: '\u0b95\u0bc8', taR: 'kai', note: '\u0b95\u0bcd + \u0b90' },
+          { ta: '\u0b95\u0bca', taR: 'ko',  note: '\u0b95\u0bcd + \u0b92' },
+          { ta: '\u0b95\u0bcb', taR: 'k\u014d',  note: '\u0b95\u0bcd + \u0b93' },
+          { ta: '\u0b95\u0bcc', taR: 'kau', note: '\u0b95\u0bcd + \u0b94' }
         ]
       }
     ],
-    rules: []
+    rules: [
+      { rule: '18 \u00d7 12 + 12 + 1 = 247',
+        ta: 'Eighteen consonants through twelve vowels, plus the twelve vowels alone, plus aytham. That is every letter in Tamil, and there are no exceptions to learn.',
+        ex: ['\u0b95\u0bcd + \u0b85 = \u0b95', '\u0b95\u0bcd + \u0b86 = \u0b95\u0bbe', '\u0ba8\u0bcd + \u0b87 = \u0ba8\u0bbf'] },
+      { rule: 'One letter, more than one sound',
+        ta: 'Where a hard consonant sits decides how it is said. Starting a word it is hard; between two vowels it softens; doubled it is hard again. This is why a word read letter by letter sounds wrong.',
+        ex: ['\u0b95\u0bb2\u0bcd = kal', '\u0bae\u0b95\u0ba9\u0bcd = magan', '\u0b85\u0b95\u0bcd\u0b95\u0bbe = akk\u0101', '\u0baa\u0bb2\u0bcd = pal', '\u0ba4\u0baa\u0bbe\u0bb2\u0bcd = tab\u0101l'] },
+      { rule: 'The three l\u2019s \u2014 \u0bb2 \u0bb3 \u0bb4',
+        ta: '\u0bb2 tongue behind the teeth. \u0bb3 tongue curled back, touching. \u0bb4 tongue curled back, not touching. Three different words, not three spellings of one.',
+        ex: ['\u0baa\u0bb2\u0bcd = tooth', '\u0baa\u0bb3\u0bcd = hollow', '\u0baa\u0bb4\u0bcd = fruit'] },
+      { rule: 'The two r\u2019s \u2014 \u0bb0 \u0bb1',
+        ta: '\u0bb0 is one light tap. \u0bb1 is hard and rolled, made further back.',
+        ex: ['\u0b85\u0bb0\u0bae\u0bcd = virtue', '\u0b85\u0bb1\u0bae\u0bcd = duty'] },
+      { rule: 'The three n\u2019s \u2014 \u0ba8 \u0ba9 \u0ba3',
+        ta: '\u0ba8 starts words, on the teeth. \u0ba9 sits inside and at the end, on the ridge. \u0ba3 is curled back. They sound almost alike and the spelling still has to be right.',
+        ex: ['\u0ba8\u0bb2\u0bcd = good', '\u0baa\u0ba9\u0bcd\u0ba9\u0bbf = pig', '\u0bae\u0ba3\u0bcd = soil'] },
+      { rule: 'Length is meaning',
+        ta: 'A vowel held longer is a different word, not the same word said slowly. This is the mistake that changes what you said.',
+        ex: ['\u0b85\u0b9f\u0bbf = hit \u00b7 \u0b86\u0b9f\u0bbf = sheep', '\u0b95\u0b9f\u0bbf = bite \u00b7 \u0b95\u0bbe\u0b9f\u0bbf = show'] }
+    ]
   }
 };

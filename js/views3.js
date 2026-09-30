@@ -66,7 +66,7 @@
         var ic = root.querySelector('#' + id + 'Ink');
         var w = wrap.clientWidth || 640;
         var h = wrap.clientHeight || 200;
-        var dpr = Math.min(2, window.devicePixelRatio || 1);
+        var dpr = Math.min(3, window.devicePixelRatio || 1);
 
         /* keep whatever has been drawn, so a repaint does not rub it out */
         var saved = null;
@@ -97,7 +97,7 @@
         c.__wired = true;
         var ctx = c.getContext('2d');
         var drawing = false;
-        var dpr = Math.min(2, window.devicePixelRatio || 1);
+        var dpr = Math.min(3, window.devicePixelRatio || 1);
 
         function style() {
           ctx.lineWidth = 5;
@@ -243,7 +243,7 @@
           paint('o', show, ownScript, false);
           var box = root.querySelector('#oRead');
           box.innerHTML = show
-            ? '<div class="' + ownScript + '" style="font-size:22px;font-weight:650">' + esc(show)
+            ? '<div class="' + ownScript + '" style="font-size:calc(22px * var(--fs,1));font-weight:650">' + esc(show)
               + speak(show, ownScript) + '</div>' + V.readAid(show, ownScript)
             : '<div class="tiny muted">Type above and it appears on the sheet, faintly, to copy.</div>';
         }
@@ -279,7 +279,7 @@
               + rs.map(function (r) {
                   if (!r.text) return '';
                   return '<div class="mword"><div class="tiny muted">' + esc(TB.Translate.langName(r.lang)) + '</div>'
-                    + '<div class="' + r.lang + '" style="font-size:20px;font-weight:650">' + esc(r.text)
+                    + '<div class="' + r.lang + '" style="font-size:calc(20px * var(--fs,1));font-weight:650">' + esc(r.text)
                     + speak(r.text, r.lang) + '</div>' + V.readAid(r.text, r.lang)
                     + '<button class="btn btn-sm mt" data-use="' + esc(r.text) + '" data-lang="' + r.lang
                     + '" type="button">Practise writing this</button></div>';
@@ -312,7 +312,7 @@
         if (!pool.length) { pool = spellPool(); sIdx = 0; }
         if (sIdx >= pool.length) {
           root.querySelector('#wArea').innerHTML =
-            '<div class="card center"><div style="font-size:34px">🎉</div>'
+            '<div class="card center"><div style="font-size:calc(34px * var(--fs,1))">🎉</div>'
             + '<h3>All done!</h3><button class="btn btn-primary mt" id="again" type="button">Again</button></div>';
           root.querySelector('#again').addEventListener('click', function () {
             pool = spellPool(); sIdx = 0; drawSpell();
@@ -372,7 +372,7 @@
               marks += '<span class="' + (g === target[i] ? 'w-ok' : 'w-bad') + '">' + esc(g) + '</span>';
             }
             feed.innerHTML = '<div class="msg msg-warn">Not yet — look at the letters</div>'
-              + '<div style="font-size:24px;letter-spacing:3px">' + marks + '</div>'
+              + '<div style="font-size:calc(24px * var(--fs,1));letter-spacing:3px">' + marks + '</div>'
               + (tries >= 2 ? '<div class="tiny muted mt">Hint: it starts with <b>' + esc(target.slice(0, 2)) + '</b>…</div>' : '');
           }
         }
@@ -381,7 +381,7 @@
         input.addEventListener('keydown', function (e) { if (e.key === 'Enter') check(); });
         root.querySelector('#sShow').addEventListener('click', function () {
           root.querySelector('#sFeed').innerHTML =
-            '<div class="msg msg-info" style="font-size:20px">' + esc(target) + '</div>';
+            '<div class="msg msg-info" style="font-size:calc(20px * var(--fs,1))">' + esc(target) + '</div>';
           input.value = target;
         });
         root.querySelector('#sSkip').addEventListener('click', function () { sIdx++; drawSpell(); });

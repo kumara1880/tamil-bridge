@@ -2168,6 +2168,236 @@ section('DICTIONARY (offline)');
   t('forgetting resets and is due now', card.interval === 0 && TB.SRS.isDue(card));
   t('queue respects the limit', TB.SRS.queue({}, TB.VOCAB, 20).length === 20);
 
+
+  /* ---------------- long pages, folded shut ---------------- */
+  section('FOLDING');
+  (function () {
+    var css = fs.readFileSync(R + 'assets/styles.css', 'utf8');
+    var v8  = fs.readFileSync(R + 'js/views8.js', 'utf8');
+    var v9  = fs.readFileSync(R + 'js/views9.js', 'utf8');
+
+    /* Sixteen rules, seventeen topics and nineteen conversations, all open
+       at once, was a wall to scroll past rather than a page to use. */
+    t('grammar rules are folded shut', /<details class="card gram fold"/.test(v8));
+    t('conversations too', /<details class="card fold"/.test(v8));
+    t('and the modern topics', /<details class="card mod fold"/.test(v9));
+
+    /* A half-converted card is worse than none: an opening <div> with a
+       closing </details> is a card the browser silently swallows. */
+    [['js/views8.js', v8], ['js/views9.js', v9]].forEach(function (f) {
+      var opens  = (f[1].match(/<details /g)  || []).length;
+      var closes = (f[1].match(/<\/details>/g) || []).length;
+      var heads  = (f[1].match(/<summary class="fold-head"/g) || []).length;
+      t(f[0] + ': every fold is opened, headed and closed',
+        opens === closes && opens === heads, opens + '/' + heads + '/' + closes);
+    });
+
+    /* And the three longest pages of all. */
+    var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
+    var v5 = fs.readFileSync(R + 'js/views5.js', 'utf8');
+    t('vocabulary is a list of themes, not three thousand words',
+      /Object\.keys\(byTheme\)\.forEach\(function \(th, gi\)/.test(v2)
+      && /<details class="card fold"' \+ \(gi === 0/.test(v2));
+    t('the sound groups fold', /P\.groups\.forEach\(function \(g, gi\)/.test(v2));
+    t('and so does the phrasebook', /shown\+\+ === 0/.test(v5));
+    /* Something has to stay open, or the page looks broken. */
+    t('the first group of each is open', (v2.match(/gi === 0 \? ' open'/g) || []).length === 2);
+    /* And you should know how much is inside before you open it. */
+    t('a folded group says how many are inside',
+      /<span class="chip">' \+ byTheme\[th\]\.length/.test(v2)
+      && /<span class="chip">' \+ g\.items\.length/.test(v2)
+      && /<span class="chip">' \+ items\.length/.test(v5));
+    [['js/views2.js', v2], ['js/views5.js', v5]].forEach(function (f) {
+      var opens  = (f[1].match(/<details /g)  || []).length;
+      var closes = (f[1].match(/<\/details>/g) || []).length;
+      var heads  = (f[1].match(/<summary class="fold-head"/g) || []).length;
+      t(f[0] + ': every fold is opened, headed and closed',
+        opens === closes && opens === heads, opens + '/' + heads + '/' + closes);
+    });
+
+    t('the fold has styles to go with it', /\.fold-head \{/.test(css));
+    t('and an arrow that turns when it opens',
+      /\.fold\[open\] > \.fold-head::after/.test(css));
+    /* Built on <details>, so the browser gives us the keyboard, find-in-page
+       and screen readers without any of it being written here. */
+    t('nothing scripts the opening and closing',
+      !/classList\.toggle\('open'\)/.test(v8) && !/classList\.toggle\('open'\)/.test(v9));
+    /* A link straight to one topic has to open it, not just scroll to it. */
+    t('a linked topic opens itself', /el\.open = true/.test(v9));
+  })();
+
+  /* ---------------- counting on a slate ---------------- */
+  section('COUNTING');
+  (function () {
+    /* Loaded on its own against a stub, so this tests the drawing and not
+       the rest of the app. */
+    var box = { TB: { Numbers: TB.Numbers, Views: {
+      esc: function (x) { return String(x); }, speakBtn: function () { return ''; },
+      readAid: function () { return ''; }, D: function () { return { stats: {} }; },
+      saveD: function () {} } } };
+    box.window = box;
+    vm.runInContext(fs.readFileSync(R + 'js/views12.js', 'utf8'),
+      vm.createContext(box), { filename: 'js/views12.js' });
+    var tally = box.TB.Views.tallyMarks;
+    t('the tally marks are there to draw', typeof tally === 'function');
+    if (typeof tally !== 'function') return;
+
+    function lines(n) { return (tally(n).match(/<line /g) || []).length; }
+    function groups(n) { return (tally(n).match(/<svg /g) || []).length; }
+
+    t('nothing counted draws nothing', /tally-empty/.test(tally(0)) && lines(0) === 0);
+    t('four is four strokes and no group', lines(4) === 4 && !/fifth/.test(tally(4)));
+    /* The whole point of the fifth stroke: it goes across the other four,
+       so five is seen rather than counted. */
+    t('five is four strokes and one across',
+      lines(5) === 5 && (tally(5).match(/class="fifth"/g) || []).length === 1);
+    t('and it is still one group', groups(5) === 1);
+    t('six starts a second group', groups(6) === 2 && lines(6) === 6);
+    t('twelve is two fives and two', groups(12) === 3 && lines(12) === 12
+      && (tally(12).match(/class="fifth"/g) || []).length === 2);
+    /* Every count from one to sixty draws exactly that many strokes. */
+    var bad = [];
+    for (var n = 1; n <= 60; n++) {
+      if (lines(n) !== n || groups(n) !== Math.ceil(n / 5)) bad.push(n);
+    }
+    t('every count up to sixty draws exactly that many strokes',
+      bad.length === 0, bad.slice(0, 5).join(','));
+
+    var html = fs.readFileSync(R + 'index.html', 'utf8');
+    var app  = fs.readFileSync(R + 'js/app.js', 'utf8');
+    var css  = fs.readFileSync(R + 'assets/styles.css', 'utf8');
+    t('the page loads it', /js\/views12\.js/.test(html));
+    t('the router reaches it', /count: 'count'/.test(app));
+    t('the drawer has a way in', /href="#\/count"/.test(html));
+    t('and it looks like a slate', /\.tally \{/.test(css) && /\.tally-group line/.test(css));
+  })();
+
+  /* ---------------- how big the text is ---------------- */
+  section('TEXT SIZE');
+  (function () {
+    var css = fs.readFileSync(R + 'assets/styles.css', 'utf8');
+    var app = fs.readFileSync(R + 'js/app.js', 'utf8');
+
+    /* There were three text sizes and a button to change them, and the
+       button moved the root font size \u2014 which nothing here is measured in.
+       An elder pressed it and the page did not move a hair. */
+    var plain = (css.match(/font-size: *[0-9.]+px(?! *\*)/g) || [])
+      .filter(function (x) { return !/var\(--fs/.test(x); });
+    t('no size in the stylesheet is left behind', plain.length === 0,
+      plain.slice(0, 4).join(' | '));
+    t('every size is multiplied by one number', /var\(--fs, 1\)/.test(css));
+    t('which is declared', /:root \{ --fs: 1; \}/.test(css));
+    t('and has a bigger value to take', /data-size="largest"\]\s*\{ --fs: 1\.34; \}/.test(css));
+    t('the button sets it', /setProperty\('--fs', fs\)/.test(app));
+    t('and says which size you are on', /b\.title = 'Text size: '/.test(app));
+
+    /* The sizes written inline in the views have to follow, or half the
+       page grows and half of it does not. */
+    var left = [];
+    ['js/views.js', 'js/views2.js', 'js/views3.js', 'js/views4.js', 'js/views5.js',
+     'js/views6.js', 'js/views7.js', 'js/views8.js', 'js/views9.js', 'js/views10.js',
+     'js/views11.js', 'js/views12.js'].forEach(function (f) {
+      var s = fs.readFileSync(R + f, 'utf8');
+      (s.match(/font-size: *[0-9.]+px/g) || []).forEach(function (m) { left.push(f + ' ' + m); });
+    });
+    t('nor do the sizes written into the views', left.length === 0, left.slice(0, 4).join(' | '));
+  })();
+
+  /* ---------------- depth ---------------- */
+  section('DEPTH');
+  (function () {
+    var css = fs.readFileSync(R + 'assets/styles.css', 'utf8');
+    var dep = fs.readFileSync(R + 'js/depth.js', 'utf8');
+    var html = fs.readFileSync(R + 'index.html', 'utf8');
+    var app = fs.readFileSync(R + 'js/app.js', 'utf8');
+
+    t('the page loads it', /js\/depth\.js/.test(html));
+    t('a drawn view is told to arrive', /TB\.Depth\.reveal\(root\)/.test(app));
+
+    /* The rule that hides a card before it is scrolled to must be locked
+       behind a class the script itself puts on. If the script never runs,
+       the class never appears, and nothing is ever hidden. */
+    var hides = (css.match(/[^\n]*\.rv \{[^}]*opacity: 0[^}]*\}/g) || []);
+    t('nothing is hidden unless the script that shows it is running',
+      hides.length > 0 && hides.every(function (r) { return /html\.depth /.test(r); }),
+      hides.join(' | ').slice(0, 120));
+    t('and there is a last resort that shows everything anyway',
+      /setTimeout\(showAll/.test(dep));
+
+    /* A person who asked for less movement gets none of it, and a finger
+       is not a pointer. */
+    t('less movement means none of this',
+      /prefers-reduced-motion: reduce/.test(dep) && /if \(!still\)/.test(dep));
+    t('a touch screen gets no tilt',
+      /\(hover: hover\) and \(pointer: fine\)/.test(dep));
+    t('one listener for the whole page, not one per card',
+      /document\.addEventListener\('pointermove'/.test(dep)
+      && !/forEach[\s\S]{0,80}addEventListener\('pointermove'/.test(dep));
+    t('and it writes once a frame', /requestAnimationFrame\(apply\)/.test(dep));
+
+    /* The depth scale is the whole vocabulary; nothing invents its own. */
+    ['--sh-1', '--sh-2', '--sh-3', '--sh-4', '--rim'].forEach(function (k) {
+      t('the depth scale has ' + k, css.indexOf(k + ':') > 0);
+    });
+    t('the dark theme redraws it, because a shadow cannot be seen in the dark',
+      /data-theme="dark"\]\s*\{[\s\S]{0,700}--rim:/.test(css));
+    /* Gradient text that a browser cannot paint is text nobody can read. */
+    t('the gradient title is guarded',
+      /@supports \(\(-webkit-background-clip: text\)/.test(css));
+  })();
+
+  /* ---------------- the logo ---------------- */
+  section('THE LOGO');
+  (function () {
+    var html = fs.readFileSync(R + 'index.html', 'utf8');
+    var app  = fs.readFileSync(R + 'js/app.js', 'utf8');
+    t('the logo is a link, not a picture', /<a class="brand" href="#\/home"/.test(html));
+    /* A hash that has not changed raises no event, so pressing the logo on
+       the home page would otherwise do nothing at all. */
+    t('and pressing it at home draws the page fresh',
+      /location\.hash === '#\/home'[\s\S]{0,40}render\(\)/.test(app));
+  })();
+
+  /* ---------------- Tamil sounds ---------------- */
+  section('TAMIL SOUNDS');
+  (function () {
+    var P = TB.PHONICS.ta;
+    var items = [];
+    P.groups.forEach(function (g) { g.items.forEach(function (i) { items.push(i); }); });
+
+    /* It used to be thirty bare letters and a romanisation, which is a
+       table, not a lesson \u2014 in the one language every person here already
+       speaks. */
+    t('Tamil has as much to say as English and Hindi', items.length >= 49, items.length);
+    t('all twelve vowels, all eighteen consonants, aytham and the borrowed six',
+      P.groups.length >= 7, P.groups.length);
+    var noNote = items.filter(function (i) { return !i.note; });
+    t('every sound says something about itself', noNote.length === 0, noNote.length);
+
+    /* A sound on its own teaches nothing. The letters get a word you
+       already know with the sound in it; the uyirmei table does not,
+       because it is showing how two letters join, not how one sounds. */
+    var letters = items.filter(function (i) { return i.taR && i.taR.length <= 9 && i.ex; });
+    t('and most carry a word you can press and hear', letters.length >= 35, letters.length);
+
+    /* The three that are genuinely hard, and the reason the app exists. */
+    function find(ch) {
+      return items.filter(function (i) { return i.ta === ch; })[0];
+    }
+    t('\u0bb4 is marked as the hard one', find('\u0bb4\u0bcd') && find('\u0bb4\u0bcd').hard);
+    t('so is \u0bb3', find('\u0bb3\u0bcd') && find('\u0bb3\u0bcd').hard);
+    t('and \u0bb1, which is not \u0bb0', find('\u0bb1\u0bcd') && find('\u0bb1\u0bcd').hard);
+    /* The thing that is hard to find written down anywhere. */
+    t('and the letter that changes sound by where it sits is called out',
+      /magan/.test(JSON.stringify(P)) && /akk/.test(JSON.stringify(P)));
+    t('the spelling rules are there too', P.rules.length >= 5, P.rules.length);
+    t('including the three l\u2019s', /\u0bb2 \u0bb3 \u0bb4/.test(JSON.stringify(P)));
+
+    /* And the view has to actually show the example, or none of it lands. */
+    var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
+    t('the page shows the word, not just the symbol', /class="ph-ex"/.test(v2));
+  })();
+
   /* ---------------- accounts ---------------- */
   section('ACCOUNTS');
   try {

@@ -63,13 +63,15 @@
       function card(t) {
         var g = TB.MODERN_GROUPS.filter(function (x) { return x.id === t.group; })[0];
         var b = TB.MODERN_BANDS.filter(function (x) { return x.id === t.band; })[0];
-        return '<div class="card mod" id="m-' + esc(t.id) + '">'
-          + '<div class="card-head"><div>'
+        /* Seventeen topics open at once is a wall to scroll past. Shut, the
+           page is a list of what there is, and you open the one you want. */
+        return '<details class="card mod fold" id="m-' + esc(t.id) + '">'
+          + '<summary class="fold-head"><div>'
           +   '<h3>' + t.icon + ' ' + esc(t.title.en) + '</h3>'
           +   '<div class="card-sub ta">' + esc(t.title.ta)
           +   ' · <span class="hi">' + esc(t.title.hi) + '</span></div>'
           + '</div><div class="spacer"></div>'
-          + '<span class="chip">' + esc(b ? b.en : '') + '</span></div>'
+          + '<span class="chip">' + esc(b ? b.en : '') + '</span></summary>'
 
           + trio(t.what)
           + trio(t.why, 'Why it matters')
@@ -90,7 +92,7 @@
 
           + '<div class="mod-try">' + trio(t.todo, '✨ Try this today') + '</div>'
           + '<div class="mod-careful">' + trio(t.careful, '⚠️ Be careful') + '</div>'
-          + '</div>';
+          + '</details>';
       }
 
       function draw() {
@@ -111,9 +113,10 @@
         var d = D(); d.stats.xp = (d.stats.xp || 0) + 1; saveD(d);
         TB.App.refreshChips();
 
+        /* A link straight to one topic opens it as well as finds it. */
         if (param) {
           var el = body.querySelector('#m-' + param);
-          if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          if (el) { el.open = true; el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
         }
       }
 

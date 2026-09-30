@@ -19,7 +19,7 @@
         +   '<div class="row">'
         +     '<input id="numIn" type="text" inputmode="numeric" placeholder="1000"'
         +       ' style="flex:1;min-width:170px;padding:14px 16px;border-radius:10px;border:1px solid var(--line);'
-        +       'background:var(--bg-soft);font-size:28px;font-weight:650;letter-spacing:1px">'
+        +       'background:var(--bg-soft);font-size:calc(28px * var(--fs,1));font-weight:650;letter-spacing:1px">'
         +     '<button class="btn btn-primary" id="numGo" type="button">Convert</button>'
         +   '</div>'
         +   '<div class="pill-row mt">'
@@ -56,7 +56,7 @@
         if (!value) return '';
         return '<div style="padding:11px 0;border-top:1px solid var(--line-soft)">'
           + '<div class="tiny muted">' + label + (note ? ' · ' + note : '') + '</div>'
-          + '<div class="' + (lang || '') + '" style="font-size:20px;font-weight:600;line-height:1.5">'
+          + '<div class="' + (lang || '') + '" style="font-size:calc(20px * var(--fs,1));font-weight:600;line-height:1.5">'
           + esc(value) + speak(value, lang || 'en') + '</div>'
           + V.readAid(value, lang) + '</div>';
       }
@@ -72,7 +72,7 @@
 
         lastWords = d.enIndian;
         var h = '<div class="card">';
-        h += '<div class="row"><div style="font-size:34px;font-weight:700;letter-spacing:1px">'
+        h += '<div class="row"><div style="font-size:calc(34px * var(--fs,1));font-weight:700;letter-spacing:1px">'
            + esc(d.digitsIndian) + '</div>'
            + '<div class="spacer" style="flex:1"></div>'
            + '<span class="chip">' + esc(d.digits) + ' international</span>'
@@ -124,7 +124,7 @@
         box.innerHTML = '<span class="spin"></span>';
         TB.Translate.translate(lastWords, 'en', target).then(function (r) {
           box.innerHTML = '<div class="tiny muted">' + esc(TB.Translate.langName(target)) + '</div>'
-            + '<div style="font-size:20px;font-weight:600">' + esc(r.text) + speak(r.text, target) + '</div>';
+            + '<div style="font-size:calc(20px * var(--fs,1));font-weight:600">' + esc(r.text) + speak(r.text, target) + '</div>';
         }).catch(function (e) {
           box.innerHTML = '<span style="color:var(--red)">' + esc(e.message) + '</span>';
         });

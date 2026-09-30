@@ -19,7 +19,7 @@
         + '<div class="card">'
         +   '<div class="msetup">'
         +     '<input id="xA" class="mnum" inputmode="numeric" placeholder="23">'
-        +     '<span style="font-size:26px">×</span>'
+        +     '<span style="font-size:calc(26px * var(--fs,1))">×</span>'
         +     '<input id="xB" class="mnum" inputmode="numeric" placeholder="41">'
         +     '<button class="btn btn-primary" id="xGo" type="button">=</button>'
         +   '</div>'

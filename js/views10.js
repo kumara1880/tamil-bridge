@@ -113,7 +113,7 @@
         body.innerHTML = '<div class="card">'
           + '<div class="row" style="flex-wrap:wrap">'
           +   '<input id="abA" class="mnum" style="max-width:130px" inputmode="numeric" placeholder="25">'
-          +   '<span style="font-size:24px">+</span>'
+          +   '<span style="font-size:calc(24px * var(--fs,1))">+</span>'
           +   '<input id="abB" class="mnum" style="max-width:130px" inputmode="numeric" placeholder="17">'
           +   '<button class="btn btn-primary" id="abAddGo" type="button">Show me</button>'
           + '</div>'

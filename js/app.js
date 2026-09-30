@@ -44,7 +44,7 @@ TB.App = (function () {
     var quick = TB.Dict.quick(clean, lang);
 
     host.innerHTML = '<div class="modal-bg"><div class="modal">'
-      + '<div class="row"><h3 style="margin:0;font-size:22px">' + TB.Views.esc(clean) + '</h3>'
+      + '<div class="row"><h3 style="margin:0;font-size:calc(22px * var(--fs,1))">' + TB.Views.esc(clean) + '</h3>'
       + TB.Views.speak(clean, lang)
       + '<div style="flex:1"></div><button class="btn btn-sm btn-ghost" id="wClose" type="button">✕</button></div>'
       + '<div id="wBody" class="mt">'
@@ -59,7 +59,7 @@ TB.App = (function () {
 
     function box(l, v, lg) {
       if (!v) return '<div><div class="tiny muted">' + l + '</div><div class="muted">—</div></div>';
-      return '<div><div class="tiny muted">' + l + '</div><div class="' + lg + '" style="font-size:18px;font-weight:650">'
+      return '<div><div class="tiny muted">' + l + '</div><div class="' + lg + '" style="font-size:calc(18px * var(--fs,1));font-weight:650">'
         + TB.Views.esc(v) + TB.Views.speak(v, lg) + '</div>'
         + (lg === 'hi' ? TB.Views.hiRead(v) : '') + '</div>';
     }
@@ -107,12 +107,21 @@ TB.App = (function () {
   /* Three text sizes. Elders learning an unfamiliar script need bigger type,
      and the layout is sized in rem, so one root variable scales everything. */
   var SIZES = ['normal', 'large', 'largest'];
+  var SIZE_NAME = { normal: 'Normal', large: 'Large', largest: 'Largest' };
   function applyTextSize(size) {
-    var px = { normal: 15, large: 17.5, largest: 20 }[size] || 15;
-    document.documentElement.style.fontSize = px + 'px';
+    /* The stylesheet multiplies every size it knows by --fs, so this one
+       number moves the whole page. The root font size goes with it for the
+       few things measured in rem. */
+    var fs = { normal: 1, large: 1.16, largest: 1.34 }[size] || 1;
+    document.documentElement.style.setProperty('--fs', fs);
+    document.documentElement.style.fontSize = (16 * fs).toFixed(2) + 'px';
     document.documentElement.setAttribute('data-size', size);
     var b = document.getElementById('textBtn');
-    if (b) b.textContent = { normal: 'A+', large: 'A++', largest: 'A·' }[size] || 'A+';
+    if (!b) return;
+    b.textContent = { normal: 'A', large: 'A+', largest: 'A++' }[size] || 'A';
+    var next = SIZES[(SIZES.indexOf(size) + 1) % SIZES.length];
+    b.title = 'Text size: ' + SIZE_NAME[size] + ' \u2014 press for ' + SIZE_NAME[next];
+    b.setAttribute('aria-label', b.title);
   }
 
   function applyTheme(t) {
@@ -126,7 +135,7 @@ TB.App = (function () {
   /* -------------------------------------------------------------- router */
   var ROUTES = {
     home: 'home', learn: 'learn', phrases: 'phrases', practice: 'practice', translate: 'translate',
-    meaning: 'meaning', numbers: 'numbers', maths: 'maths', abacus: 'abacus', crosswise: 'crosswise', sums: 'sums', chart: 'chart', english: 'english', tutor: 'tutor', conjugate: 'conjugate', photo: 'photo',
+    meaning: 'meaning', numbers: 'numbers', maths: 'maths', abacus: 'abacus', crosswise: 'crosswise', sums: 'sums', chart: 'chart', count: 'count', english: 'english', tutor: 'tutor', conjugate: 'conjugate', photo: 'photo',
     speak: 'speak', write: 'write', modern: 'modern',
     alphabet: 'alphabet', phonics: 'phonics', vocab: 'vocab',
     history: 'history', settings: 'settings'
@@ -175,6 +184,7 @@ TB.App = (function () {
 
     root.innerHTML = v.html(r.param);
     try { v.mount(root, r.param); } catch (e) { console.error('mount', r.view, e); }
+    if (TB.Depth) TB.Depth.reveal(root);
     refreshChips();
     window.scrollTo(0, 0);
     document.getElementById('side').classList.remove('open');
@@ -221,13 +231,25 @@ TB.App = (function () {
 
     window.addEventListener('hashchange', render);
 
+    /* The logo goes home, and goes there again when you are already home.
+       A hash that has not changed raises no event, so pressing it on the
+       home page would otherwise do nothing at all — and what a person
+       wants from pressing the logo twice is a page drawn fresh, with
+       today's streak and today's word back on it. */
+    var brand = document.getElementById('brandHome');
+    if (brand) brand.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (location.hash === '#/home' || !location.hash) render();
+      else location.hash = '#/home';
+    });
+
     document.getElementById('textBtn').addEventListener('click', function () {
       var d = TB.Store.data(TB.Auth.userId());
       var next = SIZES[(SIZES.indexOf(d.prefs.textSize || 'normal') + 1) % SIZES.length];
       d.prefs.textSize = next;
       TB.Store.saveData(TB.Auth.userId(), d);
       applyTextSize(next);
-      toast('Text size: ' + next);
+      toast('Text size: ' + SIZE_NAME[next]);
     });
 
     document.getElementById('themeBtn').addEventListener('click', function () {

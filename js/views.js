@@ -134,6 +134,7 @@ TB.Views = (function () {
       ['#/crosswise', '\u2716\uFE0F', 'Vertically & crosswise', 'Multiply in your head'],
       ['#/sums', '\u270D\uFE0F', 'Maths practice', 'Ten questions, marked'],
       ['#/chart', '\u{1F4CA}', 'Number chart', 'Names in all three'],
+      ['#/count', '\u{1F590}\uFE0F', 'Counting on a slate', 'Four strokes, one across'],
       ['#/numbers', '\u{1F522}', 'Numbers', 'To ten crore']
     ] },
     { name: 'Tools', items: [
@@ -225,8 +226,8 @@ TB.Views = (function () {
         return '<div class="card mb">'
           + '<h3>Word of the day</h3><div class="card-sub">' + esc(themeName(w.th)) + '</div>'
           + '<div class="grid g2">'
-          +   '<div><div class="tiny muted">English</div><div style="font-size:26px;font-weight:700">' + esc(w.en) + speak(w.en, 'en') + '</div><div class="tiny" style="color:var(--teal)">' + esc(w.enIpa || '') + ' \u00b7 ' + esc(w.enTa || '') + '</div></div>'
-          +   '<div><div class="tiny muted">Hindi</div><div class="hi" style="font-size:26px;font-weight:700">' + esc(w.hi) + speak(w.hi, 'hi') + '</div><div class="tiny muted">' + esc(w.hiR) + ' \u00b7 ' + esc(w.hiTa || '') + '</div></div>'
+          +   '<div><div class="tiny muted">English</div><div style="font-size:calc(26px * var(--fs,1));font-weight:700">' + esc(w.en) + speak(w.en, 'en') + '</div><div class="tiny" style="color:var(--teal)">' + esc(w.enIpa || '') + ' \u00b7 ' + esc(w.enTa || '') + '</div></div>'
+          +   '<div><div class="tiny muted">Hindi</div><div class="hi" style="font-size:calc(26px * var(--fs,1));font-weight:700">' + esc(w.hi) + speak(w.hi, 'hi') + '</div><div class="tiny muted">' + esc(w.hiR) + ' \u00b7 ' + esc(w.hiTa || '') + '</div></div>'
           + '</div>'
           + '<div class="w-gloss" style="margin-top:10px">' + esc(w.ta) + speak(w.ta, 'ta')
           +   '<span class="w-r"> ' + esc(w.taR) + '</span></div>'
@@ -307,7 +308,7 @@ TB.Views = (function () {
         root.querySelector('#srcSpeak').setAttribute('data-lang', sl.value === 'auto' ? detected : sl.value);
 
         if (!text.trim()) {
-          dst.innerHTML = '<span class="muted" style="font-size:16px">Translation appears here</span>';
+          dst.innerHTML = '<span class="muted" style="font-size:calc(16px * var(--fs,1))">Translation appears here</span>';
           root.querySelector('#detChip').style.display = 'none';
           root.querySelector('#dstRoman').style.display = 'none';
           root.querySelector('#srcRoman').style.display = 'none';
@@ -341,7 +342,7 @@ TB.Views = (function () {
           TB.App.refreshChips();
         }).catch(function (e) {
           if (my !== seq) return;
-          dst.innerHTML = '<span style="color:var(--red);font-size:15px">' + esc(e.message) + '</span>';
+          dst.innerHTML = '<span style="color:var(--red);font-size:calc(15px * var(--fs,1))">' + esc(e.message) + '</span>';
         });
       }
 
@@ -422,7 +423,7 @@ TB.Views = (function () {
       + '<div class="card">'
       +   '<div class="row">'
       +     '<input id="mWord" type="text" value="' + esc(seed) + '" placeholder="cat  /  பூனை  /  बिल्ली  /  poonai" '
-      +       'style="flex:1;min-width:200px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg-soft);font-size:17px">'
+      +       'style="flex:1;min-width:200px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg-soft);font-size:calc(17px * var(--fs,1))">'
       +     '<button class="btn btn-primary" id="mGo" type="button">Search</button>'
       +     '<button class="btn btn-icon" id="mMic" type="button">🎤</button>'
       +   '</div>'
@@ -455,7 +456,7 @@ TB.Views = (function () {
         var t = c.translations;
         var h = '<div class="card">';
         h += '<div class="card-head"><div>';
-        h += '<h3 style="font-size:26px">' + esc(c.query) + speak(c.query, c.lang) + '</h3>';
+        h += '<h3 style="font-size:calc(26px * var(--fs,1))">' + esc(c.query) + speak(c.query, c.lang) + '</h3>';
         var meta = [];
         if (c.roman) meta.push('<i>' + esc(c.roman) + '</i>');
         if (c.phonetic) meta.push('<span class="mono" style="color:var(--teal)">' + esc(c.phonetic) + '</span>');
@@ -510,7 +511,7 @@ TB.Views = (function () {
         function trBox(label, val, lang, ipa) {
           if (!val) return '<div><div class="tiny muted">' + label + '</div><div class="muted">—</div></div>';
           return '<div><div class="tiny muted">' + label + '</div>'
-            + '<div class="' + lang + '" style="font-size:21px;font-weight:650">' + esc(val) + speak(val, lang) + '</div>'
+            + '<div class="' + lang + '" style="font-size:calc(21px * var(--fs,1));font-weight:650">' + esc(val) + speak(val, lang) + '</div>'
             + readAid(val, lang)
             + (ipa ? '<div class="tiny" style="color:var(--teal)">' + esc(ipa) + '</div>' : '')
             + '</div>';
@@ -545,7 +546,7 @@ TB.Views = (function () {
       + '<div class="view">'
       + '<div class="card">'
       +   '<textarea id="tSent" rows="3" placeholder="Type a sentence — English, Hindi or Tamil&#10;e.g. She is reading a book."'
-      +     ' style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg-soft);font-size:17px;resize:vertical"></textarea>'
+      +     ' style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg-soft);font-size:calc(17px * var(--fs,1));resize:vertical"></textarea>'
       +   '<div class="row mt">'
       +     '<button class="btn btn-primary" id="tGo" type="button">🧠 Analyse</button>'
       +     '<button class="btn" id="tCheck" type="button">✓ Check & fix</button>'
@@ -604,7 +605,7 @@ TB.Views = (function () {
         h += '<div class="row mb"><span class="chip blue">' + esc(TB.Translate.langName(a.lang)) + '</span>'
            + '<span class="chip accent">' + esc(a.tense.ta) + '</span>'
            + '<span class="chip">' + esc(a.type.ta) + '</span>' + speak(a.source, a.lang) + '</div>';
-        h += '<div style="font-size:21px;margin-bottom:6px">' + tappable(a.source, a.lang) + '</div>';
+        h += '<div style="font-size:calc(21px * var(--fs,1));margin-bottom:6px">' + tappable(a.source, a.lang) + '</div>';
         if (a.lang === 'ta' || a.lang === 'hi') {
           h += '<div class="tiny muted"><i>' + esc(TB.Translit.roman(a.source, a.lang)) + '</i></div>';
         }
@@ -645,7 +646,7 @@ TB.Views = (function () {
         h += '<div class="grid g2 mt">';
         ['ta', 'en', 'hi'].filter(function (L) { return L !== a.lang; }).forEach(function (L) {
           h += '<div><div class="tiny muted">' + langLabel(L) + '</div>'
-             + '<div class="' + L + '" data-tr="' + L + '" style="font-size:17px"><span class="spin"></span></div></div>';
+             + '<div class="' + L + '" data-tr="' + L + '" style="font-size:calc(17px * var(--fs,1))"><span class="spin"></span></div></div>';
         });
         h += '</div></div>';
         return h;

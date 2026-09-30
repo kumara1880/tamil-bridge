@@ -53,11 +53,16 @@
         list.forEach(function (p) { (byGroup[p.g] = byGroup[p.g] || []).push(p); });
 
         var h = '';
+        var shown = 0;
         TB.PHRASE_GROUPS.forEach(function (g) {
           var items = byGroup[g.id];
           if (!items) return;
-          h += '<div class="card"><h3>' + g.icon + ' ' + esc(g.en) + '</h3>'
-             + '<div class="card-sub ta">' + esc(g.ta) + '</div>';
+          /* Every group at once was a page you scrolled rather than used.
+             The first one is open so it is obvious the rest will open too. */
+          h += '<details class="card fold"' + (shown++ === 0 ? ' open' : '') + '>'
+             + '<summary class="fold-head"><div><h3>' + g.icon + ' ' + esc(g.en) + '</h3>'
+             + '<div class="card-sub ta">' + esc(g.ta) + '</div></div>'
+             + '<span class="chip">' + items.length + '</span></summary>';
           items.forEach(function (p) {
             h += '<div class="phrase" data-pid="' + p.id + '">'
                + '<div class="row" style="align-items:flex-start">'
@@ -72,7 +77,7 @@
                +   '</div>'
                + '</div></div>';
           });
-          h += '</div>';
+          h += '</details>';
         });
         el.innerHTML = h;
       }
@@ -130,8 +135,8 @@
             +   '<div style="flex:1"></div>'
             +   '<button class="btn btn-sm btn-ghost" id="dClose" type="button">✕</button></div>'
             + '<div class="tiny muted mt">Say this in Hindi</div>'
-            + '<div style="font-size:20px;font-weight:650;margin:6px 0">' + esc(p.en) + '</div>'
-            + '<div class="hi" style="font-size:24px;font-weight:700">' + esc(p.hi) + speak(p.hi, 'hi') + '</div>'
+            + '<div style="font-size:calc(20px * var(--fs,1));font-weight:650;margin:6px 0">' + esc(p.en) + '</div>'
+            + '<div class="hi" style="font-size:calc(24px * var(--fs,1));font-weight:700">' + esc(p.hi) + speak(p.hi, 'hi') + '</div>'
             + V.hiRead(p.hi)
             + '<div class="w-gloss">' + esc(p.ta) + '</div>'
             + '<button class="mic-btn" id="dMic" type="button" style="margin:14px auto">🎤</button>'

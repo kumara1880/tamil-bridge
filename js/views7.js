@@ -123,7 +123,7 @@
       if (!words[L.c]) return '';
       return '<div class="mword">'
         + '<div class="tiny muted">' + esc(L.label) + '</div>'
-        + '<div class="' + L.c + '" style="font-size:19px;font-weight:650;line-height:1.5">'
+        + '<div class="' + L.c + '" style="font-size:calc(19px * var(--fs,1));font-weight:650;line-height:1.5">'
         + esc(words[L.c]) + speakBtn(words[L.c], L.c) + '</div>'
         + readAid(words[L.c], L.c)
         + '</div>';
