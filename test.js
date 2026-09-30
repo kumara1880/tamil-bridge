@@ -785,13 +785,30 @@ section('SIGNING IN');
     /This device only, for now/.test(app));
   t('a failed sign-in does not blame the person when the server lost the account',
     /This is very likely not your mistake/.test(app));
-  /* Once the server keeps accounts properly, telling somebody their account
-     might be in another browser sends them hunting for something that is
-     not anywhere. */
-  t('and once the server is durable it says the account is simply not there',
-    /not on the server, and not in this browser either/.test(app));
-  t('and explains that an account lost before the database cannot come back',
-    /it cannot be brought/.test(app) && /create it again/i.test(app));
+  /* The server answers a failed sign-in identically whether the account is
+     unknown or the password is wrong, on purpose. So the browser cannot
+     know which it was \u2014 and it used to announce one of them as fact,
+     telling people to create an account that already existed, which the
+     signup screen then refused. A loop with no way out, built out of a
+     sentence that claimed to know more than it had been told. */
+  t('the browser does not claim to know why a sign-in failed',
+    !/not on the server, and not in this browser either/.test(app));
+  t('it says plainly that it could be either',
+    /Either there is no account with this address, or that password/.test(app));
+  t('and the server really does answer the two the same way',
+    /Same message either way/.test(srv)
+    && (srv.match(/Incorrect email address or password/g) || []).length >= 1);
+  /* A dead end that says "sign in instead" and a sign-in that says "create
+     an account instead" needs a door in it somewhere. */
+  t('every dead end carries the way out of it',
+    (app.match(/data-auth-act="reset"/g) || []).length >= 2
+    && /data-auth-act="in"/.test(app) && /data-auth-act="up"/.test(app));
+  t('and the buttons are wired to something',
+    /closest\('\[data-auth-act\]'\)/.test(app));
+  /* One screenshot showed a fresh address sitting under "already
+     registered", which was about the address typed before it. */
+  t('an error from the last attempt clears when the form is edited',
+    /\['fId', 'fPw', 'fName'\]\.forEach/.test(app) && /msg\.innerHTML = ''/.test(app));
   t('the server says in its health whether it can send mail at all',
     /mail: MAIL_STATE\.ready/.test(srv) && /canReset/.test(srv));
   t('and refuses honestly rather than pretending, when it cannot',
@@ -835,10 +852,47 @@ section('SIGNING IN');
     return /<label for="fId">Email address<\/label>/.test(html)
         && /id="fId" type="email"/.test(html);
   })());
-  /* But signing in must still accept a number, or anybody who already made
-     an account that way is locked out of it for good. */
-  t('signing in still looks up a number, so nobody is locked out',
-    /const phone = !email \? normalisePhone\(identifier\) : null/.test(srv));
+  /* ---- the signup that could only ever happen once ----
+
+     Reproduced against the live server with an address that had never
+     existed: it came back "already registered" on the first attempt. An
+     email signup stored `phone: null`, and the collection had a unique
+     SPARSE index on phone. Sparse skips a field that is ABSENT; null is not
+     absent, it is a value, and it is indexed. So the first email-only
+     account took the one null slot and every account after it was refused
+     by a unique index on a field nobody had filled in \u2014 reported as
+     "already registered", while signing in correctly said no such account.
+     Exactly one address in the whole database could sign in. */
+  t('no account is written with a null phone field',
+    !/email, phone,/.test(srv), 'the null that blocked every signup is back');
+  t('and the index that blocked them is dropped on the way up',
+    /dropIndex\('phone_1'\)|for \(const name of \['phone_1', 'email_1'\]\)/.test(srv));
+  t('the rows already carrying it are cleared',
+    /\$unset: \{ phone: '' \}/.test(srv));
+  t('including the same trap in the other direction',
+    /\{ email: null \}, \{ \$unset: \{ email: '' \} \}/.test(srv));
+  /* A partial filter says what sparse was meant to say. */
+  t('the email index only indexes real addresses',
+    /partialFilterExpression: \{ email: \{ \$type: 'string' \} \}/.test(srv));
+  t('and it is still unique', /\{ unique: true, name: 'email_unique'/.test(srv));
+  /* And the repair must be safe to run on every restart. */
+  t('the repair does not fail when there is nothing to repair',
+    /catch \(e\) \{ \/\* not there: nothing to drop \*\//.test(srv));
+
+  /* ---- accounts are an email address, nothing else ---- */
+  var auth = fs.readFileSync(__dirname + '/js/auth.js', 'utf8');
+  t('the server no longer looks a number up',
+    !/const phone = !email \? normalisePhone\(identifier\) : null/.test(srv));
+  t('and says so instead of refusing without a reason',
+    /Accounts use an email address, not a phone number/.test(srv));
+  t('the browser says the same, in the same words',
+    /Accounts use an email address, not a phone number/.test(auth));
+  t('and stops storing a phone on a new account',
+    !/phone: isPhone\(identifier\) \? identifier : ''/.test(auth));
+  t('the form says it before anybody types a number', (function () {
+    var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+    return /a number cannot be sent a/.test(html);
+  })());
   t('and Settings invites an address for an account that has none', (function () {
     var v2 = fs.readFileSync(__dirname + '/js/views2.js', 'utf8');
     return /There is no way back into this account/.test(v2);

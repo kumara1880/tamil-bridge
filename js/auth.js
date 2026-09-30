@@ -1,5 +1,7 @@
 /* Tamil Bridge — accounts.
-   Sign up / sign in with email OR phone number. Passwords are never stored:
+   Sign up / sign in with an email address. A number is not accepted: it
+   cannot be sent a reset link, so an account made with one could never be
+   recovered. Passwords are never stored:
    only a salted PBKDF2-SHA256 derivation (150k iterations) is kept.
    This is device-local by design — there is no server, so there is no cost and
    no data leaves the machine. The UI states this plainly to the user.          */
@@ -134,7 +136,7 @@ TB.Auth = (function () {
       var pwIssue = passwordIssue(password);
       if (pwIssue) return Promise.reject(new Error(pwIssue));
       if (TB.Store.findUser(identifier)) {
-        return Promise.reject(new Error('That email or number is already registered. Please sign in.'));
+        return Promise.reject(new Error('That email address is already registered. Please sign in.'));
       }
       if (!TB.Store.available()) {
         return Promise.reject(new Error('Browser storage is disabled. Please turn off private/incognito mode.'));
@@ -145,8 +147,7 @@ TB.Auth = (function () {
         var user = {
           id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
           name: name,
-          email: isEmail(identifier) ? identifier.toLowerCase() : '',
-          phone: isPhone(identifier) ? identifier : '',
+          email: identifier.toLowerCase(),
           salt: salt, hash: res.hash, kdf: res.kdf, iter: ITER,
           createdAt: Date.now()
         };
@@ -159,8 +160,14 @@ TB.Auth = (function () {
     },
 
     signIn: function (identifier, password, remember) {
+      /* Saying "that is a phone number" beats a refusal nobody can act on. */
+      if (isPhone(identifier) && !isEmail(identifier)) {
+        return Promise.reject(new Error(
+          'Accounts use an email address, not a phone number. '
+          + 'Sign in with your email address.'));
+      }
       var user = TB.Store.findUser(identifier);
-      if (!user) return Promise.reject(new Error('No account found for that email or number. Create one first.'));
+      if (!user) return Promise.reject(new Error('No account found for that email address.'));
       return derive(password, user.salt, user.iter || ITER).then(function (res) {
         var ok = res.hash === user.hash;
         /* A record created with one KDF must still verify if the other path is taken. */
@@ -253,7 +260,7 @@ TB.Auth = (function () {
         }
         var clash = TB.Store.findUser(identifier);
         if (clash && clash.id !== current.id) {
-          return Promise.reject(new Error('That email or number belongs to another account.'));
+          return Promise.reject(new Error('That email address belongs to another account.'));
         }
         if (isEmail(identifier)) { current.email = identifier.toLowerCase(); }
         else { current.phone = identifier; }

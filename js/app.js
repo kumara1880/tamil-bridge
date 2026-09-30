@@ -374,6 +374,33 @@ TB.App = (function () {
       }
       show('forgotCard');
     });
+    /* The messages above the form offer a way out of what they describe,
+       so the button has to be wired to something. */
+    msg.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-auth-act]');
+      if (!b) return;
+      var act = b.getAttribute('data-auth-act');
+      if (act === 'reset') {
+        forgotMsg.innerHTML = '';
+        var typed = document.getElementById('fId').value.trim();
+        if (typed) document.getElementById('fForgotId').value = typed;
+        show('forgotCard');
+        return;
+      }
+      setMode(act);          /* 'in' or 'up' \u2014 and it clears the message */
+    });
+
+    /* An error left over from the last attempt, sitting above a different
+       address being typed, reads as an error about the new one. One of the
+       screenshots showed exactly that: a fresh address under "already
+       registered", which was about the previous one. */
+    ['fId', 'fPw', 'fName'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', function () {
+        if (msg.innerHTML) msg.innerHTML = '';
+      });
+    });
+
     document.getElementById('forgotBack').addEventListener('click', function () { show('authCard'); });
     document.getElementById('resetBack').addEventListener('click', function () { show('authCard'); });
 
@@ -561,7 +588,24 @@ TB.App = (function () {
               })
           : TB.Auth.signUp(name, id, pw);
 
-        create.then(function () { enter(); }).catch(function (err) { fail(err.message); });
+        create.then(function () { enter(); }).catch(function (err) {
+          /* "Sign in instead" only helps somebody who knows the password.
+             The reason most people are on this screen is that they do not,
+             so the way to a new one belongs here too. */
+          if (/already registered/i.test(err.message || '')) {
+            fail(err.message,
+              'If you cannot remember the password, set a new one \u2014 the link comes '
+              + 'by email and works for an hour.'
+              + '<div class="msg-acts">'
+              +   '<button class="btn btn-sm" data-auth-act="in" type="button">'
+              +     'Sign in</button>'
+              +   '<button class="btn btn-sm" data-auth-act="reset" type="button">'
+              +     'Set a new password</button>'
+              + '</div>');
+            return;
+          }
+          fail(err.message);
+        });
         return;
       }
 
@@ -611,17 +655,25 @@ TB.App = (function () {
                + 'will be kept in this browser, where it is safe.';
         }
 
-        /* The server keeps accounts now, and it was asked, and it had never
-           heard of this one. Saying "accounts live in this browser" here
-           would send somebody hunting through other browsers for an account
-           that is simply not anywhere. */
+        /* The server answers a failed sign-in the same way whether the
+           account does not exist or the password is wrong \u2014 deliberately,
+           so the page cannot be used to find out who has an account here.
+           So this cannot say which it was, and it used to say anyway: it
+           announced that the account did not exist, and sent people to
+           create it, where they were told it already existed. A loop with
+           no way out, built out of a sentence that knew more than it
+           could. */
         if (serverCan.asked && serverCan.durable) {
-          return '<b>This account is not on the server, and not in this browser either.</b> '
-               + 'If you made it before the server had its database \u2014 earlier today or '
-               + 'before \u2014 it was lost when the server restarted, and it cannot be brought '
-               + 'back. Please create it again: accounts are kept properly now, and this one '
-               + 'will follow you to any device. Otherwise, check for a typo in the address '
-               + 'or number.';
+          return '<b>Either there is no account with this address, or that password is '
+               + 'not the right one.</b> The sign-in page is not told which. If the '
+               + 'account is yours, set a new password \u2014 the link comes by email and '
+               + 'works for an hour.'
+               + '<div class="msg-acts">'
+               +   '<button class="btn btn-sm" data-auth-act="reset" type="button">'
+               +     'Set a new password</button>'
+               +   '<button class="btn btn-sm" data-auth-act="up" type="button">'
+               +     'Create an account</button>'
+               + '</div>';
         }
 
         return 'Accounts are saved <b>in this browser</b> unless you turn on Sync. '

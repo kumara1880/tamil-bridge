@@ -1724,3 +1724,8 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 @media (prefers-reduced-motion: no-preference) {
   .lang-line { transition: background .18s ease, padding .18s ease; }
 }
+
+/* A message that describes a dead end carries the button out of it. */
+.msg-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
+.msg-acts .btn { flex: 1 1 auto; min-width: 140px; justify-content: center; }
+@media (max-width: 420px) { .msg-acts .btn { flex: 1 1 100%; } }

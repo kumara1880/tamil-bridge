@@ -241,10 +241,48 @@ async function connect() {
   const db = client.db(process.env.MONGODB_DB || 'tamilbridge');
   users = db.collection('users');
   blobs = db.collection('userdata');
-  await users.createIndex({ email: 1 }, { unique: true, sparse: true });
-  await users.createIndex({ phone: 1 }, { unique: true, sparse: true });
+  await repair(users);
+  /* Only documents where the address is really a string are indexed. The
+     old index was `sparse`, which skips a field that is ABSENT \u2014 null is
+     not absent, it is a value, and it is indexed. An email signup wrote
+     `phone: null`, so the first such account took the one null slot on the
+     unique phone index and every account after it was refused. Nobody could
+     create an account, and the refusal read as "already registered".
+
+     A partial filter says what was meant: index the addresses, ignore
+     everything else. */
+  await users.createIndex(
+    { email: 1 },
+    { unique: true, name: 'email_unique', partialFilterExpression: { email: { $type: 'string' } } }
+  );
   STORE = { kind: 'mongodb', durable: true, reason: '' };
   return 'mongodb';
+}
+
+/* Put right what the old indexes did, once, on the way up. Safe to run
+   again: every step is already-done-is-fine. */
+async function repair(users) {
+  const gone = [];
+  for (const name of ['phone_1', 'email_1']) {
+    try { await users.dropIndex(name); gone.push(name); }
+    catch (e) { /* not there: nothing to drop */ }
+  }
+  /* Accounts are email only now. A phone field that is null blocks the next
+     account; a phone field with a number in it is an account that can no
+     longer be signed into by number, so the number is of no further use. */
+  const cleared = await users.updateMany(
+    { phone: { $exists: true } }, { $unset: { phone: '' } }
+  );
+  /* Same trap in the other direction: a phone-made account stored
+     `email: null`, which would block the next one on the email index. */
+  const blanked = await users.updateMany(
+    { email: null }, { $unset: { email: '' } }
+  );
+  if (gone.length || cleared.modifiedCount || blanked.modifiedCount) {
+    console.log('repair: dropped [' + gone.join(', ') + '], cleared '
+      + cleared.modifiedCount + ' phone field(s), '
+      + blanked.modifiedCount + ' null email(s)');
+  }
 }
 
 /* ------------------------------------------------------------- helpers */
@@ -350,22 +388,21 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
     if (!/[a-zA-Z]/.test(pw)) return res.status(400).json({ error: 'Password must contain at least one letter.' });
     if (!/\d/.test(pw)) return res.status(400).json({ error: 'Password must contain at least one number.' });
 
-    const email = isEmail(identifier) ? String(identifier).trim().toLowerCase() : null;
-    const phone = isPhone(identifier) ? normalisePhone(identifier) : null;
+    const email = String(identifier).trim().toLowerCase();
 
-    const existing = await users.findOne(email ? { email } : { phone });
+    const existing = await users.findOne({ email });
     if (existing) {
       return res.status(409).json({
-        error: email
-          ? 'That email address is already registered. Please sign in instead.'
-          : 'That phone number is already registered. Please sign in instead.'
+        error: 'That email address is already registered. Please sign in instead.'
       });
     }
 
+    /* No phone field. Writing one as null is what broke every signup after
+       the first \u2014 see repair() above. A field nobody uses is not stored. */
     const user = {
       _id: crypto.randomUUID(),
       name: String(name).trim().slice(0, 80),
-      email, phone,
+      email,
       hash: await bcrypt.hash(String(password), 12),
       createdAt: Date.now()
     };
@@ -375,7 +412,9 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
       /* The unique index is the real guard. Two simultaneous signups with the
          same address both pass the findOne check above, but only one inserts. */
       if (dup && dup.code === 11000) {
-        return res.status(409).json({ error: 'That email or number is already registered. Please sign in instead.' });
+        return res.status(409).json({
+          error: 'That email address is already registered. Please sign in instead.'
+        });
       }
       throw dup;
     }
@@ -389,11 +428,20 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
 app.post('/api/auth/signin', rateLimit(20, 15 * 60 * 1000), async (req, res) => {
   try {
     const { identifier, password } = req.body || {};
-    const email = isEmail(identifier) ? String(identifier).trim().toLowerCase() : null;
-    const phone = !email ? normalisePhone(identifier) : null;
-    const user = await users.findOne(email ? { email } : { phone });
+    /* Accounts are an email address and nothing else. A number cannot be
+       sent a reset link, so an account made with one could never be
+       recovered \u2014 and telling somebody plainly that a number will not work
+       is kinder than a generic refusal they cannot act on. */
+    if (isPhone(identifier) && !isEmail(identifier)) {
+      return res.status(400).json({
+        error: 'Accounts use an email address, not a phone number. '
+             + 'Sign in with your email address.'
+      });
+    }
+    const email = String(identifier || '').trim().toLowerCase();
+    const user = await users.findOne({ email });
     /* Same message either way, so the endpoint does not reveal who is registered. */
-    const bad = () => res.status(401).json({ error: 'Incorrect email/number or password.' });
+    const bad = () => res.status(401).json({ error: 'Incorrect email address or password.' });
     if (!user) return bad();
     if (!(await bcrypt.compare(String(password || ''), user.hash))) return bad();
     res.json({ token: sign(user), user: publicUser(user) });
