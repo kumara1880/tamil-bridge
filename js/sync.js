@@ -36,18 +36,35 @@ TB.Sync = (function () {
   function req(path, opts, timeoutMs) {
     if (!base) return Promise.reject(new Error('no-backend'));
     opts = opts || {};
+    /* The body is an object; this function is what turns it into JSON.
+       Handing it a string means it gets encoded twice and the server
+       receives a JSON string containing JSON, which it cannot read. */
+    if (typeof opts.body === 'string') {
+      throw new Error('req() takes an object as its body, not a string.');
+    }
     var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctl) ctl.abort(); }, timeoutMs || 70000);
 
-    return fetch(base + path, {
-      method: opts.method || 'GET',
-      headers: Object.assign(
-        { 'Content-Type': 'application/json' },
-        token ? { Authorization: 'Bearer ' + token } : {},
-        opts.headers || {}
-      ),
-      body: opts.body ? JSON.stringify(opts.body) : undefined,
-      signal: ctl ? ctl.signal : undefined
+    function attempt() {
+      return fetch(base + path, {
+        method: opts.method || 'GET',
+        headers: Object.assign(
+          { 'Content-Type': 'application/json' },
+          token ? { Authorization: 'Bearer ' + token } : {},
+          opts.headers || {}
+        ),
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+        signal: ctl ? ctl.signal : undefined
+      });
+    }
+
+    /* A free server sleeps when nobody is using it, and the request that
+       wakes it is quite often dropped on the way. The browser reports that
+       as the bare words "Failed to fetch", which tells a person nothing at
+       all. So the first network failure is simply tried again. */
+    return attempt().catch(function (e) {
+      if (e && e.name === 'AbortError') throw e;
+      return new Promise(function (r) { setTimeout(r, 2500); }).then(attempt);
     }).then(function (r) {
       clearTimeout(timer);
       return r.json().catch(function () { return {}; }).then(function (j) {
@@ -58,8 +75,12 @@ TB.Sync = (function () {
     }, function (e) {
       clearTimeout(timer);
       online = false;
-      lastError = e.name === 'AbortError' ? 'The server did not respond (a free Render service may be asleep).' : e.message;
-      throw e;
+      lastError = e.name === 'AbortError'
+        ? 'The server did not answer in time. A free server sleeps when it is not being used '
+          + 'and can take a minute to wake \u2014 please try once more.'
+        : 'Could not reach the server. It may be waking up, or you may be offline \u2014 '
+          + 'please try once more in a moment.';
+      throw new Error(lastError);
     });
   }
 
@@ -118,13 +139,13 @@ TB.Sync = (function () {
        fact about the server and not about the person. */
     forgot: function (identifier) {
       return req('/api/auth/forgot', {
-        method: 'POST', body: JSON.stringify({ identifier: identifier })
+        method: 'POST', body: { identifier: identifier }
       }, 75000);
     },
 
     reset: function (token, password) {
       return req('/api/auth/reset', {
-        method: 'POST', body: JSON.stringify({ token: token, password: password })
+        method: 'POST', body: { token: token, password: password }
       }, 75000).then(function (j) {
         if (j.token) api.setToken(j.token);   /* signed in straight away */
         return j.user;
@@ -135,7 +156,7 @@ TB.Sync = (function () {
        phone-only account recoverable at all. */
     setEmail: function (password, email) {
       return req('/api/account/email', {
-        method: 'POST', body: JSON.stringify({ password: password, email: email })
+        method: 'POST', body: { password: password, email: email }
       }, 75000).then(function (j) { return j.user; });
     },
 
@@ -143,7 +164,7 @@ TB.Sync = (function () {
        because this cannot be undone. */
     deleteAccount: function (password) {
       return req('/api/account/delete', {
-        method: 'POST', body: JSON.stringify({ password: password })
+        method: 'POST', body: { password: password }
       }, 75000).then(function (j) { api.setToken(''); return j; });
     },
 

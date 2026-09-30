@@ -655,6 +655,22 @@ section('SIGNING IN');
     /URLSearchParams\(location\.search\)\.get\('reset'\)/.test(app));
 
   t('the client can ask for a reset', /forgot: function/.test(sync));
+  /* req() is what turns the body into JSON. Handing it a string encodes it
+     twice, and the server then receives a JSON string containing JSON and
+     pulls undefined out of it. Four methods were written that way and every
+     one of them was broken from the start — invisible to a curl test,
+     because curl sends the body it is given rather than the body the app
+     builds. */
+  t('no request hands req() an already-encoded body',
+    !/body: JSON\.stringify/.test(sync),
+    (sync.match(/.*body: JSON\.stringify.*/g) || []).slice(0, 2).join(' | '));
+  t('and req() refuses one loudly if it ever happens again',
+    /takes an object as its body, not a string/.test(sync));
+  /* A free server sleeps, and the request that wakes it is often dropped.
+     “Failed to fetch” tells a person nothing. */
+  t('a dropped request is tried once more', /setTimeout\(r, 2500\)/.test(sync));
+  t('and the failure says what is actually happening',
+    /may be waking up/.test(sync) && /please try once more/.test(sync));
   t('and can set the new password', /reset: function/.test(sync));
   t('the server has somewhere to ask', /\/api\/auth\/forgot/.test(srv));
   t('and somewhere to set it', /\/api\/auth\/reset/.test(srv));
