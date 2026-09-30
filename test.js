@@ -2482,6 +2482,146 @@ section('DICTIONARY (offline)');
     t('the line being read lights up', /\.lang-line\.saying \{/.test(css));
   })();
 
+
+  /* ---------------- one voice at a time ----------------
+     Pressing Play in spoken practice read a few sentences in pieces and
+     then the last one properly, and pressing a speaker while something was
+     already talking gave you both at once. */
+  section('ONE VOICE AT A TIME');
+  (function () {
+    var sp = fs.readFileSync(R + 'js/speech.js', 'utf8');
+    var v8 = fs.readFileSync(R + 'js/views8.js', 'utf8');
+
+    /* Two things here can make a sound: the voice in the device, and, when
+       there is none for the language, an audio file over the network.
+       Cancelling only ever touched the first. */
+    t('there is one place that stops everything', /function silence\(\)/.test(sp));
+    t('and it stops the network voice as well as the device one',
+      /function silence\(\)[\s\S]{0,500}netStop/.test(sp)
+      && /function silence\(\)[\s\S]{0,500}netAudio\.pause/.test(sp));
+    t('everything that starts a sound goes through it',
+      (sp.match(/\bsilence\(\);/g) || []).length >= 4,
+      (sp.match(/\bsilence\(\);/g) || []).length);
+    /* Being cut off is not the same as the device having no voice, and
+       saying so put a warning on the screen for an ordinary second press. */
+    t('being interrupted is not reported as a missing voice',
+      /netToken !== queueToken\) return false/.test(sp));
+
+    /* A reading used to hand its place in the queue to each line and take
+       it back afterwards \u2014 including from whatever had just cancelled it. */
+    t('a reading has a name of its own', /var mine = \+\+seqId/.test(sp));
+    t('which a direct call takes away', /if \(opts\.seq == null\) seqId\+\+/.test(sp));
+    t('and a stop takes away', /seqId\+\+;\s+\/\* and any reading/.test(sp));
+    t('but its own lines do not', /seq: mine,/.test(sp));
+    t('the juggling that let a cancelled reading creep back is gone',
+      !/queueToken = token - 1/.test(sp));
+
+    /* Measured in the browser: one press of Play started one reading after
+       a fresh load, two after one language switch, three after two. */
+    t('the spoken-practice handler replaces rather than piles up',
+      /bodyHandlers\.length = 0; bodyHandlers\.push\(fn\)/.test(v8));
+    t('and does not survive a change of tab',
+      /bodyHandlers\.length = 0;\s*[\r\n]\s*if \(tab === 'grammar'\)/.test(v8));
+    /* The speaker inside a line is handled globally; the line itself was
+       handled again here, so one press said it twice, over itself. */
+    t('a line with a speaker on it is said once, not twice',
+      /closest\('\.talk'\)[\s\S]{0,400}!e\.target\.closest\('\[data-speak\]'\)/.test(v8));
+
+    /* And a guess at how long words take cut long lines off part-way. */
+    t('a line is given as long as the engine is still talking',
+      /speechSynthesis\.speaking \|\| window\.speechSynthesis\.pending/.test(sp));
+  })();
+
+  /* The behaviour itself, against a stand-in engine that actually finishes
+     each line so the order can be read back. */
+  await (async function () {
+    var said = [], busy = false, cur = null;
+    var ss = ctx.speechSynthesis;
+    var realUtt = ctx.SpeechSynthesisUtterance;
+    var realSpeak = ss.speak, realCancel = ss.cancel;
+
+    ctx.SpeechSynthesisUtterance = function (text) { this.text = text; };
+    Object.defineProperty(ss, 'speaking', { get: function () { return busy; }, configurable: true });
+    Object.defineProperty(ss, 'pending', { get: function () { return false; }, configurable: true });
+    ss.speak = function (u) {
+      said.push(u.text); busy = true; cur = u;
+      setTimeout(function () {
+        if (cur === u) { busy = false; cur = null; if (u.onend) u.onend(); }
+      }, 4);
+    };
+    ss.cancel = function () {
+      busy = false;
+      var u = cur; cur = null;
+      if (u && u.onerror) u.onerror();
+    };
+
+    function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+    function lines(names, pause) {
+      return names.map(function (n) { return { text: n, lang: 'en', pause: pause }; });
+    }
+
+    try {
+      said.length = 0;
+      await TB.Speech.sequence(lines(['one', 'two', 'three'], 4));
+      t('a reading says every line', said.length === 3, said.join('|'));
+      t('in the order it was given', said.join(',') === 'one,two,three', said.join(','));
+
+      /* An empty line used to return without claiming the queue, which
+         threw the whole count out. */
+      said.length = 0;
+      await TB.Speech.sequence([
+        { text: 'x', lang: 'en', pause: 4 },
+        { text: '',  lang: 'en', pause: 4 },
+        { text: 'y', lang: 'en', pause: 4 }
+      ]);
+      t('an empty line is stepped over, not spoken', said.join(',') === 'x,y', said.join(','));
+
+      /* Something else speaking takes the voice. */
+      said.length = 0;
+      TB.Speech.sequence(lines(['a', 'b', 'c', 'd'], 60));
+      await wait(25);
+      TB.Speech.speak('somebody else', 'en');
+      await wait(400);
+      t('another voice starting ends the reading',
+        said.indexOf('c') < 0 && said.indexOf('d') < 0, said.join(','));
+      t('and what interrupted it is what is heard',
+        said[said.length - 1] === 'somebody else', said.join(','));
+
+      /* So does stopping, and so does cancelling. */
+      said.length = 0;
+      TB.Speech.sequence(lines(['p', 'q', 'r'], 60));
+      await wait(25);
+      TB.Speech.stop();
+      await wait(400);
+      t('stopping ends it', said.join(',') === 'p', said.join(','));
+
+      said.length = 0;
+      var run = TB.Speech.sequence(lines(['s', 't', 'u'], 60));
+      await wait(25);
+      run.cancel();
+      await wait(400);
+      t('cancelling ends it', said.join(',') === 's', said.join(','));
+
+      /* The fault itself: one press of Play used to start several readings,
+         and a cancelled one carried on underneath the new one. */
+      said.length = 0;
+      TB.Speech.sequence(lines(['old1', 'old2', 'old3', 'old4'], 40));
+      await wait(10);
+      TB.Speech.sequence(lines(['new1', 'new2', 'new3'], 10));
+      await wait(500);
+      t('a reading that was cut off does not creep back',
+        said.filter(function (x) { return /^old/.test(x); }).length <= 1, said.join(','));
+      t('and the one that took over reads every line, in order',
+        said.filter(function (x) { return /^new/.test(x); }).join(',') === 'new1,new2,new3',
+        said.join(','));
+
+    } finally {
+      /* The rest of the suite gets its own engine back. */
+      ctx.SpeechSynthesisUtterance = realUtt;
+      ss.speak = realSpeak; ss.cancel = realCancel;
+    }
+  })();
+
   /* ---------------- accounts ---------------- */
   section('ACCOUNTS');
   try {

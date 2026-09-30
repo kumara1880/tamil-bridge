@@ -9,6 +9,10 @@ TB.Speech = (function () {
   var ready = false;
   var listeners = [];
   var queueToken = 0;
+  /* A reading of several lines holds the voice for as long as it runs. Its
+     own calls to speak() are made on its behalf and must not look like
+     somebody else taking over; anything else speaking, or a stop, ends it. */
+  var seqId = 0;
 
   /* Preferred BCP-47 tags per language, most specific first. A bare code like
      "te" rarely matches an installed voice — the voice is registered as
@@ -139,6 +143,11 @@ TB.Speech = (function () {
      so a new element made for the second half of a sentence is refused. */
   var netAudio = null;
   var netEl = null;
+  /* Set while the network voice is playing: calling it stops the sound and
+     resolves that play at once. Without it, cutting the audio off would
+     leave its promise waiting on the twenty-second guard below, and the
+     speaker button that started it lit the whole time. */
+  var netStop = null;
 
   function netElement() {
     if (netEl) return netEl;
@@ -211,8 +220,13 @@ TB.Speech = (function () {
         clearTimeout(guard);
         a.onended = null; a.onerror = null;
         if (netAudio === a) netAudio = null;
+        if (netStop === mine) netStop = null;
         resolve(ok);
       }
+      /* Held by silence(), so anything else that starts speaking can cut
+         this short instead of playing over the top of it. */
+      var mine = function () { try { a.pause(); } catch (e) {} finish(false); };
+      netStop = mine;
       a.onended = function () { finish(true); };
       a.onerror = function () {
         var c = a.error && a.error.code;
@@ -282,6 +296,27 @@ TB.Speech = (function () {
   }
 
 
+  /* Everything that can be making a sound, stopped — the device voice and
+     the network one both. One voice at a time is not a preference: two
+     languages over each other teach nothing, and the person listening
+     cannot tell which of them is which.
+
+     Every way of starting a sound in this file calls this first. */
+  function silence() {
+    if ('speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+    if (netStop) { var f = netStop; netStop = null; f(); }
+    if (netAudio) {
+      try { netAudio.pause(); } catch (e) {}
+      netAudio = null;
+    }
+    /* The element is shared and reused, so rewind it as well: a paused
+       element resumed from the middle of the last word is worse than
+       silence. */
+    if (netEl) { try { netEl.currentTime = 0; } catch (e) {} }
+  }
+
   /* exposed so the test suite can confirm every translate language is covered */
   function langTags() { return LANGS; }
 
@@ -322,6 +357,9 @@ TB.Speech = (function () {
     /* Speak one phrase. Resolves when finished (or immediately if unsupported). */
     speak: function (text, lang, opts) {
       opts = opts || {};
+      /* A call of its own takes the voice from any reading in progress. A
+         call made by one, which carries its id, does not. */
+      if (opts.seq == null) seqId++;
       if (!api.supported() || !text) return Promise.resolve(false);
       /* Reading Hindi aloud in an English voice produces nonsense and teaches
          the wrong pronunciation, so refuse rather than substitute. The caller
@@ -329,14 +367,21 @@ TB.Speech = (function () {
       /* No voice on the device: ask the network before telling somebody
          their machine cannot do it. */
       if (api.missing(lang) && !opts.force) {
-        queueToken++;
-        try { window.speechSynthesis.cancel(); } catch (e) {}
+        /* Claim the queue first, then silence: anything already speaking
+           sees the token move and gives up rather than racing this. */
+        var netToken = ++queueToken;
+        silence();
         return netSpeak(text, lang, opts).then(function (ok) {
+          /* Being cut off by the next thing to speak is not the same as
+             this device having no voice for the language. Saying so would
+             put a warning on the screen every time somebody pressed two
+             speakers in a row. */
+          if (netToken !== queueToken) return false;
           return ok ? true : { noVoice: true, lang: lang };
         });
       }
       var myToken = ++queueToken;
-      try { window.speechSynthesis.cancel(); } catch (e) {}
+      silence();
 
       return new Promise(function (resolve) {
         var u = new SpeechSynthesisUtterance(String(text));
@@ -357,9 +402,24 @@ TB.Speech = (function () {
         u.onend = function () { finish(true); };
         u.onerror = function () { finish(false); };
 
-        /* Chrome silently drops long utterances; guard with a generous timeout. */
-        var guard = setTimeout(function () { finish(false); },
-          Math.max(6000, String(text).length * 140));
+        /* Chrome sometimes never fires onend at all. A flat timeout cut a
+           long line off part-way through, and the next line then silenced
+           what was left of it — so waiting is decided by whether the engine
+           is still talking, not by a guess at how long the words take. */
+        var waited = 0, quiet = 0, guard = null;
+        function watch() {
+          waited += 300;
+          var busy = false;
+          try {
+            busy = !!(window.speechSynthesis.speaking || window.speechSynthesis.pending);
+          } catch (e) {}
+          if (busy) quiet = 0;
+          else if (waited > 900) quiet += 300;   /* it takes a moment to start */
+          /* Quiet for a second, or something has gone badly wrong. */
+          if (quiet >= 900 || waited > 180000) return finish(false);
+          guard = setTimeout(watch, 300);
+        }
+        guard = setTimeout(watch, 300);
 
         if (myToken !== queueToken) return finish(false);
         try { window.speechSynthesis.speak(u); } catch (e) { finish(false); }
@@ -373,23 +433,30 @@ TB.Speech = (function () {
       opts = opts || {};
       var i = 0;
       var cancelled = false;
-      var token = ++queueToken;
+      /* This reading's own name. It used to hand its place in the queue to
+         each line and take it back afterwards — so a reading that had been
+         cancelled took back whatever token was there, including the one
+         belonging to whatever cancelled it, and carried on underneath. Two
+         readings then ran at once, each cutting the other off. */
+      var mine = ++seqId;
+      var stopped = 0;
+      silence();                    /* and whatever was speaking, stops */
+
+      function alive() { return !cancelled && mine === seqId; }
 
       function step() {
-        if (cancelled || token !== queueToken || i >= steps.length) {
-          return Promise.resolve(!cancelled);
-        }
+        if (!alive() || i >= steps.length) return Promise.resolve(!cancelled && !stopped);
         var s = steps[i++];
+        if (!s || !s.text) return step();          /* nothing to say: move on */
         if (opts.onStep) { try { opts.onStep(s, i - 1); } catch (e) {} }
-        queueToken = token - 1;            /* let speak() take the next token */
         return api.speak(s.text, s.lang, {
+          seq: mine,
           rate: s.rate != null ? s.rate : opts.rate,
           pitch: s.pitch != null ? s.pitch : opts.pitch,
           volume: s.volume != null ? s.volume : opts.volume,
           voiceName: opts.voiceNames ? opts.voiceNames[s.lang] : null
         }).then(function () {
-          token = queueToken;
-          if (cancelled) return false;
+          if (!alive()) { stopped = 1; return false; }
           var pause = s.pause != null ? s.pause : (opts.pause || 300);
           return new Promise(function (r) { setTimeout(r, pause); }).then(step);
         });
@@ -402,10 +469,11 @@ TB.Speech = (function () {
 
     stop: function () {
       queueToken++;
-      if (api.supported()) { try { window.speechSynthesis.cancel(); } catch (e) {} }
-      /* and whatever is coming over the network */
-      if (netAudio) { try { netAudio.pause(); } catch (e) {} netAudio = null; }
+      seqId++;                      /* and any reading in progress ends */
+      silence();
     },
+    /* Exposed so the suite can prove that starting one voice stops the other. */
+    silence: silence,
     pause: function () { if (api.supported()) { try { window.speechSynthesis.pause(); } catch (e) {} } },
     resume: function () { if (api.supported()) { try { window.speechSynthesis.resume(); } catch (e) {} } },
 

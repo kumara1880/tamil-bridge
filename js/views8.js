@@ -347,7 +347,10 @@
             return;
           }
           var t = e.target.closest('.talk');
-          if (t && !e.target.closest('[data-word]')) {
+          /* The speaker button inside the line is already handled globally.
+             Without this the line was said twice for one press — two
+             voices over each other, from a single tap. */
+          if (t && !e.target.closest('[data-word]') && !e.target.closest('[data-speak]')) {
             var dd = TB.SPOKEN[+t.getAttribute('data-d')];
             var ll = dd.lines[+t.getAttribute('data-l')];
             TB.Speech.speak(ll[spLang], spLang, { rate: 0.75 });
@@ -358,6 +361,12 @@
       /* -------------------------------------------------------- wiring */
       function draw() {
         TB.Speech.stop();
+        /* The handlers belong to the tab on the screen, not to every tab
+           ever opened. Without this they stacked up, and one press of Play
+           started as many readings as there had been redraws — each one
+           silencing the last, which is why a conversation came out in
+           pieces with only the final line read whole. */
+        bodyHandlers.length = 0;
         if (tab === 'grammar') grammar();
         else if (tab === 'words') words();
         else if (tab === 'tense') tense();
@@ -370,7 +379,11 @@
       /* #eBody outlives every redraw, so a handler added inside a tab would
          stack up and speak the same word once per visit. Added once, here. */
       var bodyHandlers = [];
-      function onBody(fn) { bodyHandlers.push(fn); }
+      /* The handler for what is on the screen now — one, not one per
+         visit. Switching the spoken language redraws without going through
+         draw(), so clearing the list there alone was not enough: three
+         language switches still meant three readings from one press. */
+      function onBody(fn) { bodyHandlers.length = 0; bodyHandlers.push(fn); }
       body.addEventListener('click', function (e) {
         var said = e.target.closest('[data-say]');
         if (said) {
