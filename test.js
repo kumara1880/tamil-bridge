@@ -653,6 +653,24 @@ section('SIGNING IN');
   t('and a card to choose the new one', /id="resetCard"/.test(html));
   t('a link from the email is picked up from the address',
     /URLSearchParams\(location\.search\)\.get\('reset'\)/.test(app));
+  /* A remembered session used to win the race: the reset card appeared and
+     was wiped by the app a few milliseconds later, so the link looked
+     broken — it opened and vanished. */
+  t('a reset link beats a remembered session',
+    /restored && !resetting/.test(app));
+  t('and the new-password box takes the focus', /fNewPw.*focus|np\.focus/.test(app));
+  /* And afterwards it asks for the new password, rather than walking into
+     the account. Otherwise you never learn whether the password you just
+     chose works, and whoever opened the link is inside the account on a
+     machine that may not be theirs. */
+  t('a finished reset ends every session on the device',
+    /TB\.Auth\.signOut\(\);[\s\S]{0,40}TB\.Sync\.clear\(\)/.test(app));
+  t('and asks you to sign in with the password you just chose',
+    /Please sign in with it now/.test(app));
+  t('with the address filled in and the password box empty',
+    /id\.value = \(remoteUser && remoteUser\.email\)/.test(app));
+  t('and the token taken out of the address bar',
+    /history\.replaceState\(null, '', location\.pathname\)/.test(app));
 
   t('the client can ask for a reset', /forgot: function/.test(sync));
   /* req() is what turns the body into JSON. Handing it a string encodes it

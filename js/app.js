@@ -389,10 +389,25 @@ TB.App = (function () {
         go.disabled = true;
         go.innerHTML = '<span class="spin"></span> Saving…';
         TB.Sync.reset(token, pw).then(function (remoteUser) {
-          return TB.Auth.adopt(remoteUser, pw);
-        }).then(function () {
+          /* Keep the local copy of the account in step with the server, so
+             this device can sign in with the new password even offline. */
+          return TB.Auth.adopt(remoteUser, pw).then(function () { return remoteUser; });
+        }).then(function (remoteUser) {
+          /* Then let go of every session on this device and ask for the new
+             password. Walking straight into the app would leave whoever
+             opened the link inside the account \u2014 on a machine that may not
+             be theirs \u2014 and would never show the person that the password
+             they just chose actually works. */
+          TB.Auth.signOut();
+          TB.Sync.clear();
           history.replaceState(null, '', location.pathname);
-          enter();
+          setMode('in');
+          var id = document.getElementById('fId');
+          id.value = (remoteUser && remoteUser.email) || '';
+          document.getElementById('fPw').value = '';
+          msg.innerHTML = '<div class="msg msg-ok"><b>Your password has been changed.</b> '
+            + 'Please sign in with it now \u2014 that way you know it works.</div>';
+          document.getElementById('fPw').focus();
         }).catch(function (err) {
           go.disabled = false; go.textContent = 'Save it';
           resetMsg.innerHTML = '<div class="msg msg-err">' + TB.Views.esc(err.message) + '</div>';
@@ -621,14 +636,25 @@ TB.App = (function () {
       if (current === 'settings') render();
     });
 
+    /* A reset link has to beat a remembered session. Somebody who clicked
+       one means to choose a new password; signing them straight into the
+       app instead makes the link look broken — it opens and vanishes. */
+    var resetting = false;
+    try { resetting = !!new URLSearchParams(location.search).get('reset'); } catch (e) {}
+
     var restored = TB.Auth.restore();
-    if (restored) enter();
+    if (restored && !resetting) enter();
     else {
       /* the sign-in screen should look like the rest of the app, not like
          the old default */
       applyTheme('light');
       applyTextSize('normal');
-      document.getElementById('fId').focus();
+      if (resetting) {
+        var np = document.getElementById('fNewPw');
+        if (np) np.focus();
+      } else {
+        document.getElementById('fId').focus();
+      }
     }
   }
 
