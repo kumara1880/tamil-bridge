@@ -1252,3 +1252,64 @@ table.chart td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); v
   .hero-title { font-size: 21px; }
   .dept-grid { grid-template-columns: 1fr; }
 }
+
+/* ------------------------------------------------------------------ abacus
+   A soroban: one bead above the bar worth five, four below worth one. Drawn
+   rather than photographed so it works offline and scales to any screen. */
+.abacus {
+  background: linear-gradient(180deg, #8b5e34, #6f4522);
+  border: 6px solid #5a3718; border-radius: 12px;
+  padding: 14px 10px 10px; overflow-x: auto;
+}
+.ab-rods { display: flex; gap: 4px; justify-content: center; min-width: min-content; }
+.ab-rod {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  padding: 0 3px;
+}
+/* the rod itself, behind the beads */
+.ab-rod::before {
+  content: ''; position: absolute; top: 4px; bottom: 34px; width: 3px;
+  background: #c9a227; border-radius: 2px;
+}
+.ab-heaven { position: relative; height: 62px; display: flex; align-items: flex-start; }
+.ab-earth { position: relative; height: 150px; display: flex; flex-direction: column; }
+.ab-bar { width: 100%; min-width: 34px; height: 7px; background: #3d2411; border-radius: 2px; margin: 3px 0; }
+
+.ab-bead {
+  display: block; width: 34px; height: 22px; padding: 0; margin: 2px 0;
+  border: 0; cursor: pointer;
+  border-radius: 50% / 45%;
+  background: radial-gradient(circle at 34% 32%, #ffe08a, #d9a441 45%, #9a6b16);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .45);
+  transition: transform .12s ease;
+}
+.ab-bead.heaven { transform: translateY(0); }
+.ab-bead.heaven.on { transform: translateY(32px); }
+.ab-bead.earth { transform: translateY(26px); }
+.ab-bead.earth.on { transform: translateY(0); }
+.ab-bead:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.ab-digit {
+  margin-top: 6px; font-size: 17px; font-weight: 700; color: #ffe9b0;
+  min-width: 34px; text-align: center;
+}
+.ab-place { font-size: 9px; color: rgba(255, 233, 176, .7); text-align: center; line-height: 1.1; }
+
+.ab-value { font-size: 40px; font-weight: 700; letter-spacing: -1px; margin-bottom: 8px; }
+.ab-ask { font-size: 14px; color: var(--text-dim); }
+.ab-target { font-size: 44px; font-weight: 700; color: var(--accent); letter-spacing: -1px; }
+.ab-step {
+  padding: 9px 12px; margin-top: 7px;
+  background: var(--bg-soft); border-radius: 10px; font-size: 14.5px;
+}
+.ab-step.carry { background: rgba(240, 136, 62, .12); border-left: 3px solid var(--accent); }
+
+@media (max-width: 640px) {
+  .ab-bead { width: 28px; height: 19px; }
+  .ab-bar { min-width: 28px; }
+  .ab-earth { height: 128px; }
+  .ab-heaven { height: 54px; }
+  .ab-bead.heaven.on { transform: translateY(27px); }
+  .ab-bead.earth { transform: translateY(22px); }
+  .ab-value, .ab-target { font-size: 32px; }
+}

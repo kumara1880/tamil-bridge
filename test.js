@@ -23,7 +23,7 @@ vm.createContext(ctx);
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
  'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js',
- 'js/maths.js','js/writing.js','js/sentences.js','js/search.js']
+ 'js/maths.js','js/abacus.js','js/writing.js','js/sentences.js','js/search.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
 const TB = ctx.TB;
@@ -1254,6 +1254,80 @@ section('ENGLISH IN TAMIL LETTERS');
   t('a known word uses its real pronunciation, not its spelling',
     T.englishToTamilSound('one') !== T.spellEnglishInTamil('one'),
     T.englishToTamilSound('one') + ' vs ' + T.spellEnglishInTamil('one'));
+})();
+
+/* ---------------- the abacus ---------------- */
+section('ABACUS');
+(function () {
+  var A = TB.Abacus;
+
+  /* A soroban: one bead above the bar worth five, four below worth one. */
+  t('a rod holds nought to nine',
+    A.rodValue({ heaven: false, earth: 0 }) === 0 && A.rodValue({ heaven: true, earth: 4 }) === 9);
+  t('and five is the bead on top',
+    A.rodValue({ heaven: true, earth: 0 }) === 5);
+
+  /* Every number must go on and come back off unchanged. */
+  var bad = [];
+  for (var n = 0; n <= 2000; n++) {
+    var r = A.set(n);
+    if (r.tooBig || A.value(r.frame) !== n) bad.push(n);
+  }
+  [9999999, 1234567, 1000000, 505050].forEach(function (n) {
+    var r = A.set(n);
+    if (r.tooBig || A.value(r.frame) !== n) bad.push(n);
+  });
+  t('every number up to two thousand goes on and reads back', bad.length === 0, bad.slice(0, 4).join(', '));
+  t('and the big ones too', A.value(A.set(1234567).frame) === 1234567);
+  t('a number too big for the frame says so', A.set(99999999).tooBig);
+
+  /* The rightmost rod is the units, as on a real one. */
+  t('the rightmost rod is the units',
+    A.set(7).frame[A.RODS - 1].earth === 2 && A.set(7).frame[A.RODS - 1].heaven === true);
+  t('the places are named from the right',
+    A.placeName(A.RODS - 1) === 'units' && A.placeName(A.RODS - 2) === 'tens');
+
+  /* Tapping the third bead sets the rod to three, because on a real abacus
+     everything between the bead and the bar comes with it. */
+  (function () {
+    var f = A.empty();
+    A.tapEarth(f, A.RODS - 1, 2);
+    t('tapping the third bead sets the rod to three', A.rodValue(f[A.RODS - 1]) === 3);
+    A.tapEarth(f, A.RODS - 1, 2);
+    t('and tapping it again lets them go', A.rodValue(f[A.RODS - 1]) === 2);
+    A.tapHeaven(f, A.RODS - 1);
+    t('the top bead adds five', A.rodValue(f[A.RODS - 1]) === 7);
+  })();
+
+  /* Adding, including the exchange that is the whole skill. */
+  var sums = [[25, 17], [6, 7], [99, 1], [458, 367], [0, 5], [1234, 5678], [9, 9]];
+  var wrong = sums.filter(function (p) {
+    var w = A.addSteps(p[0], p[1]);
+    return !w || w.answer !== p[0] + p[1];
+  });
+  t('adding on the beads gives the right answer', wrong.length === 0,
+    wrong.map(function (p) { return p.join('+'); }).join(', '));
+  t('and the exchange is explained when a rod runs out', (function () {
+    var w = A.addSteps(6, 7);
+    return w.steps.some(function (s) { return s.carry && /cannot hold/.test(s.how); });
+  })());
+  t('a rod with room just takes the beads', (function () {
+    var w = A.addSteps(21, 13);
+    return w.steps.every(function (s) { return !s.carry; }) && w.answer === 34;
+  })());
+
+  /* Reachable, like everything else. */
+  (function () {
+    var fs = require('fs');
+    var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+    var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+    var home = fs.readFileSync(__dirname + '/js/views.js', 'utf8');
+    t('the abacus is in the sidebar', /href="#\/abacus"/.test(html));
+    t('it is a real route', /abacus: 'abacus'/.test(app));
+    t('it is on the home page', /#\/abacus/.test(home));
+    t('and it can be searched for',
+      TB.Search.query('abacus', 3).some(function (x) { return x.href === '#/abacus'; }));
+  })();
 })();
 
 /* ---------------- search ---------------- */

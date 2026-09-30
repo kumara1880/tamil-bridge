@@ -95,6 +95,9 @@ TB.Search = (function () {
       keys: 'translate translation convert language' },
     { t: 'Meaning', href: '#/meaning', ic: '\u{1F4D6}',
       keys: 'meaning dictionary define definition word lookup' },
+    { t: 'Abacus', href: '#/abacus', ic: '\u{1F9EE}',
+      keys: 'abacus soroban beads counting frame rods place value mental maths '
+          + 'மணிச்சட்டம் गणनपट्टिका' },
     { t: 'Numbers', href: '#/numbers', ic: '\u{1F522}',
       keys: 'numbers counting count digits lakh crore thousand million' },
     { t: 'Maths', href: '#/maths', ic: '➕',

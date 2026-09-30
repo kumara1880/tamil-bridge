@@ -130,6 +130,7 @@ TB.Views = (function () {
       ['#/write', '\u270F\uFE0F', 'Writing', 'A\u2013Z, a\u2013z, 0\u2013100'],
       ['#/speak', '\u{1F3A4}', 'Pronunciation', 'Get a score'],
       ['#/maths', '\u2795', 'Maths', 'Step by step'],
+      ['#/abacus', '\u{1F9EE}', 'Abacus', 'Move the beads'],
       ['#/numbers', '\u{1F522}', 'Numbers', 'To ten crore']
     ] },
     { name: 'Tools', items: [
