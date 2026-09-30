@@ -2676,6 +2676,43 @@ section('DICTIONARY (offline)');
     }
   })();
 
+
+  /* ---------------- Hindi that can be read ---------------- */
+  section('HINDI, READABLE');
+  (function () {
+    var v8 = fs.readFileSync(R + 'js/views8.js', 'utf8');
+    var v9 = fs.readFileSync(R + 'js/views9.js', 'utf8');
+    var v10 = fs.readFileSync(R + 'js/views10.js', 'utf8');
+    var vw = fs.readFileSync(R + 'js/views.js', 'utf8');
+
+    /* Devanagari with nothing under it is decoration to somebody who reads
+       Tamil. Five places showed it bare. */
+    t("a conversation's other two languages carry their reading",
+      /others\.map\(function \(o\) \{[\s\S]{0,260}readAid\(l\[o\], o\)/.test(v8));
+    t('the grammar card title does too', /V\.hiTamil\(t\.title\.hi\)/.test(v8));
+    t('and the modern topic title', /V\.hiTamil\(t\.title\.hi\)/.test(v9));
+    t('and the word chips inside it', /V\.hiTamil\(w\.hi\)/.test(v9));
+    t('and the number the abacus asks for', /V\.hiTamil\(TB\.Numbers\.hi\(target\)\)/.test(v10));
+    t('the one-line reading is shared, not copied', /hiTamil: hiTamil/.test(vw)
+      && (vw.match(/function hiTamil/g) || []).length === 1);
+    t('and it gives back nothing rather than something wrong',
+      /if \(!r \|\| !r\.can \|\| !r\.tamil\) return ..;/.test(vw));
+
+    /* The nasal. Before a stop it takes that stop's place of articulation,
+       which already worked. Everywhere else it fell back to ம் — a lip
+       sound that is not there — so हैं read as ஹைம் and नहीं as நஹீம்,
+       while the English reading beside it said hain and nahin all along. */
+    function ta(w) { return TB.Translit.readings(w, 'hi').tamil; }
+    t('a word-final nasal reads as n, as the English beside it says',
+      ta('हैं') === 'ஹைன்', ta('हैं'));
+    t('and so does one before a non-stop', ta('नहीं') === 'நஹீன்', ta('नहीं'));
+    /* But it must still take the place of the stop that follows it. */
+    t('before a lip sound it is still m', /ம்ப/.test(ta('कंपनी')), ta('कंपनी'));
+    t('before a k sound it is ng', /ங்க/.test(ta('गंगा')), ta('गंगा'));
+    t('before a d sound it is n', /ந்த/.test(ta('हिंदी')), ta('हिंदी'));
+    t('before a j sound it is ny', /ஞ்ஜ/.test(ta('संज्ञा')), ta('संज्ञा'));
+  })();
+
   /* ---------------- accounts ---------------- */
   section('ACCOUNTS');
   try {

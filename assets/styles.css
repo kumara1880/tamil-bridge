@@ -1729,3 +1729,17 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 .msg-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
 .msg-acts .btn { flex: 1 1 auto; min-width: 140px; justify-content: center; }
 @media (max-width: 420px) { .msg-acts .btn { flex: 1 1 100%; } }
+
+/* The Tamil reading of a Hindi word, on the same line as the word, where
+   there is no room for the full two-part aid. */
+.hi-tam-inline {
+  display: block;
+  font-family: var(--tamil);
+  font-size: calc(11.5px * var(--fs, 1));
+  color: var(--text-mute);
+  line-height: 1.45;
+  margin-top: 1px;
+}
+.card-sub .hi-tam-inline { display: inline; margin-left: 5px; }
+.card-sub .hi-tam-inline::before { content: '['; }
+.card-sub .hi-tam-inline::after { content: ']'; }

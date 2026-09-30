@@ -39,6 +39,18 @@ TB.Views = (function () {
      the vocabulary win over the generated ones when we have them. */
   function hiRead(text) { return readAid(text, 'hi'); }
 
+  /* Just the Tamil-script reading, on one line, for somewhere too tight for
+     the full aid \u2014 a chip, a table cell, a subtitle already carrying two
+     other languages. A Tamil reader needs the Tamil letters more than the
+     English ones, so when only one will fit, this is the one that fits. */
+  function hiTamil(text) {
+    if (!text || !String(text).trim()) return '';
+    var r;
+    try { r = TB.Translit.readings(text, 'hi'); } catch (e) { return ''; }
+    if (!r || !r.can || !r.tamil) return '';
+    return '<span class="hi-tam-inline">' + esc(r.tamil) + '</span>';
+  }
+
   /* The small grey line under a word or sentence: how to say it, in English
      letters and in Tamil letters. Shown for any script the reader can sound
      out, and simply left off when it cannot — a missing line is honest, a
@@ -758,7 +770,7 @@ TB.Views = (function () {
        overwrites this key. `speakBtn` is the collision-proof alias that
        later files should use. */
     esc: esc, speak: speak, speakBtn: speak, tappable: tappable, ago: ago,
-    hiRead: hiRead, readAid: readAid, copy: copy, copyWithToast: copyWithToast,
+    hiRead: hiRead, hiTamil: hiTamil, readAid: readAid, copy: copy, copyWithToast: copyWithToast,
     themeName: themeName, langLabel: langLabel, sayAllThree: sayAllThree,
     D: D, saveD: saveD,
     home: home, translate: translate, meaning: meaning, tutor: tutor,

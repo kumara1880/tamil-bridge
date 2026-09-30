@@ -93,7 +93,8 @@
           + '<div class="ab-target">' + target.toLocaleString('en-IN') + '</div>'
           + '<div class="tiny muted">' + esc(TB.Numbers.enIndian(target)) + '  ·  '
           +   '<span class="ta">' + esc(TB.Numbers.ta(target)) + '</span>  ·  '
-          +   '<span class="hi">' + esc(TB.Numbers.hi(target)) + '</span></div>'
+          +   '<span class="hi">' + esc(TB.Numbers.hi(target)) + '</span>'
+          +   V.hiTamil(TB.Numbers.hi(target)) + '</div>'
           + '</div>'
           + '<div class="card">' + board()
           + '<div class="row mt" style="justify-content:center">'

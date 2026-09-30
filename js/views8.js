@@ -79,7 +79,8 @@
               return '<details class="card gram fold" data-g="' + i + '"' + (i === 0 ? ' open' : '') + '>'
                 + '<summary class="fold-head"><div>'
                 + '<h3>' + esc(t.title.en) + '</h3>'
-                + '<div class="card-sub ta">' + esc(t.title.ta) + ' · <span class="hi">' + esc(t.title.hi) + '</span></div>'
+                + '<div class="card-sub ta">' + esc(t.title.ta) + ' · <span class="hi">' + esc(t.title.hi) + '</span>'
+                + V.hiTamil(t.title.hi) + '</div>'
                 + '</div><div class="spacer"></div><span class="chip">Level ' + t.level + '</span></summary>'
                 + '<div class="gram-rule">' + trio(t.rule) + '</div>'
                 + '<div class="tiny muted mt mb">Examples</div>'
@@ -319,7 +320,14 @@
                       + '<span class="talk-who">' + l.who + '</span><div>'
                       + '<div class="' + spLang + '" style="font-weight:600">' + esc(l[spLang]) + speak(l[spLang], spLang) + '</div>'
                       + readAid(l[spLang], spLang)
-                      + others.map(function (o) { return '<div class="' + o + ' tiny muted">' + esc(l[o]) + '</div>'; }).join('')
+                      /* The two languages you are not practising are the
+                         reason to look at this line at all. Showing them in
+                         a script the reader cannot sound out, with nothing
+                         underneath, teaches nothing. */
+                      + others.map(function (o) {
+                          return '<div class="' + o + ' tiny muted">' + esc(l[o]) + '</div>'
+                               + readAid(l[o], o);
+                        }).join('')
                       + '</div></div>';
                   }).join('')
                 + '</details>';

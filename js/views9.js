@@ -69,7 +69,8 @@
           + '<summary class="fold-head"><div>'
           +   '<h3>' + t.icon + ' ' + esc(t.title.en) + '</h3>'
           +   '<div class="card-sub ta">' + esc(t.title.ta)
-          +   ' · <span class="hi">' + esc(t.title.hi) + '</span></div>'
+          +   ' · <span class="hi">' + esc(t.title.hi) + '</span>'
+          +   V.hiTamil(t.title.hi) + '</div>'
           + '</div><div class="spacer"></div>'
           + '<span class="chip">' + esc(b ? b.en : '') + '</span></summary>'
 
@@ -84,6 +85,7 @@
                   + '<b>' + esc(w.en) + '</b>'
                   + '<span class="ta">' + esc(w.ta) + '</span>'
                   + '<span class="hi">' + esc(w.hi) + '</span>'
+                  + V.hiTamil(w.hi)
                   + '<button class="mini" data-say="' + esc(w.ta) + '" data-lang="ta" type="button">\u{1F50A}</button>'
                   + '</span>';
               }).join('')
