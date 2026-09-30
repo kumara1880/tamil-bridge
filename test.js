@@ -1641,13 +1641,13 @@ section('READINGS (all Indian scripts)');
 (function () {
   /* "I go to school", written in each script, must be sayable by someone who
      reads only English letters or only Tamil ones. */
-  [['hi', 'मैं स्कूल जाता हूँ', 'maiṁ skūl jātā hūṁ'],
+  [['hi', 'मैं स्कूल जाता हूँ', 'main skūl jātā hūn'],
    ['te', 'నేను', 'nenu'],
    ['kn', 'ನಾನು', 'nānu'],
    ['ml', 'ഞാൻ', 'nān'],
    ['bn', 'আমি', 'āmi'],
-   ['gu', 'હું', 'huṁ'],
-   ['pa', 'ਮੈਂ', 'maiṁ']]
+   ['gu', 'હું', 'hun'],
+   ['pa', 'ਮੈਂ', 'main']]
     .forEach(function (row) {
       var r = TB.Translit.readings(row[1], row[0]);
       t(row[0] + ' reads in English letters', r.roman === row[2], r.roman);
@@ -1656,11 +1656,11 @@ section('READINGS (all Indian scripts)');
     });
 
   /* the m at the start is the म; it is the LAST sound that was wrong */
-  t('a word-final nasal is nasalisation, not a labial m',
-    /ṁ$/.test(TB.Translit.romanHindi('मैं')),
+  t('a word-final nasal is written n, as everybody writes it',
+    /n$/.test(TB.Translit.romanHindi('मैं')),
     TB.Translit.romanHindi('मैं'));
   t('and so is a chandrabindu',
-    /ṁ$/.test(TB.Translit.romanHindi('हूँ')),
+    /n$/.test(TB.Translit.romanHindi('हूँ')),
     TB.Translit.romanHindi('हूँ'));
   t('a nasal before a stop still takes its place',
     TB.Translit.romanHindi('हिंदी') === 'hindī',
@@ -1887,6 +1887,24 @@ t('every stored Tamil reading agrees with the reader', (function () {
     return !w.ta || !w.taR || TB.Translit.romanTamil(w.ta) === w.taR;
   });
 })());
+/* And the Hindi ones, which were missed the first time round and still
+   carried the scholarly spellings that produced "buxār": śubh, cār, pāṁc.
+   The app shows stored and generated readings in different places, so a
+   disagreement is visible to the person using it. */
+t('every stored Hindi reading agrees with the reader', (function () {
+  return TB.VOCAB.every(function (w) {
+    return !w.hi || !w.hiR || TB.Translit.romanHindi(w.hi) === w.hiR;
+  });
+})(), (function () {
+  var bad = TB.VOCAB.filter(function (w) {
+    return w.hi && w.hiR && TB.Translit.romanHindi(w.hi) !== w.hiR;
+  });
+  return bad.slice(0, 3).map(function (w) { return w.hi + ' ' + w.hiR; }).join(' | ');
+})());
+t('and no stored reading uses the old notation',
+  TB.VOCAB.every(function (w) {
+    return !/[śṣñṅṁġ]/.test((w.hiR || '') + (w.taR || ''));
+  }));
 t('roman किताब', TB.Translit.romanHindi('किताब') === 'kitāb');
 
 /* ---------------- sentence analysis ---------------- */
