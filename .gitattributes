@@ -1,0 +1,11 @@
+# Line endings are part of a file's identity in this project.
+#
+# index.html loads every script and stylesheet with a version tag that is a
+# hash of that file's contents, so that a browser never serves a stale copy.
+# Windows git defaults to rewriting LF into CRLF on checkout — which changes
+# the contents, which makes every one of those tags wrong. A fresh clone on
+# Windows failed the cache-tag test on all fifty-two files for exactly that
+# reason, while the deployed site was fine, because Linux checks out LF.
+#
+# So: the same bytes everywhere, on every machine.
+* text=auto eol=lf
