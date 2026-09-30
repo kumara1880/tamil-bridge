@@ -180,8 +180,18 @@ TB.Speech = (function () {
     return out.length ? out : [String(text)];
   }
 
-  function netUrl(piece, lang, slow, idx, total, textlen) {
-    return 'https://translate.google.com/translate_tts'
+  /* The same audio is served by both hosts. translate.googleapis.com is
+     the one this app already uses for translation, so it is known to be
+     reachable from the networks our people are on; the other is kept as a
+     fallback in case that one is ever the blocked one. */
+  var NET_HOSTS = ['https://translate.googleapis.com', 'https://translate.google.com'];
+  var netHost = 0;
+
+  /* What actually went wrong last time, for the message to show. */
+  var netWhy = '';
+
+  function netUrl(piece, lang, slow, idx, total, textlen, host) {
+    return (NET_HOSTS[host != null ? host : netHost] || NET_HOSTS[0]) + '/translate_tts'
       + '?ie=UTF-8&client=tw-ob'
       + '&tl=' + encodeURIComponent(bcp47(lang).split('-')[0])
       + '&ttsspeed=' + (slow ? '0.24' : '1')
@@ -204,14 +214,30 @@ TB.Speech = (function () {
         resolve(ok);
       }
       a.onended = function () { finish(true); };
-      a.onerror = function () { finish(false); };
+      a.onerror = function () {
+        var c = a.error && a.error.code;
+        netWhy = c === 4 ? 'the audio could not be played (blocked, or an unusable format)'
+               : c === 2 ? 'the network dropped the request'
+               : c === 3 ? 'the audio arrived damaged'
+               : 'the request was refused';
+        finish(false);
+      };
       /* If the network is slow or absent this never fires an event at all. */
-      var guard = setTimeout(function () { try { a.pause(); } catch (e) {} finish(false); }, 20000);
+      var guard = setTimeout(function () {
+        try { a.pause(); } catch (e) {}
+        netWhy = 'it did not answer within twenty seconds';
+        finish(false);
+      }, 20000);
       try { a.pause(); } catch (e) {}
       a.currentTime = 0;
       a.src = url;
       var p = a.play();
-      if (p && p.catch) p.catch(function () { finish(false); });
+      if (p && p.catch) p.catch(function (e) {
+        netWhy = (e && e.name === 'NotAllowedError')
+          ? 'this browser would not start the sound without a tap'
+          : 'the sound would not start (' + ((e && e.name) || 'unknown') + ')';
+        finish(false);
+      });
     });
   }
 
@@ -224,22 +250,35 @@ TB.Speech = (function () {
     var slow = (opts && opts.rate != null) ? opts.rate < 0.8 : false;
     var pieces = netChunks(t, 190);
     var token = queueToken;
-    var i = 0, anyPlayed = false;
+    netWhy = '';
 
-    function next() {
-      if (token !== queueToken) return Promise.resolve(anyPlayed);
-      if (i >= pieces.length) return Promise.resolve(anyPlayed);
-      var idx = i++;
-      return netPlay(netUrl(pieces[idx], lang, slow, idx, pieces.length, t.length))
-        .then(function (ok) {
-          if (ok) anyPlayed = true;
-          /* The first piece failing means the whole thing is unavailable;
-             a later one failing has at least said something. */
-          if (!ok && idx === 0) return false;
-          return next();
-        });
+    function run(host) {
+      var i = 0, anyPlayed = false;
+      function next() {
+        if (token !== queueToken) return Promise.resolve(anyPlayed);
+        if (i >= pieces.length) return Promise.resolve(anyPlayed);
+        var idx = i++;
+        return netPlay(netUrl(pieces[idx], lang, slow, idx, pieces.length, t.length, host))
+          .then(function (ok) {
+            if (ok) anyPlayed = true;
+            /* The first piece failing means this host is no good; a later
+               one failing has at least said something. */
+            if (!ok && idx === 0) return false;
+            return next();
+          });
+      }
+      return next();
     }
-    return next();
+
+    /* If the first host will not answer, try the other before giving up. */
+    return run(0).then(function (ok) {
+      if (ok) { netHost = 0; return true; }
+      if (token !== queueToken) return false;
+      return run(1).then(function (ok2) {
+        if (ok2) netHost = 1;
+        return ok2;
+      });
+    });
   }
 
 
@@ -251,6 +290,8 @@ TB.Speech = (function () {
     /* exposed so the suite can check the chunking and the address */
     netChunks: netChunks,
     netUrl: netUrl,
+    netHosts: function () { return NET_HOSTS.slice(); },
+    netWhy: function () { return netWhy; },
     recognitionSupported: function () {
       return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
     },
@@ -481,8 +522,9 @@ TB.Speech = (function () {
     missingVoiceMessage: function (lang) {
       var name = (window.TB && TB.Translate && TB.Translate.langName)
         ? TB.Translate.langName(lang) : lang;
-      return 'This device has no ' + name + ' voice, and the online one could not be '
-           + 'reached either \u2014 check your connection. To have ' + name + ' read aloud '
+      return 'This device has no ' + name + ' voice, and the online one did not work either'
+           + (netWhy ? ' \u2014 ' + netWhy + '.' : ' \u2014 check your connection.')
+           + ' To have ' + name + ' read aloud '
            + 'without a connection, install the voice: Windows: Settings \u2192 Time & '
            + 'language \u2192 Language & region \u2192 Add a language \u2192 ' + name + ', and tick '
            + '"Speech". Android and iPhone: add the ' + name + ' voice in your '

@@ -1077,6 +1077,19 @@ section('VOICE');
     /function netElement/.test(sp) && /netEl = new Audio\(\)/.test(sp));
   t('and it is woken by the first tap anywhere',
     /function unlockAudio/.test(sp) && /pointerdown/.test(sp) && /once: true/.test(sp));
+  /* Translation in this same app uses translate.googleapis.com and has
+     always worked from our users' networks; the voice was asking a
+     different host, which may be the one being blocked. Both serve the
+     same audio. */
+  t('the voice asks the host translation already proves reachable',
+    TB.Speech.netHosts()[0] === 'https://translate.googleapis.com');
+  t('and falls back to the other before giving up',
+    TB.Speech.netHosts().length === 2 && /run\(1\)/.test(sp));
+  /* "Could not be reached" covers a blocked host, an ad blocker, a refused
+     autoplay and a decode failure — which need different answers. */
+  t('a failure carries the reason out with it',
+    /netWhy = /.test(sp) && /NotAllowedError/.test(sp) && /a\.error && a\.error\.code/.test(sp));
+  t('and the message shows it', /netWhy \? /.test(sp));
   t('no new element is made for each piece',
     (sp.match(/new Audio\(\)/g) || []).length === 1,
     (sp.match(/new Audio\(\)/g) || []).length + ' places make one');
@@ -1096,7 +1109,7 @@ section('VOICE');
       /refuses outright when it is told|needs to know which page asked/.test(html));
   })();
   t('the old message only appears once the network has failed too',
-    /could not be \\n?\s*'?\s*\+?\s*'?reached either|reached either/.test(sp));
+    /did not work either/.test(sp));
   t('Settings can say which voice will be used', /voiceSource: function/.test(sp));
 
   t('the chunker keeps whole words', (function () {
