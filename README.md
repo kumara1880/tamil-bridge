@@ -6,6 +6,11 @@ complete alphabet of all three languages.
 
 **Zero cost, permanently.** No API keys, no subscriptions, no server required.
 
+> **Moving to a new computer, or picking this up after a long gap?**
+> Read **[HANDOVER.md](HANDOVER.md)** — what to install, where every account
+> lives, how to make a change and put it live, and what to do if a service
+> disappears.
+
 ---
 
 ## How to run — easiest first
