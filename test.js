@@ -1112,6 +1112,23 @@ section('VOICE');
     /did not work either/.test(sp));
   t('Settings can say which voice will be used', /voiceSource: function/.test(sp));
 
+  /* The bug that made all of the above pointless: the handler behind every
+     speaker button checked missing(lang) and returned before ever calling
+     speak(). So the online voice, however well it worked, was never even
+     attempted on a machine with no Tamil voice — which is every ordinary
+     Windows machine, because Windows ships no Tamil speech pack at all. */
+  (function () {
+    var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+    var v2 = fs.readFileSync(__dirname + '/js/views2.js', 'utf8');
+    t('nothing refuses to speak before it has tried',
+      !/if \(TB\.Speech\.missing\(lang\)\) \{[\s\S]{0,200}return;/.test(app)
+        && !/if \(TB\.Speech\.missing\(lang\)\) \{[\s\S]{0,200}return;/.test(v2));
+    t('and the warning comes only from a finished attempt',
+      /speak\(text, lang[\s\S]{0,400}res\.noVoice[\s\S]{0,160}missingVoiceMessage/.test(app));
+    t('Settings no longer offers to install a voice that does not exist',
+      /read over the internet/.test(v2));
+  })();
+
   t('the chunker keeps whole words', (function () {
     var out = TB.Speech.netChunks('one two three four five six seven eight nine ten', 20);
     return out.every(function (p) { return p.length <= 20 || p.indexOf(' ') < 0; })

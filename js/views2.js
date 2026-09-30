@@ -422,10 +422,10 @@
 
         function play() {
           stop();
-          if (TB.Speech.missing(lang)) {
-            TB.App.toast(TB.Speech.missingVoiceMessage(lang), 'err');
-            return;
-          }
+          /* No voice on this device is not the end of it — the online one is
+             tried next, inside speak(). Refusing here meant a Tamil rhyme
+             was never read aloud at all on a machine with only English
+             voices, however well the online voice worked. */
           var prefs = D().prefs;
           var steps = TB.Reader.plan(lines, lang, mode,
                                      { rate: prefs.rate || 0.9, pitch: prefs.pitch || 1 });
@@ -1112,12 +1112,16 @@
       var u = TB.Auth.user() || {};
       function voiceOpts(lang, sel) {
         var vs = TB.Speech.voicesFor(lang);
-        if (!vs.length) return '<option value="">— no voice installed for this language —</option>';
+        /* Not every language has a voice to install. Windows ships one for
+           Hindi and none for Tamil, so telling somebody to go and install
+           it sends them looking for something that is not there. */
+        if (!vs.length) return '<option value="">— read over the internet —</option>';
         return '<option value="">Automatic</option>' + vs.map(function (v) {
           return '<option value="' + esc(v.name) + '"' + (v.name === sel ? ' selected' : '') + '>' + esc(v.name) + ' (' + esc(v.lang) + ')</option>';
         }).join('');
       }
       var missing = ['ta', 'en', 'hi'].filter(function (l) { return TB.Speech.missing(l); });
+      var missingNames = missing.map(function (l) { return TB.Translate.langName(l); });
 
       return '<div class="view">'
 

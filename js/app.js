@@ -194,19 +194,23 @@ TB.App = (function () {
         if (!text) return;
         var d = TB.Store.data(TB.Auth.userId());
         var names = { ta: d.prefs.voiceTa, en: d.prefs.voiceEn, hi: d.prefs.voiceHi };
-        if (TB.Speech.missing(lang)) {
-          if (!warnedVoice[lang]) {
-            warnedVoice[lang] = true;
-            toast(TB.Speech.missingVoiceMessage(lang), 'err');
-          }
-          return;   /* better silence than the wrong accent */
-        }
+        /* No voice on this device is not the end of it: speak() asks the
+           online one before giving up. Refusing here meant Tamil was never
+           even attempted, however well the online voice worked — which is
+           why it never spoke on a machine with only English voices. */
         if (pendingSpeak) pendingSpeak.classList.remove('playing');
         sp.classList.add('playing');
         pendingSpeak = sp;
         TB.Speech.speak(text, lang, {
           rate: d.prefs.rate, pitch: d.prefs.pitch, voiceName: names[lang]
-        }).then(function () { sp.classList.remove('playing'); });
+        }).then(function (res) {
+          sp.classList.remove('playing');
+          /* Only once everything has actually been tried. */
+          if (res && res.noVoice && !warnedVoice[lang]) {
+            warnedVoice[lang] = true;
+            toast(TB.Speech.missingVoiceMessage(lang), 'err');
+          }
+        });
         return;
       }
       var w = e.target.closest('[data-word]');
