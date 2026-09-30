@@ -23,7 +23,7 @@ vm.createContext(ctx);
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
  'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js',
- 'js/maths.js','js/abacus.js','js/writing.js','js/sentences.js','js/search.js']
+ 'js/maths.js','js/abacus.js','js/maths2.js','js/writing.js','js/sentences.js','js/search.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
 const TB = ctx.TB;
@@ -1271,6 +1271,91 @@ section('ENGLISH IN TAMIL LETTERS');
   t('a known word uses its real pronunciation, not its spelling',
     T.englishToTamilSound('one') !== T.spellEnglishInTamil('one'),
     T.englishToTamilSound('one') + ' vs ' + T.spellEnglishInTamil('one'));
+})();
+
+/* ---------------- vertically and crosswise ---------------- */
+section('VERTICALLY AND CROSSWISE');
+(function () {
+  var M2 = TB.Maths2;
+
+  /* The example every Indian mental-maths class starts with. */
+  var r = M2.crosswise(23, 41);
+  t('23 x 41 is 943', r.answer === 943 && r.check, r.answer);
+  t('three columns for two digits by two', r.columns.length === 3);
+  t('the units are one pair, straight down',
+    r.columns[0].pairs.length === 1 && r.columns[0].sum === 3,
+    JSON.stringify(r.columns[0].pairs));
+  t('the tens are the cross',
+    r.columns[1].pairs.length === 2 && r.columns[1].sum === 14,
+    JSON.stringify(r.columns[1].pairs));
+  t('the hundreds are one pair again',
+    r.columns[2].pairs.length === 1 && r.columns[2].sum === 8);
+  t('and the carry moves left',
+    r.columns[1].carryOut === 1 && r.columns[2].carryIn === 1);
+
+  /* It has to agree with plain multiplication, always — the first attempt
+     had the columns the wrong way round and 23 x 41 came to 448. */
+  var wrong = 0, worst = '';
+  for (var i = 0; i < 3000; i++) {
+    var a = 1 + Math.floor(Math.random() * 99999);
+    var b = 1 + Math.floor(Math.random() * 9999);
+    var x = M2.crosswise(a, b);
+    if (!x || x.answer !== a * b) { wrong++; if (!worst) worst = a + ' x ' + b; }
+  }
+  t('3000 random pairs all come out right', wrong === 0, worst);
+  [[1, 1], [7, 8], [99, 99], [1000, 1000], [123, 45]].forEach(function (p) {
+    var y = M2.crosswise(p[0], p[1]);
+    t(p[0] + ' x ' + p[1] + ' = ' + (p[0] * p[1]), y && y.answer === p[0] * p[1], y && y.answer);
+  });
+  t('something far too big is refused', M2.crosswise(1234567, 1234567) === null);
+  t('the columns are named from the units',
+    M2.placeName(0) === 'units' && M2.placeName(2) === 'hundreds');
+
+  /* practice */
+  ['add', 'sub', 'mul', 'div'].forEach(function (op) {
+    var qs = M2.round(op, 2, 10);
+    t(op + ' gives ten questions', qs.length === 10);
+    var bad = qs.filter(function (q) {
+      var real = op === 'add' ? q.a + q.b : op === 'sub' ? q.a - q.b
+               : op === 'mul' ? q.a * q.b : q.a / q.b;
+      return real !== q.answer;
+    });
+    t(op + ' answers are all right', bad.length === 0,
+      bad.slice(0, 2).map(function (q) { return q.a + ' ' + q.b; }).join(', '));
+  });
+  t('taking away never goes below zero', (function () {
+    for (var i = 0; i < 400; i++) { if (M2.question('sub', 3).answer < 0) return false; }
+    return true;
+  })());
+  t('dividing always comes out whole', (function () {
+    for (var i = 0; i < 400; i++) {
+      var q = M2.question('div', 3);
+      if (q.a % q.b !== 0 || q.a / q.b !== q.answer) return false;
+    }
+    return true;
+  })());
+  t('a round has no question twice', (function () {
+    var qs = M2.round('add', 2, 10);
+    var seen = qs.map(function (q) { return q.a + '|' + q.b; });
+    return new Set(seen).size === seen.length;
+  })());
+  t('every level is offered', M2.LEVELS.length >= 4);
+
+  /* reachable */
+  (function () {
+    var fs = require('fs');
+    var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+    var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+    var home = fs.readFileSync(__dirname + '/js/views.js', 'utf8');
+    ['crosswise', 'sums', 'chart'].forEach(function (r2) {
+      t(r2 + ' is in the sidebar', html.indexOf('href="#/' + r2 + '"') > 0);
+      t(r2 + ' is a real route', app.indexOf(r2 + ": '" + r2 + "'") > 0);
+      t(r2 + ' is on the home page', home.indexOf("'#/" + r2 + "'") > 0);
+      t(r2 + ' can be searched for',
+        TB.Search.query(r2 === 'sums' ? 'practice' : r2 === 'chart' ? 'number chart' : 'crosswise', 4)
+          .some(function (x) { return x.href === '#/' + r2; }));
+    });
+  })();
 })();
 
 /* ---------------- the abacus ---------------- */

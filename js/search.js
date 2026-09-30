@@ -95,6 +95,15 @@ TB.Search = (function () {
       keys: 'translate translation convert language' },
     { t: 'Meaning', href: '#/meaning', ic: '\u{1F4D6}',
       keys: 'meaning dictionary define definition word lookup' },
+    { t: 'Vertically & crosswise', href: '#/crosswise', ic: '\u2716\uFE0F',
+      keys: 'crosswise vertically urdhva tiryagbhyam vedic multiply multiplication '
+          + 'mental maths fast trick cross பெருக்கல் गुणा' },
+    { t: 'Maths practice', href: '#/sums', ic: '\u270D\uFE0F',
+      keys: 'practice sums questions quiz test exercise problems worksheet marks '
+          + 'add subtract multiply divide கணக்கு गणित अभ्यास' },
+    { t: 'Number chart', href: '#/chart', ic: '\u{1F4CA}',
+      keys: 'number chart table names one hundred counting list 1 100 tens hundreds '
+          + 'எண் அட்டவணை संख्या तालिका' },
     { t: 'Abacus', href: '#/abacus', ic: '\u{1F9EE}',
       keys: 'abacus soroban beads counting frame rods place value mental maths '
           + 'மணிச்சட்டம் गणनपट्टिका' },
