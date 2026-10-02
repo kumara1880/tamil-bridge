@@ -195,10 +195,12 @@ TB.ALPHABET = {};
                     pronounceable; it simply never starts one. Named the way
                     a mei letter is named — இக், இங் — it becomes a real
                     syllable shape a voice can manage: இங்கொ, like இங்கு. */
-                 /* Read as the cluster itself — ngo, ngau — not with a
-                    vowel put in front of it. */
-                 onItsOwn: (ngi && !ngi.w) ? ngi.c : '',
-                 onItsOwnR: (ngi && !ngi.w) ? onset(c.say) + v.say : '',
+                 /* அ in front, so the voice has a syllable it can begin;
+                    and the vowel takes its stand-alone reading, so ௌ is ow
+                    and this is angow, not ango. */
+                 onItsOwn: (ngi && !ngi.w) ? 'அ' + ngi.c : '',
+                 onItsOwnR: (ngi && !ngi.w)
+                   ? 'a' + onset(c.say) + (v.alone || v.say) : '',
                  word: ngi ? ngi.w : '', wordR: ngi ? ngi.r : '',
                  wordEn: ngi ? ngi.en : '', wordPic: ngi ? ngi.pic : '' };
       })
@@ -297,6 +299,10 @@ TB.ALPHABET = {};
       { ch: 'ङ', r: 'ṅa',  say: 'nga', ta: 'ங',
         en: 'ng as in sing. Modern Hindi writes this sound with the anusvara — रंग, गंगा — so ङ itself is rare, and never starts a word',
         ex: 'गंगा', exR: 'gangā', exEn: 'the Ganges', exTa: 'கங்கை', exHi: 'गंगा', pic: '🌊',
+        /* The modern spelling uses the anusvara, so it does not contain ङ
+           at all. The traditional one does, which is the only place a
+           learner can actually see the letter. */
+        oldEx: 'गङ्गा', oldExR: 'gaṅgā',
         letterSay: 'अङ्', letterSayR: 'ang' }] },
     { name: 'चवर्ग (palatals)', items: [
       { ch: 'च', r: 'ca',  say: 'cha', ta: 'ச',     en: 'ch — no puff of air',
@@ -313,7 +319,10 @@ TB.ALPHABET = {};
          anusvara instead — पंच, चंचल. */
       { ch: 'ञ', r: 'ña',  say: 'nya', ta: 'ஞ',
         en: 'ny as in canyon. Written with the anusvara in modern Hindi — पंच, चंचल. The letter ञ survives mainly inside ज्ञ, where it is said gy, not ny',
-        ex: 'पंच', exR: 'panch', exEn: 'five', exTa: 'ஐந்து', exHi: 'पंच', pic: '5️⃣',
+        ex: 'चंचल', exR: 'chañchal', exEn: 'playful, restless', exTa: 'விளையாட்டு', exHi: 'चंचल', pic: '🤹',
+        /* चंचल is how it is written now, with the anusvara; चञ्चल is the
+           traditional spelling, and the one that actually contains ञ. */
+        oldEx: 'चञ्चल', oldExR: 'chañchal',
         letterSay: 'अञ्', letterSayR: 'any' }] },
     { name: 'टवर्ग (retroflex)', items: [
       { ch: 'ट', r: 'ṭa',  say: 'ta',  ta: 'ட',     en: 't with the tongue curled back',

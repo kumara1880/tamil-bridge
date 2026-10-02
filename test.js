@@ -2935,7 +2935,20 @@ section('DICTIONARY (offline)');
       var bad = all.filter(function (x) {
         return !x.say || !x.ex || !x.exR || !x.exEn || !x.exTa || !x.exHi;
       });
-      t('every Hindi letter is complete in all three languages',
+      /* A letter that modern Hindi writes with the anusvara does not appear
+       in its own modern spelling — which is exactly why those two cards
+       were hard to follow. The traditional spelling is the only place the
+       letter itself can be seen, so both are shown. */
+    t('ङ shows गङ्गा beside गंगा', f('ङ').oldEx === 'गङ्गा', f('ङ').oldEx);
+    t('ञ shows चञ्चल beside चंचल',
+      f('ञ').ex === 'चंचल' && f('ञ').oldEx === 'चञ्चल', f('ञ').ex + '/' + f('ञ').oldEx);
+    t('the old spelling really contains the letter',
+      f('ङ').oldEx.indexOf('ङ') >= 0 && f('ञ').oldEx.indexOf('ञ') >= 0);
+    t('while the modern one does not, which is the point',
+      f('ङ').ex.indexOf('ङ') < 0 && f('ञ').ex.indexOf('ञ') < 0);
+    t('and the card shows it', /class="alpha-old"/.test(v2b));
+
+    t('every Hindi letter is complete in all three languages',
         bad.length === 0, bad.map(function (x) { return x.ch; }).join(' '));
     })();
   })();
@@ -3021,9 +3034,9 @@ section('DICTIONARY (offline)');
         /* The cluster itself, read ngo and ngau \u2014 not with a vowel put in
            front of it. I had them as \u0b87\u0b99\u0bcd\u0b95\u0bca and ingo, which is the convention
            a MEI letter is named by; these are not mei letters. */
-        t('which is the cluster itself, read ngo and ngau',
-          wordless[0].onItsOwn === '\u0b99\u0bcd\u0b95\u0bca' && wordless[0].onItsOwnR === 'ngo'
-          && wordless[1].onItsOwn === '\u0b99\u0bcd\u0b95\u0bcc' && wordless[1].onItsOwnR === 'ngau',
+        t('which is \u0b85 and the cluster, read ango and angow',
+          wordless[0].onItsOwn === '\u0b85\u0b99\u0bcd\u0b95\u0bca' && wordless[0].onItsOwnR === 'ango'
+          && wordless[1].onItsOwn === '\u0b85\u0b99\u0bcd\u0b95\u0bcc' && wordless[1].onItsOwnR === 'angow',
           wordless.map(function (c) { return c.onItsOwn + '=' + c.onItsOwnR; }).join(' '));
         t('and not with a vowel put in front of it',
           wordless.every(function (c) { return c.onItsOwnR.charAt(0) !== 'i'; }));

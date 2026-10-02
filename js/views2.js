@@ -1040,6 +1040,11 @@
          printing both gave "apple / apple". */
       + (it.exEn && it.exEn !== it.ex
          ? '<span class="alpha-ex-en">' + esc(it.exEn) + '</span>' : '')
+      /* A letter written with the anusvara today does not appear in its
+         own modern spelling. The traditional one is where it can be seen. */
+      + (it.oldEx
+         ? '<span class="alpha-old"><span class="hi">' + esc(it.oldEx) + '</span>'
+           + '<small>traditionally</small></span>' : '')
       + (it.exTa ? '<span class="alpha-ex-m ta">' + esc(it.exTa) + '</span>' : '')
       + (it.exHi ? '<span class="alpha-ex-m hi">' + esc(it.exHi) + '</span>' : '')
       + '</div>';
