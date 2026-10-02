@@ -35,7 +35,7 @@ TB.Numbers = (function () {
       var unit = Math.floor(n / s[0]);
       if (unit) { parts.push(enBelow1000(unit) + ' ' + s[1]); n %= s[0]; }
     });
-    if (n) parts.push(enBelow1000(n));
+    if (n) parts.push((parts.length && n < 100 ? 'and ' : '') + enBelow1000(n));
     return parts.join(' ').trim();
   }
 
@@ -52,7 +52,9 @@ TB.Numbers = (function () {
         n %= s[0];
       }
     });
-    if (n) parts.push(enBelow1000(n));
+    /* "one thousand and one", the way it is said — the same "and" this
+       already puts in at one hundred and one. */
+    if (n) parts.push((parts.length && n < 100 ? 'and ' : '') + enBelow1000(n));
     return parts.join(' ').trim();
   }
 
@@ -67,8 +69,11 @@ TB.Numbers = (function () {
     + 'छिहत्तर,सतहत्तर,अठहत्तर,उन्यासी,अस्सी,इक्यासी,बयासी,तिरासी,चौरासी,पचासी,छियासी,सत्तासी,अट्ठासी,'
     + 'नवासी,नब्बे,इक्यानवे,बानवे,तिरानवे,चौरानवे,पंचानवे,छियानवे,सत्तानवे,अट्ठानवे,निन्यानवे,सौ').split(',');
 
-  function hiBelow1000(n) {
+  function hiBelow1000(n, after) {
     if (n === 0) return '';
+    /* On its own 100 is सौ. Behind a bigger scale it wants its हक back:
+       1100 is ऐक हज़ार ऐक सौ, never "ऐक हज़ार सौ". */
+    if (n === 100 && after) return 'एक सौ';
     if (n <= 100) return HI[n];
     var h = HI[Math.floor(n / 100)] + ' सौ';
     var rest = n % 100;
@@ -86,7 +91,7 @@ TB.Numbers = (function () {
         n %= s[0];
       }
     });
-    if (n) parts.push(hiBelow1000(n));
+    if (n) parts.push(hiBelow1000(n, parts.length > 0));
     return parts.join(' ').trim();
   }
 
@@ -106,6 +111,17 @@ TB.Numbers = (function () {
   /* n × 1000 for n = 1..10, which all have their own joined word */
   var TA_THOUSANDS = ['', 'ஆயிரம்', 'இரண்டாயிரம்', 'மூவாயிரம்', 'நான்காயிரம்', 'ஐயாயிரம்',
     'ஆறாயிரம்', 'ஏழாயிரம்', 'எண்ணாயிரம்', 'ஒன்பதாயிரம்', 'பத்தாயிரம்'];
+
+  /* A thousand with anything after it bends: 1001 is ஆயிரத்து ஒன்று,
+     not "ஆயிரம் ஒன்று". It is the same bend the hundreds already make
+     above — நூறு to நூற்றி, தொள்ளாயிரம் to தொள்ளாயிரத்து — and for
+     ஆயிரம் it is perfectly regular, so it is derived rather than listed. */
+  function taOblique(word) {
+    /* The ending to match is -யிரம், not -ஆயிரம்: in இரண்டாயிரம் the
+       long a is the sign ா sitting on ட, not the letter ஆ, so matching the
+       letter catches ஆயிரம் alone and misses every other thousand. */
+    return word.replace(/யிரம்$/, 'யிரத்து');
+  }
 
   function taBelow1000(n) {
     if (n === 0) return '';
@@ -141,8 +157,9 @@ TB.Numbers = (function () {
     if (thou) {
       /* 1–10 thousand have their own joined words; above that Tamil writes the
          multiplier separately, which is what people actually read and say */
-      parts.push(thou <= 10 ? TA_THOUSANDS[thou] : taBelow1000(thou) + ' ஆயிரம்');
+      var tw = thou <= 10 ? TA_THOUSANDS[thou] : taBelow1000(thou) + ' ஆயிரம்';
       n %= 1e3;
+      parts.push(n ? taOblique(tw) : tw);
     }
     if (n) parts.push(taBelow1000(n));
     return parts.join(' ').trim();

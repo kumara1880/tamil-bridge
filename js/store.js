@@ -4,6 +4,7 @@
      tb.users            -> { userId: userRecord }
      tb.session          -> { userId, since }        (remembered sign-in)
      tb.data.<userId>    -> { history, srs, progress, stats, prefs }
+     tb.data.guest       -> the same, for anyone who has not signed in
    All reads are defensive: a corrupted or cleared store must never break the app. */
 window.TB = window.TB || {};
 
@@ -11,7 +12,14 @@ TB.Store = (function () {
   var K_USERS = 'tb.users';
   var K_SESSION = 'tb.session';
   var K_DATA = 'tb.data.';
+  var GUEST = 'guest';
   var MAX_HISTORY = 1000;
+
+  /* Nothing on this site asks you to sign in first, so most people arrive
+     signed out and stay that way. Their settings — the voice, the theme,
+     the text size — still have to survive a reload, so they get a bucket
+     of their own instead of being dropped on the floor. */
+  function bucket(userId) { return userId || GUEST; }
 
   function read(key, fallback) {
     try {
@@ -47,7 +55,8 @@ TB.Store = (function () {
       progress: {},      /* lessonId -> { done, score, ts } */
       stats: { xp: 0, streak: 0, lastActive: null, practiced: 0, translated: 0 },
       prefs: {
-        theme: 'dark', rate: 0.85, pitch: 1, voiceTa: '', voiceEn: '', voiceHi: '',
+        theme: 'dark', themeChosen: false, rate: 0.85, pitch: 1,
+        voiceTa: '', voiceEn: '', voiceHi: '', voiceSex: '',
         autoSpeak: true, showRoman: true, target: 'ta', textSize: 'normal'
       }
     };
@@ -85,6 +94,7 @@ TB.Store = (function () {
     },
 
     deleteUser: function (userId) {
+      if (!userId) return;
       var users = api.users();
       delete users[userId];
       api.saveUsers(users);
@@ -98,9 +108,9 @@ TB.Store = (function () {
 
     /* ---------- per-user data ---------- */
     data: function (userId) {
-      if (!userId) return blankData();
-      var d = read(K_DATA + userId, null);
-      if (!d) { d = blankData(); write(K_DATA + userId, d); return d; }
+      var key = K_DATA + bucket(userId);
+      var d = read(key, null);
+      if (!d) { d = blankData(); write(key, d); return d; }
       /* merge in any keys added by a later version of the app */
       var base = blankData();
       Object.keys(base).forEach(function (k) {
@@ -115,11 +125,10 @@ TB.Store = (function () {
       return d;
     },
 
-    saveData: function (userId, d) { if (userId) return write(K_DATA + userId, d); return false; },
+    saveData: function (userId, d) { return write(K_DATA + bucket(userId), d); },
 
     /* ---------- history ---------- */
     addHistory: function (userId, entry) {
-      if (!userId) return null;
       var d = api.data(userId);
       entry.id = 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       entry.ts = Date.now();

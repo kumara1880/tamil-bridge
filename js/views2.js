@@ -162,9 +162,9 @@
       var c = TB.SRS.counts(d.srs, TB.VOCAB);
       return '<div class="view">'
         + '<div class="grid g4 mb">'
-        + '<div class="stat blue"><div class="n">' + c.due + '</div><div class="l">Due today</div></div>'
-        + '<div class="stat green"><div class="n">' + c.learned + '</div><div class="l">Learned</div></div>'
-        + '<div class="stat"><div class="n">' + c.fresh + '</div><div class="l">New</div></div>'
+        + '<div class="stat blue"><div class="n" id="pDue">' + c.due + '</div><div class="l">Due today</div></div>'
+        + '<div class="stat green"><div class="n" id="pLearned">' + c.learned + '</div><div class="l">Learned</div></div>'
+        + '<div class="stat"><div class="n" id="pNew">' + c.fresh + '</div><div class="l">New</div></div>'
         + '<div class="stat accent"><div class="n">' + c.total + '</div><div class="l">Total</div></div>'
         + '</div>'
         + '<div class="card"><div class="row">'
@@ -249,6 +249,18 @@
 
       function reveal() { shown = true; draw(); }
 
+      /* These four were drawn once and then left alone, so somebody could
+         work through twenty cards and watch the numbers above them never
+         move — the one bit of the screen that shows the work adding up. */
+      function paintCounts() {
+        var c = TB.SRS.counts(D().srs, TB.VOCAB);
+        var set = function (id, v) {
+          var el = root.querySelector('#' + id);
+          if (el) el.textContent = v;
+        };
+        set('pDue', c.due); set('pLearned', c.learned); set('pNew', c.fresh);
+      }
+
       function rate(quality) {
         var w = queue[idx];
         var d = D();
@@ -258,6 +270,7 @@
         saveD(d);
         TB.Store.touchStreak(TB.Auth.userId());
         TB.App.refreshChips();
+        paintCounts();
         if (quality === 0) queue.push(w);      /* see it again this session */
         idx++; shown = false;
         draw();
@@ -762,7 +775,8 @@
   V.alphabet = {
     title: 'Alphabet', sub: 'Tamil 247 · Hindi varnamala · English 26',
     html: function (param) {
-      var which = param || 'ta';
+      /* Same here: #/alphabet/zz asked for a chart that is not there. */
+      var which = TB.ALPHABET[param] ? param : 'ta';
       var lang = which === 'en' ? 'en' : which;
       var sx = TB.Speech.sexesFor(lang);
       var pref = (V.D().prefs || {}).voiceSex || '';
@@ -1277,7 +1291,10 @@
   V.phonics = {
     title: 'Sounds', sub: '44 English sounds · 52 Hindi · 61 Tamil — each with a word to hear it in',
     html: function (param) {
-      var which = param || 'en';
+      /* The address is user input: a mistyped or stale link asked for a
+         language that does not exist, and the next line read .groups off
+         undefined. */
+      var which = TB.PHONICS[param] ? param : 'en';
       var P = TB.PHONICS[which];
       var h = '<div class="view"><div class="card"><div class="pill-row">'
         + '<a class="pill' + (which === 'en' ? ' on' : '') + '" href="#/phonics/en">English (44)</a>'

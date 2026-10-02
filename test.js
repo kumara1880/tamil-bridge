@@ -2195,6 +2195,34 @@ section('NUMBERS');
  [5000, 'ஐயாயிரம்'],
  [100000, 'ஒரு லட்சம்']]
   .forEach(function (row) { t('tamil ' + row[0], TB.Numbers.ta(row[0]) === row[1], TB.Numbers.ta(row[0])); });
+/* A thousand with anything after it bends: ஆயிரம் becomes ஆயிரத்து.
+   The tests above only ever asked for round thousands, which is exactly how
+   "ஆயிரம் ஒன்று" survived in a chart meant to teach children to read. */
+[[1001, 'ஆயிரத்து ஒன்று'],
+ [1100, 'ஆயிரத்து நூறு'],
+ [2001, 'இரண்டாயிரத்து ஒன்று'],
+ [3001, 'மூவாயிரத்து ஒன்று'],
+ [5500, 'ஐயாயிரத்து ஐநூறு'],
+ [8001, 'எண்ணாயிரத்து ஒன்று'],
+ [10001, 'பத்தாயிரத்து ஒன்று'],
+ [11500, 'பதினொன்று ஆயிரத்து ஐநூறு'],
+ [901, 'தொள்ளாயிரத்து ஒன்று']]
+  .forEach(function (row) { t('tamil bends ' + row[0], TB.Numbers.ta(row[0]) === row[1], TB.Numbers.ta(row[0])); });
+/* and a round thousand must stay straight */
+[[1000, 'ஆயிரம்'], [2000, 'இரண்டாயிரம்'], [10000, 'பத்தாயிரம்'], [900, 'தொள்ளாயிரம்']]
+  .forEach(function (row) { t('tamil stays straight ' + row[0], TB.Numbers.ta(row[0]) === row[1], TB.Numbers.ta(row[0])); });
+
+/* Hindi: behind a bigger scale, 100 wants its एक back. */
+t('hindi 1100', TB.Numbers.hi(1100) === 'एक हज़ार एक सौ', TB.Numbers.hi(1100));
+t('hindi 2100', TB.Numbers.hi(2100) === 'दो हज़ार एक सौ', TB.Numbers.hi(2100));
+t('hindi 100 alone is सौ', TB.Numbers.hi(100) === 'सौ', TB.Numbers.hi(100));
+t('hindi 101 unchanged', TB.Numbers.hi(101) === 'एक सौ एक', TB.Numbers.hi(101));
+
+/* English keeps the "and" it already uses at 101. */
+t('english 1001', TB.Numbers.enIndian(1001) === 'one thousand and one', TB.Numbers.enIndian(1001));
+t('english 1100', TB.Numbers.enIndian(1100) === 'one thousand one hundred', TB.Numbers.enIndian(1100));
+t('english 101 unchanged', TB.Numbers.enIndian(101) === 'one hundred and one', TB.Numbers.enIndian(101));
+
 t('lakh not hundred-thousand', TB.Numbers.describe(100000).enIndian === 'one lakh');
 t('both systems shown', TB.Numbers.describe(100000).en === 'one hundred thousand');
 t('indian digit grouping', TB.Numbers.indianGroups(1234567) === '12,34,567');
@@ -3421,6 +3449,33 @@ section('DICTIONARY (offline)');
     const d = TB.Store.data(u.id);
     t('history recorded', d.history.length === 1 && d.history[0].src === 'cat');
     t('export round-trips', JSON.parse(TB.Store.exportAll(u.id)).data.history.length === 1);
+
+    /* Signed out. Nothing on this site asks for an account first, so this is
+       how most people arrive. Every setting used to be written to nowhere and
+       silently reset on the next reload — the voice most of all. */
+    const g = TB.Store.data(null);
+    g.prefs.voiceSex = 'female';
+    g.prefs.textSize = 'largest';
+    g.prefs.theme = 'dark';
+    g.prefs.themeChosen = true;
+    t('a signed-out visitor can be saved', TB.Store.saveData(null, g) === true);
+    const gBack = TB.Store.data(null);
+    t('the voice survives a reload', gBack.prefs.voiceSex === 'female');
+    t('so does the text size', gBack.prefs.textSize === 'largest');
+    t('so does the theme', gBack.prefs.theme === 'dark' && gBack.prefs.themeChosen === true);
+    t('and it is stored under its own key', !!ctx.localStorage.getItem('tb.data.guest'));
+    t('signed-out history is kept', !!TB.Store.addHistory(null, { type: 'translate', src: 'dog' })
+        && TB.Store.data(null).history.length === 1);
+
+    /* An account must not inherit a stranger's settings, and must not lose
+       its own to them either. */
+    t('an account keeps its own settings', TB.Store.data(u.id).prefs.voiceSex === '');
+    t('and its own history', TB.Store.data(u.id).history.length === 1
+        && TB.Store.data(u.id).history[0].src === 'cat');
+
+    /* A missing id must never be read as the guest bucket here. */
+    TB.Store.deleteUser('');
+    t('deleteUser ignores a missing id', !!ctx.localStorage.getItem('tb.data.guest'));
   } catch (e) {
     fail++; console.log('  FAIL  accounts threw: ' + e.message);
   }
