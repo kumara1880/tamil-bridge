@@ -3358,6 +3358,19 @@ section('DICTIONARY (offline)');
     t('both pills turn on the same condition',
       (v2.match(/\(canChoose \? '' : ' disabled'\)/g) || []).length === 2,
       (v2.match(/\(canChoose \? '' : ' disabled'\)/g) || []).length + ' of 2');
+    /* Reading controls sit beside every group of letters, in all three
+       alphabets — including a Stop, so a reading can be halted from
+       wherever it has got to rather than from the top of the page only. */
+    t('every section gets its own read button', /data-sec-all/.test(v2));
+    t('and one that starts from the letter tapped', /data-sec-from/.test(v2));
+    t('and its own stop', /data-sec-stop/.test(v2));
+    t('every stop does the same thing',
+      /bar\.querySelector\('\[data-sec-stop\]'\)\.addEventListener\('click', stopReading\);/.test(v2));
+    t('and they all appear and vanish together',
+      /function showStops\(on\)/.test(v2)
+      && /showStops\(true\);/.test(v2)
+      && (v2.match(/showStops\(false\);/g) || []).length >= 2);
+
     t('and says so when there is only one voice',
       /no choice of man or woman here/.test(v2));
     t('a name on neither list is left unknown, not guessed',

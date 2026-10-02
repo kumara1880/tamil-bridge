@@ -881,7 +881,11 @@
         bar.className = 'row mt sec-read';
         bar.innerHTML =
             '<button class="btn btn-sm" data-sec-all type="button">▶ Read this section</button>'
-          + '<button class="btn btn-sm" data-sec-from type="button" hidden></button>';
+          + '<button class="btn btn-sm" data-sec-from type="button" hidden></button>'
+          /* Stopping should be possible from wherever the reading has got
+             to, without scrolling back to the top of the page to find the
+             one button that can do it. */
+          + '<button class="btn btn-sm btn-stop" data-sec-stop type="button" hidden>⏹ Stop</button>';
         /* after the heading and its subtitle, before the letters */
         var sub = card.querySelector('.card-sub');
         var anchor = sub || head;
@@ -894,6 +898,7 @@
           var i = all.indexOf(lastTapped);
           readCells(i < 0 ? all : all.slice(i));
         });
+        bar.querySelector('[data-sec-stop]').addEventListener('click', stopReading);
       });
 
       var modeRow = root.querySelector('#aMode');
@@ -913,13 +918,21 @@
         });
       }
 
+      /* Every Stop on the page — the one at the top and the one in each
+         section — appears and disappears together, because they all do the
+         same thing and a reading is either going on or it is not. */
+      function showStops(on) {
+        if (stopBtn) stopBtn.hidden = !on;
+        root.querySelectorAll('[data-sec-stop]').forEach(function (b) { b.hidden = !on; });
+      }
+
       function stopReading() {
         if (running && running.cancel) running.cancel();
         running = null;
         TB.Speech.stop();
         clearLit();
         root.classList.remove('reading');
-        if (stopBtn) stopBtn.hidden = true;
+        showStops(false);
       }
       if (stopBtn) stopBtn.addEventListener('click', stopReading);
 
@@ -959,7 +972,7 @@
         cellOf = []; ci = -1;
         steps.forEach(function (st) { if (!st.forCell) ci++; cellOf.push(ci); });
 
-        if (stopBtn) stopBtn.hidden = false;
+        showStops(true);
         root.classList.add('reading');   /* floats Stop where it can be reached */
         running = TB.Speech.sequence(steps, {
           sex: d.prefs.voiceSex === 'net' ? '' : (d.prefs.voiceSex || ''),
@@ -982,7 +995,7 @@
         running.then(function () {
           clearLit();
           root.classList.remove('reading');
-          if (stopBtn) stopBtn.hidden = true;
+          showStops(false);
           running = null;
         });
       }

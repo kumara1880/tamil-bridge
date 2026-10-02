@@ -1966,3 +1966,10 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
   align-items: baseline;
   flex-wrap: wrap;
 }
+
+/* Stop should be findable at a glance while a reading is running. */
+.btn-stop {
+  border-color: var(--red);
+  color: var(--red);
+  font-weight: 600;
+}
