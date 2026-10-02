@@ -1508,8 +1508,56 @@ section('ABACUS');
     wrong.map(function (p) { return p.join('+'); }).join(', '));
   t('and the exchange is explained when a rod runs out', (function () {
     var w = A.addSteps(6, 7);
-    return w.steps.some(function (s) { return s.carry && /cannot hold/.test(s.how); });
+    return w.steps.some(function (s) { return s.carry && /cannot hold/.test(s.en); });
   })());
+  /* The steps ARE the lesson. In English only they taught nobody who could
+     not already read English — on a page whose whole purpose is to teach
+     a Tamil speaker. */
+  (function () {
+    var bad = [];
+    [[25, 17], [6, 7], [99, 1], [48, 55], [7, 2]].forEach(function (p) {
+      var w = A.addSteps(p[0], p[1]);
+      if (!w) return;
+      w.steps.forEach(function (st) {
+        ['en', 'ta', 'hi'].forEach(function (l) {
+          if (!st[l] || !String(st[l]).trim()) bad.push(p.join('+') + ' has no ' + l);
+        });
+      });
+    });
+    t('every step of a sum is written in all three', bad.length === 0, bad.slice(0, 3).join(', '));
+  })();
+  t('and the rods are named in all three',
+    A.placeName(6, 7) === 'units' && A.placeTa(6, 7) === 'ஒன்றுகள்'
+    && A.placeHi(6, 7) === 'इकाई',
+    A.placeTa(6, 7) + ' / ' + A.placeHi(6, 7));
+  /* Tamil and Hindi must name the place the step is actually about, or the
+     sentence is about a different rod in each language. */
+  t('the step names the same rod in each language', (function () {
+    var w = A.addSteps(25, 17);
+    var carry = w.steps.filter(function (s) { return s.carry; })[0];
+    return carry && /units/.test(carry.en) && /ஒன்றுகள்/.test(carry.ta)
+        && /इकाई/.test(carry.hi);
+  })());
+  (function () {
+    var v10 = fs.readFileSync(__dirname + '/js/views10.js', 'utf8');
+    function count(l) { return (v10.match(new RegExp(l + ": '", 'g')) || []).length; }
+    t('the page opens with an explainer', /HOW_IT_WORKS/.test(v10));
+    /* Five pieces, and not one of them written in only one language. */
+    t('and every piece of it is in all three',
+      count('en') >= 5 && count('ta') === count('en') && count('hi') === count('en'),
+      count('en') + ' en / ' + count('ta') + ' ta / ' + count('hi') + ' hi');
+    t('which is folded shut like every other long thing',
+      /<details class="card fold" id="abHow"/.test(v10));
+    t('the rod label carries its Tamil name', /A\.placeTa\(i, rods\)/.test(v10));
+    /* The adding mode drew no abacus at all until the button was pressed,
+       and the button did nothing because 25 and 17 were placeholders. */
+    t('the adding mode has real numbers in the boxes, not placeholders',
+      /value="' \+ addA \+ '"/.test(v10) && !/placeholder="25"/.test(v10));
+    t('and an abacus on screen from the moment it opens',
+      /An abacus page with no abacus on it/.test(v10));
+    t('an empty box says so instead of nothing happening',
+      /Put a number in both boxes/.test(v10));
+  })();
   t('a rod with room just takes the beads', (function () {
     var w = A.addSteps(21, 13);
     return w.steps.every(function (s) { return !s.carry; }) && w.answer === 34;

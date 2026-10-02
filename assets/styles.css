@@ -1743,3 +1743,23 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 .card-sub .hi-tam-inline { display: inline; margin-left: 5px; }
 .card-sub .hi-tam-inline::before { content: '['; }
 .card-sub .hi-tam-inline::after { content: ']'; }
+
+/* A worked step, now three languages deep: a number down the side so the
+   order is still obvious once each step is three lines tall. */
+.ab-step { display: flex; gap: 11px; align-items: flex-start; }
+.ab-step-n {
+  flex: none; width: 23px; height: 23px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--panel); border: 1px solid var(--line);
+  font-size: calc(12px * var(--fs, 1)); font-weight: 700; color: var(--text-dim);
+  margin-top: 2px;
+}
+.ab-step.carry .ab-step-n { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* trio() returns three sibling lines, so they need a column of their own —
+   dropped straight into the flex row they became three narrow columns with
+   one word on each line. */
+.ab-step-body { flex: 1 1 auto; min-width: 0; }
+.ab-step-body .lang-line { min-width: 0; }
+
+/* The rod label says its place in English and in Tamil. */
+.ab-place .ta { display: block; font-size: calc(8.5px * var(--fs, 1)); opacity: .85; }

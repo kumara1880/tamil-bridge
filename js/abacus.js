@@ -67,10 +67,19 @@ TB.Abacus = (function () {
   /* What each rod is worth, for labelling: units, tens, hundreds… */
   var PLACE = ['units', 'tens', 'hundreds', 'thousands', 'ten thousands',
                'lakhs', 'ten lakhs', 'crores'];
+  /* The rods are named in all three, because the name of the place is half
+     of what is being taught — a child who cannot read "hundreds" cannot
+     follow a step that turns on which rod it is about. */
+  var PLACE_TA = ['ஒன்றுகள்', 'பத்துகள்', 'நூறுகள்', 'ஆயிரங்கள்',
+                  'பத்தாயிரங்கள்', 'லட்சங்கள்', 'பத்து லட்சங்கள்', 'கோடிகள்'];
+  var PLACE_HI = ['इकाई', 'दहाई', 'सैकड़ा', 'हज़ार',
+                  'दस हज़ार', 'लाख', 'दस लाख', 'करोड़'];
 
   function placeName(rod, rods) {
     return PLACE[(rods || RODS) - 1 - rod] || '';
   }
+  function placeTa(rod, rods) { return PLACE_TA[(rods || RODS) - 1 - rod] || ''; }
+  function placeHi(rod, rods) { return PLACE_HI[(rods || RODS) - 1 - rod] || ''; }
 
   /* Adding on an abacus is done a digit at a time from the left, and the
      interesting part is what happens when a rod runs out of beads: you
@@ -95,10 +104,13 @@ TB.Abacus = (function () {
 
       if (d <= room) {
         steps.push({
-          rod: rod, place: placeName(rod, rods), add: d,
-          how: 'Put ' + d + ' more on the ' + placeName(rod, rods) + ' rod: '
-             + before + ' and ' + d + ' is ' + (before + d) + '.',
-          carry: false
+          rod: rod, place: placeName(rod, rods), add: d, carry: false,
+          en: 'Put ' + d + ' more on the ' + placeName(rod, rods) + ' rod: '
+            + before + ' and ' + d + ' is ' + (before + d) + '.',
+          ta: placeTa(rod, rods) + ' கம்பியில் இன்னும் ' + d
+            + ' சேர்க்கவும்: ' + before + ' உடன் ' + d + ' சேர்த்தால் ' + (before + d) + '.',
+          hi: placeHi(rod, rods) + ' छड़ पर ' + d + ' और डालें: '
+            + before + ' और ' + d + ' मिलकर ' + (before + d) + '।'
         });
         var v = before + d;
         frame[rod].heaven = v >= 5;
@@ -107,10 +119,19 @@ TB.Abacus = (function () {
         /* no room: one to the rod on the left, and take ten off here */
         steps.push({
           rod: rod, place: placeName(rod, rods), add: d, carry: true,
-          how: 'The ' + placeName(rod, rods) + ' rod shows ' + before + ' and cannot hold '
-             + d + ' more. So give one bead to the ' + placeName(rod - 1, rods)
-             + ' rod, and take ' + (10 - d) + ' off this one: ' + before + ' − ' + (10 - d)
-             + ' is ' + (before - (10 - d)) + '.'
+          en: 'The ' + placeName(rod, rods) + ' rod shows ' + before + ' and cannot hold '
+            + d + ' more. So give one bead to the ' + placeName(rod - 1, rods)
+            + ' rod, and take ' + (10 - d) + ' off this one: ' + before + ' − ' + (10 - d)
+            + ' is ' + (before - (10 - d)) + '.',
+          ta: placeTa(rod, rods) + ' கம்பியில் ' + before
+            + ' உள்ளது; இன்னும் ' + d + ' சேர்க்க இடம் இல்லை. எனவே '
+            + placeTa(rod - 1, rods) + ' கம்பிக்கு ஒரு மணி கொடுத்து, இதில் இருந்து '
+            + (10 - d) + ' எடுக்கவும்: ' + before + ' − ' + (10 - d)
+            + ' = ' + (before - (10 - d)) + '.',
+          hi: placeHi(rod, rods) + ' छड़ पर ' + before + ' है और ' + d
+            + ' और नहीं समा सकते। इसलिए ' + placeHi(rod - 1, rods)
+            + ' छड़ को एक मनका दें, और इसमें से ' + (10 - d) + ' घटाएँ: '
+            + before + ' − ' + (10 - d) + ' = ' + (before - (10 - d)) + '।'
         });
         var nv = before - (10 - d);
         frame[rod].heaven = nv >= 5;
@@ -138,6 +159,8 @@ TB.Abacus = (function () {
     tapEarth: tapEarth,
     tapHeaven: tapHeaven,
     placeName: placeName,
+    placeTa: placeTa,
+    placeHi: placeHi,
     addSteps: addSteps
   };
 })();

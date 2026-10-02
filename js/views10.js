@@ -8,12 +8,79 @@
 
   var A = TB.Abacus;
 
+  /* What the thing is, before anybody is asked to use it. Five short
+     pieces: what a rod is, what the two kinds of bead are worth, when a
+     bead counts, what one rod can show, and the one rule for adding.
+
+     All three languages, because a child who reads Tamil was being handed
+     a frame of beads and a paragraph of English. */
+  var HOW_IT_WORKS = [
+    { en: 'An abacus is a frame of rods. Each rod is one place in the number \u2014 units, '
+        + 'tens, hundreds \u2014 and the beads pushed in on that rod are that digit.',
+      ta: '\u0bae\u0ba3\u0bbf\u0b9a\u0bcd\u0b9a\u0b9f\u0bcd\u0b9f\u0bae\u0bcd \u0b8e\u0ba9\u0bcd\u0baa\u0ba4\u0bc1 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0b95\u0bb3\u0bcd \u0b95\u0bca\u0ba3\u0bcd\u0b9f \u0b9a\u0b9f\u0bcd\u0b9f\u0bae\u0bcd. \u0b92\u0bb5\u0bcd\u0bb5\u0bca\u0bb0\u0bc1 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0baf\u0bc1\u0bae\u0bcd '
+        + '\u0b8e\u0ba3\u0bcd\u0ba3\u0bbf\u0ba9\u0bcd \u0b92\u0bb0\u0bc1 \u0b87\u0b9f\u0bae\u0bcd \u2014 \u0b92\u0ba9\u0bcd\u0bb1\u0bc1, \u0baa\u0ba4\u0bcd\u0ba4\u0bc1, \u0ba8\u0bc2\u0bb1\u0bc1 \u2014 \u0b85\u0ba8\u0bcd\u0ba4 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0baf\u0bbf\u0bb2\u0bcd \u0ba4\u0bb3\u0bcd\u0bb3\u0baa\u0bcd\u0baa\u0b9f\u0bcd\u0b9f '
+        + '\u0bae\u0ba3\u0bbf\u0b95\u0bb3\u0bcd \u0ba4\u0bbe\u0ba9\u0bcd \u0b85\u0ba8\u0bcd\u0ba4 \u0b87\u0bb2\u0b95\u0bcd\u0b95\u0bae\u0bcd.',
+      hi: '\u0917\u093f\u0928\u0924\u093e\u0930\u093e \u091b\u0921\u093c\u094b\u0902 \u0915\u093e \u090f\u0915 \u0922\u093e\u0901\u091a\u093e \u0939\u0948\u0964 \u0939\u0930 \u091b\u0921\u093c \u0938\u0902\u0916\u094d\u092f\u093e \u0915\u093e \u090f\u0915 \u0938\u094d\u0925\u093e\u0928 \u0939\u0948 \u2014 '
+        + '\u0907\u0915\u093e\u0908, \u0926\u0939\u093e\u0908, \u0938\u0948\u0915\u0921\u093c\u093e \u2014 \u0914\u0930 \u0909\u0938 \u091b\u0921\u093c \u092a\u0930 \u0927\u0915\u0947\u0932\u0947 \u0917\u090f \u092e\u0928\u0915\u0947 \u0935\u0939\u0940 \u0905\u0902\u0915 \u0939\u0948\u0902\u0964' },
+
+    { en: 'One bead sits above the bar and is worth 5. Four sit below, and each of those '
+        + 'is worth 1.',
+      ta: '\u0baa\u0b9f\u0bcd\u0b9f\u0bc8\u0b95\u0bcd\u0b95\u0bc1 \u0bae\u0bc7\u0bb2\u0bc7 \u0b92\u0bb0\u0bc1 \u0bae\u0ba3\u0bbf \u2014 \u0b85\u0ba4\u0ba9\u0bcd \u0bae\u0ba4\u0bbf\u0baa\u0bcd\u0baa\u0bc1 5. \u0b95\u0bc0\u0bb4\u0bc7 \u0ba8\u0bbe\u0ba9\u0bcd\u0b95\u0bc1 \u0bae\u0ba3\u0bbf\u0b95\u0bb3\u0bcd \u2014 '
+        + '\u0b92\u0bb5\u0bcd\u0bb5\u0bca\u0ba9\u0bcd\u0bb1\u0bbf\u0ba9\u0bcd \u0bae\u0ba4\u0bbf\u0baa\u0bcd\u0baa\u0bc1\u0bae\u0bcd 1.',
+      hi: '\u092a\u091f\u094d\u091f\u0940 \u0915\u0947 \u090a\u092a\u0930 \u090f\u0915 \u092e\u0928\u0915\u093e \u0939\u0948, \u091c\u093f\u0938\u0915\u093e \u092e\u093e\u0928 5 \u0939\u0948\u0964 \u0928\u0940\u091a\u0947 \u091a\u093e\u0930 \u092e\u0928\u0915\u0947 \u0939\u0948\u0902, '
+        + '\u0939\u0930 \u090f\u0915 \u0915\u093e \u092e\u093e\u0928 1\u0964' },
+
+    { en: 'A bead counts only when it is pushed towards the bar. Pushed away from it, '
+        + 'the bead is nothing.',
+      ta: '\u0bae\u0ba3\u0bbf\u0baf\u0bc8 \u0baa\u0b9f\u0bcd\u0b9f\u0bc8\u0baf\u0bc8 \u0ba8\u0bcb\u0b95\u0bcd\u0b95\u0bbf \u0ba4\u0bb3\u0bcd\u0bb3\u0bbf\u0ba9\u0bbe\u0bb2\u0bcd \u0bae\u0b9f\u0bcd\u0b9f\u0bc1\u0bae\u0bc7 \u0b85\u0ba4\u0bc1 \u0b8e\u0ba3\u0bcd\u0ba3\u0baa\u0bcd\u0baa\u0b9f\u0bc1\u0bae\u0bcd. '
+        + '\u0bb5\u0bbf\u0bb2\u0b95\u0bcd\u0b95\u0bbf \u0bb5\u0bc8\u0ba4\u0bcd\u0ba4\u0bbe\u0bb2\u0bcd \u0b85\u0ba4\u0bc1 \u0baa\u0bc2\u0b9c\u0bcd\u0baf\u0bae\u0bcd.',
+      hi: '\u092e\u0928\u0915\u093e \u0924\u092d\u0940 \u0917\u093f\u0928\u093e \u091c\u093e\u0924\u093e \u0939\u0948 \u091c\u092c \u0909\u0938\u0947 \u092a\u091f\u094d\u091f\u0940 \u0915\u0940 \u0913\u0930 \u0927\u0915\u0947\u0932\u093e \u091c\u093e\u090f\u0964 '
+        + '\u0926\u0942\u0930 \u0930\u0916\u0928\u0947 \u092a\u0930 \u0935\u0939 \u0936\u0942\u0928\u094d\u092f \u0939\u0948\u0964' },
+
+    { en: 'So one rod can show 0 to 9: the top bead for 5, plus however many of the four '
+        + 'below have been pushed up.',
+      ta: '\u0b8e\u0ba9\u0bb5\u0bc7 \u0b92\u0bb0\u0bc1 \u0b95\u0bae\u0bcd\u0baa\u0bbf 0 \u0bae\u0bc1\u0ba4\u0bb2\u0bcd 9 \u0bb5\u0bb0\u0bc8 \u0b95\u0bbe\u0b9f\u0bcd\u0b9f\u0bc1\u0bae\u0bcd: \u0bae\u0bc7\u0bb2\u0bc7 \u0b89\u0bb3\u0bcd\u0bb3 \u0bae\u0ba3\u0bbf 5, '
+        + '\u0b85\u0ba4\u0bcd\u0ba4\u0bc1\u0b9f\u0ba9\u0bcd \u0b95\u0bc0\u0bb4\u0bc7 \u0bae\u0bc7\u0bb2\u0bc7 \u0ba4\u0bb3\u0bcd\u0bb3\u0baa\u0bcd\u0baa\u0b9f\u0bcd\u0b9f \u0bae\u0ba3\u0bbf\u0b95\u0bb3\u0bcd.',
+      hi: '\u0907\u0938\u0932\u093f\u090f \u090f\u0915 \u091b\u0921\u093c 0 \u0938\u0947 9 \u0924\u0915 \u0926\u093f\u0916\u093e \u0938\u0915\u0924\u0940 \u0939\u0948: \u090a\u092a\u0930 \u0915\u093e \u092e\u0928\u0915\u093e 5, '
+        + '\u0914\u0930 \u0928\u0940\u091a\u0947 \u0915\u0947 \u091c\u093f\u0924\u0928\u0947 \u092e\u0928\u0915\u0947 \u090a\u092a\u0930 \u0927\u0915\u0947\u0932\u0947 \u0917\u090f \u0939\u094b\u0902\u0964' },
+
+    { en: 'To add, take one rod at a time. When a rod has no room left, give one bead to '
+        + 'the rod on its left and take ten off this one. That exchange is the whole skill.',
+      ta: '\u0b95\u0bc2\u0b9f\u0bcd\u0b9f\u0bc1\u0bae\u0bcd\u0baa\u0bcb\u0ba4\u0bc1 \u0b92\u0bb0\u0bc1 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0baf\u0bbe\u0b95\u0b9a\u0bcd \u0b9a\u0bc6\u0baf\u0bcd\u0baf\u0bb5\u0bc1\u0bae\u0bcd. \u0b92\u0bb0\u0bc1 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0baf\u0bbf\u0bb2\u0bcd \u0b87\u0b9f\u0bae\u0bcd '
+        + '\u0b87\u0bb2\u0bcd\u0bb2\u0bbe\u0ba4\u0baa\u0bcb\u0ba4\u0bc1, \u0b87\u0b9f\u0ba4\u0bc1 \u0baa\u0b95\u0bcd\u0b95 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0b95\u0bcd\u0b95\u0bc1 \u0b92\u0bb0\u0bc1 \u0bae\u0ba3\u0bbf \u0b95\u0bca\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4\u0bc1, \u0b87\u0ba4\u0bbf\u0bb2\u0bcd '
+        + '\u0b87\u0bb0\u0bc1\u0ba8\u0bcd\u0ba4\u0bc1 \u0baa\u0ba4\u0bcd\u0ba4\u0bc1 \u0b8e\u0b9f\u0bc1\u0b95\u0bcd\u0b95\u0bb5\u0bc1\u0bae\u0bcd. \u0b87\u0ba8\u0bcd\u0ba4 \u0bae\u0bbe\u0bb1\u0bcd\u0bb1\u0bae\u0bcd \u0ba4\u0bbe\u0ba9\u0bcd \u0bae\u0bca\u0ba4\u0bcd\u0ba4 \u0ba4\u0bbf\u0bb1\u0ba9\u0bcd.',
+      hi: '\u091c\u094b\u0921\u093c\u0924\u0947 \u0938\u092e\u092f \u090f\u0915-\u090f\u0915 \u091b\u0921\u093c \u0932\u0947\u0902\u0964 \u091c\u092c \u091b\u0921\u093c \u092a\u0930 \u091c\u0917\u0939 \u0928 \u092c\u091a\u0947, \u0924\u094b \u092c\u093e\u0908\u0902 '
+        + '\u091b\u0921\u093c \u0915\u094b \u090f\u0915 \u092e\u0928\u0915\u093e \u0926\u0947\u0902 \u0914\u0930 \u0907\u0938\u092e\u0947\u0902 \u0938\u0947 \u0926\u0938 \u0918\u091f\u093e\u090f\u0901\u0964 \u092f\u0939\u0940 \u0905\u0926\u0932\u093e-\u092c\u0926\u0932\u0940 \u092a\u0942\u0930\u093e \u0939\u0941\u0928\u0930 \u0939\u0948\u0964' }
+  ];
+
+  /* One block of prose in all three, each with how to say it. */
+  function trio(o) {
+    return ['en', 'ta', 'hi'].map(function (l) {
+      return '<div class="lang-line"><div class="' + l + '">' + esc(o[l]) + speak(o[l], l)
+        + '</div>' + readAid(o[l], l) + '</div>';
+    }).join('');
+  }
+
+  function explainer() {
+    return '<details class="card fold" id="abHow">'
+      + '<summary class="fold-head"><div><h3>\u{1F4D6} How the abacus works</h3>'
+      + '<div class="card-sub ta">\u0bae\u0ba3\u0bbf\u0b9a\u0bcd\u0b9a\u0b9f\u0bcd\u0b9f\u0bae\u0bcd \u0b8e\u0baa\u0bcd\u0baa\u0b9f\u0bbf \u0bb5\u0bc7\u0bb2\u0bc8 \u0b9a\u0bc6\u0baf\u0bcd\u0b95\u0bbf\u0bb1\u0ba4\u0bc1 \u00b7 '
+      + '<span class="hi">\u0917\u093f\u0928\u0924\u093e\u0930\u093e \u0915\u0948\u0938\u0947 \u0915\u093e\u092e \u0915\u0930\u0924\u093e \u0939\u0948</span></div></div>'
+      + '<span class="chip">' + HOW_IT_WORKS.length + '</span></summary>'
+      + HOW_IT_WORKS.map(function (o, i) {
+          return '<div class="mod-block"><div class="mod-label">' + (i + 1) + '</div>'
+            + trio(o) + '</div>';
+        }).join('')
+      + '</details>';
+  }
+
   V.abacus = {
     title: 'Abacus',
     sub: 'Move the beads, and hear the number in English, தமிழ் and हिंदी',
 
     html: function () {
       return '<div class="view">'
+        + explainer()
         + '<div class="card">'
         +   '<div class="row mb"><div class="pill-row" id="abMode">'
         +     '<button class="pill on" data-m="play" type="button">\u{1F9EE} Play</button>'
@@ -21,7 +88,13 @@
         +     '<button class="pill" data-m="add" type="button">➕ Add, bead by bead</button>'
         +   '</div></div>'
         +   '<div class="tiny muted">Each rod has one bead on top worth <b>5</b> and four below '
-        +     'worth <b>1</b>. A bead counts when it is pushed towards the bar.</div>'
+        +     'worth <b>1</b>. A bead counts when it is pushed towards the bar.'
+        +     '<div class="ta mt">\u0b92\u0bb5\u0bcd\u0bb5\u0bca\u0bb0\u0bc1 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0baf\u0bbf\u0bb2\u0bc1\u0bae\u0bcd \u0bae\u0bc7\u0bb2\u0bc7 \u0b92\u0bb0\u0bc1 \u0bae\u0ba3\u0bbf (\u0bae\u0ba4\u0bbf\u0baa\u0bcd\u0baa\u0bc1 <b>5</b>), '
+        +       '\u0b95\u0bc0\u0bb4\u0bc7 \u0ba8\u0bbe\u0ba9\u0bcd\u0b95\u0bc1 \u0bae\u0ba3\u0bbf\u0b95\u0bb3\u0bcd (\u0ba4\u0bb2\u0bbe <b>1</b>). \u0baa\u0b9f\u0bcd\u0b9f\u0bc8\u0baf\u0bc8 \u0ba8\u0bcb\u0b95\u0bcd\u0b95\u0bbf \u0ba4\u0bb3\u0bcd\u0bb3\u0bbf\u0ba9\u0bbe\u0bb2\u0bcd \u0bae\u0b9f\u0bcd\u0b9f\u0bc1\u0bae\u0bc7 '
+        +       '\u0b85\u0ba8\u0bcd\u0ba4 \u0bae\u0ba3\u0bbf \u0b8e\u0ba3\u0bcd\u0ba3\u0baa\u0bcd\u0baa\u0b9f\u0bc1\u0bae\u0bcd.</div>'
+        +     '<div class="hi mt">\u0939\u0930 \u091b\u0921\u093c \u092a\u0930 \u090a\u092a\u0930 \u090f\u0915 \u092e\u0928\u0915\u093e \u0939\u0948 \u091c\u093f\u0938\u0915\u093e \u092e\u093e\u0928 <b>5</b> \u0939\u0948, '
+        +       '\u0914\u0930 \u0928\u0940\u091a\u0947 \u091a\u093e\u0930 \u092e\u0928\u0915\u0947 \u0939\u0948\u0902 \u091c\u093f\u0928\u0915\u093e \u092e\u093e\u0928 <b>1</b> \u0939\u0948\u0964 \u092e\u0928\u0915\u093e \u0924\u092d\u0940 \u0917\u093f\u0928\u093e \u091c\u093e\u0924\u093e \u0939\u0948 '
+        +       '\u091c\u092c \u0909\u0938\u0947 \u092a\u091f\u094d\u091f\u0940 \u0915\u0940 \u0913\u0930 \u0927\u0915\u0947\u0932\u093e \u091c\u093e\u090f\u0964</div></div>'
         + '</div>'
         + '<div id="abBody"></div></div>';
     },
@@ -31,6 +104,11 @@
       var mode = 'play';
       var frame = A.empty();
       var target = null;
+      /* What the adding mode is working on. Real values, not placeholders:
+         the two boxes used to look filled in and were not, so the button
+         did nothing and said nothing. */
+      var addA = 25, addB = 17;
+      var work = null;
 
       /* ------------------------------------------------------- the frame */
       function board() {
@@ -53,7 +131,10 @@
                   }).join('')
                 + '</div>'
                 + '<div class="ab-digit">' + A.rodValue(r) + '</div>'
-                + '<div class="ab-place">' + esc(A.placeName(i, rods)) + '</div>'
+                /* The name of the place is half of what is being taught,
+                   so the rod says it in Tamil as well as English. */
+                + '<div class="ab-place">' + esc(A.placeName(i, rods))
+                +   '<span class="ta">' + esc(A.placeTa(i, rods)) + '</span></div>'
                 + '</div>';
             }).join('')
           + '</div></div>';
@@ -89,7 +170,9 @@
         var got = A.value(frame);
         var right = got === target;
         body.innerHTML = '<div class="card">'
-          + '<div class="ab-ask">Set this number on the abacus:</div>'
+          + '<div class="ab-ask">Set this number on the abacus'
+          +   ' \u00b7 <span class="ta">\u0b87\u0ba8\u0bcd\u0ba4 \u0b8e\u0ba3\u0bcd\u0ba3\u0bc8 \u0bae\u0ba3\u0bbf\u0b9a\u0bcd\u0b9a\u0b9f\u0bcd\u0b9f\u0ba4\u0bcd\u0ba4\u0bbf\u0bb2\u0bcd \u0b85\u0bae\u0bc8\u0b95\u0bcd\u0b95\u0bb5\u0bc1\u0bae\u0bcd</span>'
+          +   ' \u00b7 <span class="hi">\u0907\u0938 \u0938\u0902\u0916\u094d\u092f\u093e \u0915\u094b \u0917\u093f\u0928\u0924\u093e\u0930\u0947 \u092a\u0930 \u092c\u0928\u093e\u090f\u0901</span></div>'
           + '<div class="ab-target">' + target.toLocaleString('en-IN') + '</div>'
           + '<div class="tiny muted">' + esc(TB.Numbers.enIndian(target)) + '  ·  '
           +   '<span class="ta">' + esc(TB.Numbers.ta(target)) + '</span>  ·  '
@@ -113,14 +196,42 @@
       function add() {
         body.innerHTML = '<div class="card">'
           + '<div class="row" style="flex-wrap:wrap">'
-          +   '<input id="abA" class="mnum" style="max-width:130px" inputmode="numeric" placeholder="25">'
+          +   '<input id="abA" class="mnum" style="max-width:130px" inputmode="numeric" '
+          +     'aria-label="first number" value="' + addA + '">'
           +   '<span style="font-size:calc(24px * var(--fs,1))">+</span>'
-          +   '<input id="abB" class="mnum" style="max-width:130px" inputmode="numeric" placeholder="17">'
+          +   '<input id="abB" class="mnum" style="max-width:130px" inputmode="numeric" '
+          +     'aria-label="second number" value="' + addB + '">'
           +   '<button class="btn btn-primary" id="abAddGo" type="button">Show me</button>'
           + '</div>'
           + '<div class="tiny muted mt">Adding on an abacus goes one rod at a time. The skill is '
-          +   'what to do when a rod has no room left.</div>'
-          + '</div><div id="abSteps"></div>';
+          +   'what to do when a rod has no room left.'
+          +   '<div class="ta mt">\u0bae\u0ba3\u0bbf\u0b9a\u0bcd\u0b9a\u0b9f\u0bcd\u0b9f\u0ba4\u0bcd\u0ba4\u0bbf\u0bb2\u0bcd \u0b95\u0bc2\u0b9f\u0bcd\u0b9f\u0bb2\u0bcd \u0b92\u0bb0\u0bc1 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0baf\u0bbe\u0b95 \u0ba8\u0b9f\u0b95\u0bcd\u0b95\u0bc1\u0bae\u0bcd. '
+          +     '\u0b92\u0bb0\u0bc1 \u0b95\u0bae\u0bcd\u0baa\u0bbf\u0baf\u0bbf\u0bb2\u0bcd \u0b87\u0b9f\u0bae\u0bcd \u0b87\u0bb2\u0bcd\u0bb2\u0bbe\u0ba4\u0baa\u0bcb\u0ba4\u0bc1 \u0b8e\u0ba9\u0bcd\u0ba9 \u0b9a\u0bc6\u0baf\u0bcd\u0bb5\u0ba4\u0bc1 \u0b8e\u0ba9\u0bcd\u0baa\u0ba4\u0bc1 \u0ba4\u0bbe\u0ba9\u0bcd \u0ba4\u0bbf\u0bb1\u0ba9\u0bcd.</div>'
+          +   '<div class="hi mt">\u0917\u093f\u0928\u0924\u093e\u0930\u0947 \u092a\u0930 \u091c\u094b\u0921\u093c \u090f\u0915-\u090f\u0915 \u091b\u0921\u093c \u0915\u0930\u0915\u0947 \u0939\u094b\u0924\u093e \u0939\u0948\u0964 '
+          +     '\u0939\u0941\u0928\u0930 \u092f\u0939 \u0939\u0948 \u0915\u093f \u091c\u092c \u091b\u0921\u093c \u092a\u0930 \u091c\u0917\u0939 \u0928 \u092c\u091a\u0947 \u0924\u092c \u0915\u094d\u092f\u093e \u0915\u0930\u0947\u0902\u0964</div></div>'
+          + '<div id="abMsg"></div>'
+          + '</div>'
+          + (work
+             ? '<div class="card">'
+               + '<h3>' + work.a.toLocaleString('en-IN') + ' + ' + work.b.toLocaleString('en-IN')
+               + ' = ' + work.answer.toLocaleString('en-IN') + '</h3>'
+               + (work.steps.length
+                  ? work.steps.map(function (st, i) {
+                      /* The steps ARE the lesson. In English only, they
+                         taught nobody who could not already read it. */
+                      return '<div class="ab-step' + (st.carry ? ' carry' : '') + '">'
+                        + '<div class="ab-step-n">' + (i + 1) + '</div>'
+                        + '<div class="ab-step-body">' + trio(st) + '</div>'
+                        + '</div>';
+                    }).join('')
+                  : '<div class="tiny muted">Nothing to add.</div>')
+               + '</div>'
+             : '')
+          /* The frame is on the page from the moment the mode opens, as it
+             is in the other two. An abacus page with no abacus on it reads
+             as broken, and it was. */
+          + '<div class="card">' + board() + '</div>'
+          + numberCard(work ? work.answer : A.value(frame));
       }
 
       function pick() {
@@ -142,7 +253,37 @@
         b.classList.add('on');
         mode = b.getAttribute('data-m');
         if (mode === 'show') { frame = A.empty(); target = null; }
+        if (mode === 'add') { frame = A.empty(); work = null; }
         draw();
+      });
+
+      /* Pressing the button with an empty box used to do nothing at all,
+         which reads as a broken button rather than a missing number. */
+      function showSum() {
+        var note = body.querySelector('#abMsg');
+        var a = parseInt((body.querySelector('#abA') || {}).value, 10);
+        var b = parseInt((body.querySelector('#abB') || {}).value, 10);
+        if (isNaN(a) || isNaN(b)) {
+          if (note) note.innerHTML = '<div class="msg msg-warn mt">'
+            + 'Put a number in both boxes.</div>';
+          return;
+        }
+        var w = A.addSteps(a, b);
+        if (!w) {
+          if (note) note.innerHTML = '<div class="msg msg-warn mt">'
+            + 'That is too big for this abacus.</div>';
+          return;
+        }
+        w.a = a; w.b = b;
+        addA = a; addB = b;
+        work = w;
+        frame = w.frame;
+        draw();
+      }
+
+      body.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        if (e.target.id === 'abA' || e.target.id === 'abB') { e.preventDefault(); showSum(); }
       });
 
       body.addEventListener('click', function (e) {
@@ -151,10 +292,13 @@
           var rod = +bead.getAttribute('data-rod');
           if (bead.hasAttribute('data-heaven')) A.tapHeaven(frame, rod);
           else A.tapEarth(frame, rod, +bead.getAttribute('data-bead'));
+          /* Once the beads have been moved by hand the worked sum below is
+             no longer what is on the frame. */
+          work = null;
           draw();
           return;
         }
-        if (e.target.closest('#abClear')) { frame = A.empty(); draw(); return; }
+        if (e.target.closest('#abClear')) { frame = A.empty(); work = null; draw(); return; }
         if (e.target.closest('#abNext')) { frame = A.empty(); target = pick(); draw(); return; }
         if (e.target.closest('#abSetGo')) {
           var n = parseInt(body.querySelector('#abSet').value, 10);
@@ -170,27 +314,7 @@
           }
           return;
         }
-        if (e.target.closest('#abAddGo')) {
-          var a = parseInt(body.querySelector('#abA').value, 10);
-          var b2 = parseInt(body.querySelector('#abB').value, 10);
-          if (isNaN(a) || isNaN(b2)) return;
-          var work = A.addSteps(a, b2);
-          var out = body.querySelector('#abSteps');
-          if (!work) { out.innerHTML = '<div class="empty">Too big for this abacus.</div>'; return; }
-          frame = work.frame;
-          out.innerHTML = '<div class="card">'
-            + '<h3>' + a.toLocaleString('en-IN') + ' + ' + b2.toLocaleString('en-IN')
-            + ' = ' + work.answer.toLocaleString('en-IN') + '</h3>'
-            + work.steps.map(function (s, i) {
-                return '<div class="ab-step' + (s.carry ? ' carry' : '') + '">'
-                  + '<b>' + (i + 1) + '.</b> ' + esc(s.how) + '</div>';
-              }).join('')
-            + (work.steps.length ? '' : '<div class="tiny muted">Nothing to add.</div>')
-            + '</div>'
-            + '<div class="card">' + board() + '</div>'
-            + numberCard(work.answer);
-          return;
-        }
+        if (e.target.closest('#abAddGo')) { showSum(); return; }
       });
 
       draw();
