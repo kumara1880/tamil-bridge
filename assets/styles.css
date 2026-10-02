@@ -1878,3 +1878,25 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
   left: 0; right: 0; top: 50%;
   height: 30px; transform: translateY(-50%);
 }
+
+/* What the table cannot show on its own: which of the lookalikes is which. */
+.grid-legend {
+  margin: 10px 0 12px; padding: 10px 13px;
+  background: var(--bg-soft); border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  font-size: calc(12px * var(--fs, 1)); line-height: 1.8; color: var(--text-dim);
+}
+.grid-legend b { color: var(--text); }
+.grid-legend i { color: var(--text-mute); font-style: normal; font-size: calc(11px * var(--fs, 1)); }
+
+/* The reading a learner acts on, over the scholarly form that tells the
+   lookalikes apart. */
+.matrix td .say {
+  display: block; font-family: var(--ui);
+  font-size: calc(10.5px * var(--fs, 1)); font-weight: 700;
+  color: var(--accent); line-height: 1.2; margin-top: 2px;
+}
+.matrix th .r, .matrix .rowhead .r {
+  display: block; font-family: var(--ui);
+  font-size: calc(9.5px * var(--fs, 1)); color: var(--text-mute); font-weight: 600;
+}

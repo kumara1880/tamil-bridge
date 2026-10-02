@@ -1087,13 +1087,27 @@
       + '</div>';
 
     h += '<div class="card"><h3>Compound letters — uyirmei (216)</h3>'
-      + '<div class="card-sub">18 consonants × 12 vowels — tap any letter to hear it</div><div class="matrix"><table><thead><tr><th></th>';
-    A.vowels.forEach(function (v) { h += '<th class="ta">' + esc(v.ch) + '</th>'; });
+      + '<div class="card-sub">18 consonants × 12 vowels — tap any letter to hear it</div>'
+      /* Written readably, three of these rows become "na", two become "la"
+         and two become "ra". The scholarly form is what tells them apart,
+         so every cell carries both and the legend says which is which. */
+      + '<div class="grid-legend">'
+      +   '<b>Three n’s:</b> ந na <i>(teeth)</i> · ன ṉa <i>(ridge)</i> · ண ṇa <i>(curled back)</i>'
+      +   '<br><b>Two l’s:</b> ல la <i>(teeth)</i> · ள ḷa <i>(curled back)</i>'
+      +   ' &nbsp; <b>Two r’s:</b> ர ra <i>(one tap)</i> · ற ṟa <i>(hard, rolled)</i>'
+      +   '<br><b>ங is /ŋ/</b> — the ng of <i>singer</i>, not of <i>finger</i>: no hard g after it.'
+      + '</div>'
+      + '<div class="matrix"><table><thead><tr><th></th>';
+    A.vowels.forEach(function (v) {
+      h += '<th class="ta">' + esc(v.ch) + '<span class="r">' + esc(v.say) + '</span></th>';
+    });
     h += '</tr></thead><tbody>';
     A.grid.forEach(function (row) {
-      h += '<tr><td class="rowhead ta">' + esc(row.mei) + '</td>';
+      h += '<tr><td class="rowhead ta">' + esc(row.mei)
+         + '<span class="r">' + esc(row.r) + '</span></td>';
       row.cells.forEach(function (c) {
         h += '<td class="ta" data-speak="' + esc(c.ch) + '" data-lang="ta">' + esc(c.ch)
+           + '<span class="say">' + esc(c.say) + '</span>'
            + '<span class="r">' + esc(c.r) + '</span></td>';
       });
       h += '</tr>';
@@ -1132,13 +1146,29 @@
     });
 
     h += '<div class="card"><h3>Barahkhadi — matra table</h3>'
-      + '<div class="card-sub">Each consonant with 11 vowel signs</div><div class="matrix"><table><thead><tr><th></th>';
-    A.grid[0].cells.forEach(function (c) { h += '<th class="hi">' + esc(c.vowel) + '</th>'; });
+      + '<div class="card-sub">Each consonant with 11 vowel signs</div>'
+      /* kā, kī, kū are not readings. But written readably the retroflex
+         and dental pairs collide — ट and त both become "ta" — so every
+         cell keeps the scholarly form underneath, which is what tells them
+         apart, and the legend says how. */
+      + '<div class="grid-legend">'
+      +   '<b>Curled back</b> (tongue on the roof of the mouth): '
+      +   'ट ṭa · ठ ṭha · ड ḍa · ढ ḍha · ण ṇa'
+      +   '<br><b>On the teeth:</b> त ta · थ tha · द da · ध dha · न na'
+      +   '<br>They read the same in English letters and are different letters. '
+      +   'The small mark under each cell is what separates them.'
+      + '</div>'
+      + '<div class="matrix"><table><thead><tr><th></th>';
+    A.grid[0].cells.forEach(function (c) {
+      h += '<th class="hi">' + esc(c.vowel) + '</th>';
+    });
     h += '</tr></thead><tbody>';
     A.grid.forEach(function (row) {
-      h += '<tr><td class="rowhead hi">' + esc(row.base) + '</td>';
+      h += '<tr><td class="rowhead hi">' + esc(row.base)
+         + '<span class="r">' + esc(row.r) + '</span></td>';
       row.cells.forEach(function (c) {
         h += '<td class="hi" data-speak="' + esc(c.ch) + '" data-lang="hi">' + esc(c.ch)
+           + '<span class="say">' + esc(c.say) + '</span>'
            + '<span class="r">' + esc(c.r) + '</span></td>';
       });
       h += '</tr>';

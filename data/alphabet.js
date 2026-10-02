@@ -127,12 +127,20 @@ TB.ALPHABET = {};
   var PULLI = '்';
 
   /* 18 × 12 = 216 உயிர்மெய் */
+  /* The consonant's own reading with its inherent vowel taken off, so it
+     can be put in front of a different one: ka -> k, nga -> ng, sa -> s. */
+  function onset(say) { return String(say || '').replace(/a$/, ''); }
+
   var grid = consonants.map(function (c) {
     return {
-      base: c.base, r: c.r, cls: c.cls,
+      base: c.base, r: c.r, say: c.say, cls: c.cls,
       mei: c.base + PULLI,
       cells: vowels.map(function (v) {
-        return { ch: c.base + v.sign, r: c.r + v.r, vowel: v.ch };
+        /* say — a reading a learner can act on. r — the scholarly form,
+           kept because every dictionary uses it. The table used to print
+           only r, so the ங row read ṅa and the ச row read ca. */
+        return { ch: c.base + v.sign, r: c.r + v.r,
+                 say: onset(c.say) + v.say, vowel: v.ch };
       })
     };
   });
@@ -316,12 +324,16 @@ TB.ALPHABET = {};
   rows.slice(0, 7).forEach(function (r) { r.items.forEach(function (i) { mainCons.push(i); }); });
   var matras = vowels.slice(0, 11);
 
+  function hiOnset(say) { return String(say || '').replace(/a$/, ''); }
+
   var grid = mainCons.map(function (c) {
     return {
-      base: c.ch, r: c.r, ta: c.ta,
+      base: c.ch, r: c.r, say: c.say, ta: c.ta,
       halant: c.ch + '्',
       cells: matras.map(function (v) {
-        return { ch: c.ch + v.sign, r: c.r.replace(/a$/, '') + v.r, vowel: v.ch };
+        /* kā, kī, kū are not readings either. */
+        return { ch: c.ch + v.sign, r: c.r.replace(/a$/, '') + v.r,
+                 say: hiOnset(c.say) + v.say, vowel: v.ch };
       })
     };
   });

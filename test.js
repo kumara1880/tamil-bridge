@@ -2840,6 +2840,63 @@ section('DICTIONARY (offline)');
   })();
 
 
+
+  /* ---------------- the letter grids ---------------- */
+  section('THE GRIDS');
+  (function () {
+    var TA = TB.ALPHABET.ta, HI = TB.ALPHABET.hi;
+    var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
+
+    /* The cards were fixed and the tables under them were not: the \u0b99 row
+       read \u1e45a and the \u0b9a row read ca, which tells an English reader to say
+       "ka" \u2014 the one sound \u0b9a never makes. */
+    function cell(grid, base, i) {
+      var row = grid.filter(function (r) { return (r.base || r.ch) === base; })[0];
+      return row && row.cells[i];
+    }
+    t('every Tamil grid cell has a reading a learner can use', (function () {
+      var bad = [];
+      TA.grid.forEach(function (r) { r.cells.forEach(function (c) { if (!c.say) bad.push(c.ch); }); });
+      return bad.length === 0;
+    })());
+    t('\u0b99 reads nga, not \u1e45a', cell(TA.grid, '\u0b99', 0).say === 'nga');
+    t('\u0b9a reads sa, not ca', cell(TA.grid, '\u0b9a', 0).say === 'sa');
+    t('and a long vowel reads long', cell(TA.grid, '\u0b95', 3).say === 'kee');
+    t('the scholarly form is kept underneath', cell(TA.grid, '\u0b99', 0).r === '\u1e45a');
+
+    /* Readable alone is ambiguous: three rows become "na", two "la", two
+       "ra". The scholarly mark is what tells them apart, so both are
+       printed and a legend names the sets. */
+    (function () {
+      var by = {};
+      TA.grid.forEach(function (r) { (by[r.cells[0].say] = by[r.cells[0].say] || []).push(r.base); });
+      var collide = Object.keys(by).filter(function (k) { return by[k].length > 1; });
+      t('the readings that collide are known', collide.sort().join(',') === 'la,na,ra', collide.join(','));
+      var bothShown = TA.grid.every(function (r) {
+        return r.cells.every(function (c) { return c.say && c.r && c.say !== c.r; })
+            || r.cells.every(function (c) { return c.say && c.r; });
+      });
+      t('and every cell carries both forms', bothShown);
+    })();
+    t('the grid prints the reading and the scholarly form',
+      /<span class="say">' \+ esc\(c\.say\)/.test(v2) && /<span class="r">' \+ esc\(c\.r\)/.test(v2));
+    t('and a legend names the ones that sound alike',
+      (v2.match(/class="grid-legend"/g) || []).length === 2);
+    /* \u0b99 is /\u014b/ \u2014 the ng of singer, not of finger. "nga" alone invites a
+       hard g that is not there. */
+    t('and says which ng \u0b99 is', /the ng of <i>singer<\/i>, not of <i>finger<\/i>/.test(v2));
+
+    /* Hindi had k\u0101, k\u012b, k\u016b, and the same retroflex/dental collision. */
+    t('every Hindi grid cell reads too', (function () {
+      var bad = [];
+      HI.grid.forEach(function (r) { r.cells.forEach(function (c) { if (!c.say) bad.push(c.ch); }); });
+      return bad.length === 0;
+    })());
+    t('\u0915\u0940 reads kee, not k\u012b', cell(HI.grid, '\u0915', 3).say === 'kee');
+    t('\u091a reads cha', cell(HI.grid, '\u091a', 0).say === 'cha');
+    t('and the curled-back pair is still separable',
+      cell(HI.grid, '\u091f', 0).r === '\u1e6da' && cell(HI.grid, '\u0924', 0).r === 'ta');
+  })();
   /* ---------------- the alphabet ---------------- */
   section('ALPHABET');
   (function () {
