@@ -2,7 +2,10 @@
    alphabet, phonics, vocabulary, history and settings.                       */
 (function () {
   var V = TB.Views;
-  var esc = V.esc, speak = V.speak, tappable = V.tappable, ago = V.ago;
+  /* speakBtn, not speak: the view for #/speak is registered as V.speak
+     further down this very file, so the helper of that name is gone by
+     the time anything loaded after it looks. */
+  var esc = V.esc, speak = V.speakBtn, tappable = V.tappable, ago = V.ago;
   var speakBtn = V.speakBtn, hiRead = V.hiRead, readAid = V.readAid;
   var themeName = V.themeName, langLabel = V.langLabel, D = V.D, saveD = V.saveD;
 

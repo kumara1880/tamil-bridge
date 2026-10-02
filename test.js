@@ -655,6 +655,21 @@ section('VIEWS LOAD');
   var missing = names.filter(function (n) { return !(v.TB && v.TB.Views && v.TB.Views[n]); });
   t('every route in the router has a view behind it', missing.length === 0, missing.join(', '));
 
+  /* A view is registered under its route name on the same object the helpers
+     live on, so a helper may not share a key with a route. #/speak took
+     V.speak, and the word popup — tap any word, anywhere — died on a
+     TypeError reaching for it. Any future collision fails here instead. */
+  (function () {
+    var VV = (v.TB && v.TB.Views) || {};
+    var clash = names.filter(function (n) {
+      return VV[n] && typeof VV[n] === 'function';
+    });
+    t('no route name is shadowed by a helper function', clash.length === 0, clash.join(', '));
+    t('and #/speak is a view, not a function',
+      VV.speak && typeof VV.speak === 'object' && typeof VV.speak.html === 'function');
+    t('the speaker button helper is still reachable', typeof VV.speakBtn === 'function');
+  })();
+
 
   /* ---------------- one number, three voices ----------------
      The chart named every number in English, Tamil and Hindi, and reading
@@ -3505,6 +3520,18 @@ section('DICTIONARY (offline)');
     /* A missing id must never be read as the guest bucket here. */
     TB.Store.deleteUser('');
     t('deleteUser ignores a missing id', !!ctx.localStorage.getItem('tb.data.guest'));
+
+    /* Every view is registered on TB.Views under its route name, so a helper
+       may not share a key with a route. #/speak took V.speak and the word
+       popup — tap any word, anywhere — died on a TypeError for it. */
+    (function () {
+      const v0 = require('fs').readFileSync(__dirname + '/js/views.js', 'utf8');
+      const a0 = require('fs').readFileSync(__dirname + '/js/app.js', 'utf8');
+      t('the helper is not exported under a route name', !/speak: speak/.test(v0));
+      t('and it is still there under its own', /speakBtn: speak/.test(v0));
+      t('nothing calls the clobbered name', !/TB\.Views\.speak\(/.test(a0));
+      t('the word popup speaks through speakBtn', /TB\.Views\.speakBtn\(/.test(a0));
+    })();
 
     /* The markup used to show the sign-in card plainly and the app only hid
        it once the last of fifty-odd script files had loaded, so every refresh

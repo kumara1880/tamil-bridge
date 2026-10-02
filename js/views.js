@@ -794,7 +794,11 @@ TB.Views = (function () {
     /* `speak` is also a view name (#/speak), and registering that view
        overwrites this key. `speakBtn` is the collision-proof alias that
        later files should use. */
-    esc: esc, speak: speak, speakBtn: speak, tappable: tappable, ago: ago,
+    /* Not exported as `speak`: every view is registered on this same
+       object under its route name, and #/speak claims that key. A
+       helper and a view cannot both be TB.Views.speak — the view won,
+       silently, and the word popup died on a TypeError. */
+    esc: esc, speakBtn: speak, tappable: tappable, ago: ago,
     hiRead: hiRead, hiTamil: hiTamil, readAid: readAid, copy: copy, copyWithToast: copyWithToast,
     themeName: themeName, langLabel: langLabel, sayAllThree: sayAllThree,
     D: D, saveD: saveD,

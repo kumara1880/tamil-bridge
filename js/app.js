@@ -45,7 +45,7 @@ TB.App = (function () {
 
     host.innerHTML = '<div class="modal-bg"><div class="modal">'
       + '<div class="row"><h3 style="margin:0;font-size:calc(22px * var(--fs,1))">' + TB.Views.esc(clean) + '</h3>'
-      + TB.Views.speak(clean, lang)
+      + TB.Views.speakBtn(clean, lang)
       + '<div style="flex:1"></div><button class="btn btn-sm btn-ghost" id="wClose" type="button">✕</button></div>'
       + '<div id="wBody" class="mt">'
       + (quick
@@ -60,7 +60,7 @@ TB.App = (function () {
     function box(l, v, lg) {
       if (!v) return '<div><div class="tiny muted">' + l + '</div><div class="muted">—</div></div>';
       return '<div><div class="tiny muted">' + l + '</div><div class="' + lg + '" style="font-size:calc(18px * var(--fs,1));font-weight:650">'
-        + TB.Views.esc(v) + TB.Views.speak(v, lg) + '</div>'
+        + TB.Views.esc(v) + TB.Views.speakBtn(v, lg) + '</div>'
         + (lg === 'hi' ? TB.Views.hiRead(v) : '') + '</div>';
     }
 
