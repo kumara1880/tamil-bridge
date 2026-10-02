@@ -2223,6 +2223,16 @@ t('english 1001', TB.Numbers.enIndian(1001) === 'one thousand and one', TB.Numbe
 t('english 1100', TB.Numbers.enIndian(1100) === 'one thousand one hundred', TB.Numbers.enIndian(1100));
 t('english 101 unchanged', TB.Numbers.enIndian(101) === 'one hundred and one', TB.Numbers.enIndian(101));
 
+/* A negative number used to come back undefined — EN_ONES[-35] — and the
+   caller put that through esc() and threw. Crosswise multiplication with one
+   negative number was enough to do it. */
+t('minus in English', TB.Numbers.enIndian(-35) === 'minus thirty-five', TB.Numbers.enIndian(-35));
+t('minus in Tamil', TB.Numbers.ta(-35) === 'கழித்தல் முப்பத்தி ஐந்து', TB.Numbers.ta(-35));
+t('minus in Hindi', TB.Numbers.hi(-35) === 'ऋण पैंतीस', TB.Numbers.hi(-35));
+t('and the bend still applies behind it', TB.Numbers.ta(-1001) === 'கழித்தல் ஆயிரத்து ஒன்று', TB.Numbers.ta(-1001));
+t('zero is still zero', TB.Numbers.ta(0) === 'பூஜ்ஜியம்');
+t('rubbish gives nothing, not undefined', TB.Numbers.ta('abc') === '' && TB.Numbers.enIndian(undefined) === '');
+
 t('lakh not hundred-thousand', TB.Numbers.describe(100000).enIndian === 'one lakh');
 t('both systems shown', TB.Numbers.describe(100000).en === 'one hundred thousand');
 t('indian digit grouping', TB.Numbers.indianGroups(1234567) === '12,34,567');
@@ -3495,6 +3505,26 @@ section('DICTIONARY (offline)');
     /* A missing id must never be read as the guest bucket here. */
     TB.Store.deleteUser('');
     t('deleteUser ignores a missing id', !!ctx.localStorage.getItem('tb.data.guest'));
+
+    /* The markup used to show the sign-in card plainly and the app only hid
+       it once the last of fifty-odd script files had loaded, so every refresh
+       showed the sign-in page for about a second first. The page now paints
+       the right thing before any of that runs. */
+    const css0 = require('fs').readFileSync(__dirname + '/assets/styles.css', 'utf8');
+    const html0 = require('fs').readFileSync(__dirname + '/index.html', 'utf8');
+    t('the card is hidden until asked for', /#auth \{ display: none; \}/.test(css0));
+    t('and the app is what paints first',
+      /#app \{ display: grid;/.test(css0) && /#app\.off \{ display: none; \}/.test(css0));
+    t('a reset link still opens on the card',
+      /:root\.authfirst #auth/.test(css0) && /:root\.authfirst #app \{ display: none; \}/.test(css0));
+    t('and that is decided before the page is painted',
+      /authfirst/.test(html0.split('</head>')[0]));
+    t('the theme is set before the page is painted',
+      /setAttribute\('data-theme'/.test(html0.split('</head>')[0]));
+    t('and so is the text size',
+      /--fs/.test(html0.split('</head>')[0]) && /data-size/.test(html0.split('</head>')[0]));
+    t('the pre-paint script cannot break the page',
+      /catch \(e\) \{ \/\* the app sets all of this again a moment later \*\/ \}/.test(html0));
 
     /* The door is open: an account keeps your progress, it is not the price
        of looking. */

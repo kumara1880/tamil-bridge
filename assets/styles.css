@@ -115,7 +115,12 @@ button { cursor: pointer; }
 a { color: var(--blue); }
 
 /* ----------------------------------------------------------- auth screen */
-#auth {
+/* Hidden until something asks for it. It used to be the other way round:
+   the card was in the markup plainly visible, and the app only hid it once
+   every script had loaded and boot() ran — so every refresh showed the
+   sign-in page for about a second first. */
+#auth { display: none; }
+#auth.on, :root.authfirst #auth {
   position: fixed; inset: 0; z-index: 50;
   display: block; padding: 28px 16px 40px;
   background:
@@ -233,7 +238,10 @@ a { color: var(--blue); }
 }
 
 /* ------------------------------------------------------------- app shell */
-#app { display: none; min-height: 100vh; grid-template-columns: 232px 1fr; }
+#app { display: grid; min-height: 100vh; grid-template-columns: 232px 1fr; }
+:root.authfirst #app { display: none; }
+#app.off { display: none; }
+/* Kept so a stylesheet cached from an older build still shows the app. */
 #app.on { display: grid; }
 
 .side {
@@ -768,7 +776,7 @@ a { color: var(--blue); }
 
 /* a printed practice sheet is black on white with none of the app around it */
 @media print {
-  .side, .head, .nav, #auth, .pill-row, .btn, .card-sub, .tiny { display: none !important; }
+  .side, .head, .nav, #auth, #auth.on, .pill-row, .btn, .card-sub, .tiny { display: none !important; }
   body, .card, .write-pad { background: #fff !important; color: #000 !important; border: none !important; }
   .write-pad.rows-4 { height: 620px; }
 }

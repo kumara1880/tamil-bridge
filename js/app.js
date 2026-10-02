@@ -703,14 +703,18 @@ TB.App = (function () {
   /* The sign-in card, reachable on purpose rather than only by being shut
      out. Leaving it goes back to the app, which is still there underneath. */
   function showAuth() {
-    document.getElementById('auth').style.display = '';
+    document.getElementById('auth').classList.add('on');
+    document.getElementById('app').classList.add('off');
     document.getElementById('app').classList.remove('on');
     var f = document.getElementById('fId');
     if (f) f.focus();
   }
 
   function enter() {
-    document.getElementById('auth').style.display = 'none';
+    /* set before the page was painted, when a reset link was in the address */
+    document.documentElement.classList.remove('authfirst');
+    document.getElementById('auth').classList.remove('on');
+    document.getElementById('app').classList.remove('off');
     document.getElementById('app').classList.add('on');
     var d = TB.Store.data(TB.Auth.userId());
     /* Only a theme the person actually chose counts. Earlier builds wrote
@@ -767,7 +771,9 @@ TB.App = (function () {
     TB.Auth.restore();
     if (resetting) {
       /* Choosing a new password is the one thing that has to happen before
-         anything else, so this still holds the screen. */
+         anything else, so this still holds the screen. The card is hidden by
+         default now, so it is asked for rather than assumed. */
+      showAuth();
       applyTheme('light');
       applyTextSize('normal');
       var np = document.getElementById('fNewPw');

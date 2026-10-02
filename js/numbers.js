@@ -183,12 +183,28 @@ TB.Numbers = (function () {
 
   var MAX = 999999999999;   /* 99,99,99,99,999 — beyond this the words stop being useful */
 
+  var MINUS = { en: 'minus ', hi: 'ऋण ', ta: 'கழித்தல் ' };
+
+  /* describe() has always handled a negative number; the four functions it
+     calls did not, and anything calling one of them directly got nonsense
+     or undefined — EN_ONES[-35] is undefined, and the caller then put that
+     through esc() and threw. A number in words should cope with a minus
+     sign wherever it is asked. */
+  function signed(fn, lang) {
+    return function (n) {
+      var v = typeof n === 'number' ? n : parseInt(n, 10);
+      if (typeof v !== 'number' || isNaN(v)) return '';
+      if (v < 0) return MINUS[lang] + fn(Math.abs(v));
+      return fn(v);
+    };
+  }
+
   var api = {
     MAX: MAX,
-    enInternational: enInternational,
-    enIndian: enIndian,
-    hi: hiWords,
-    ta: taWords,
+    enInternational: signed(enInternational, 'en'),
+    enIndian: signed(enIndian, 'en'),
+    hi: signed(hiWords, 'hi'),
+    ta: signed(taWords, 'ta'),
     indianGroups: indianGroups,
     ordinalEn: ordinalEn,
 
@@ -200,7 +216,7 @@ TB.Numbers = (function () {
       n = Math.abs(n);
       if (n > MAX) return { tooBig: true, max: MAX };
 
-      var minus = { en: 'minus ', hi: 'ऋण ', ta: 'கழித்தல் ' };
+      var minus = MINUS;
       return {
         value: n,
         negative: neg,
