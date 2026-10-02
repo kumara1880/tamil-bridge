@@ -28,9 +28,16 @@
         +     '<button class="btn btn-primary" id="cGo" type="button">Show all forms</button>'
         +   '</div>'
         +   '<div class="row">'
+        /* This changes the verb ending, not the voice: a man says मैं करता हूँ
+           and a woman मैं करती हूँ. Labelled "speaking as male" beside a voice
+           chooser on another page, it was read as a choice of voice — so it
+           now shows the ending it produces. */
         +     '<div class="pill-row" id="cGender">'
-        +       '<button class="pill on" data-cg="m" type="button">speaking as male</button>'
-        +       '<button class="pill" data-cg="f" type="button">speaking as female</button>'
+        +       '<span class="tiny muted" style="align-self:center">Verb ending:</span>'
+        +       '<button class="pill on" data-cg="m" type="button">'
+        +         '<span class="hi">करता</span> — man speaking</button>'
+        +       '<button class="pill" data-cg="f" type="button">'
+        +         '<span class="hi">करती</span> — woman speaking</button>'
         +     '</div>'
         +     '<div class="spacer" style="flex:1"></div>'
         +     '<button class="btn btn-sm" id="cDrill" type="button">🎯 Drill me</button>'
@@ -59,6 +66,22 @@
         TB.App.refreshChips();
       }
 
+      /* What the verb actually means, in Tamil and in English, read straight
+         from the offline dictionary. A table of endings teaches nothing if
+         the reader cannot say what the word is. */
+      function meaningLine(word, srcLang) {
+        var q = null;
+        try { q = TB.Dict.quick(word, srcLang); } catch (e) { q = null; }
+        if (!q) return '';
+        var bits = [];
+        if (q.ta) bits.push('<span class="ta">' + esc(q.ta) + '</span>');
+        if (q.en && srcLang !== 'en') bits.push('<span>' + esc(q.en) + '</span>');
+        if (q.hi && srcLang !== 'hi') bits.push('<span class="hi">' + esc(q.hi) + '</span>');
+        if (!bits.length) return '';
+        return '<div class="conj-meaning"><span class="tiny muted">means</span> '
+             + bits.join('<span class="tiny muted"> · </span>') + '</div>';
+      }
+
       function renderHindi(verb) {
         var c = TB.Conjugate.hindi(verb, gender);
         if (!c) return '<div class="card"><div class="msg msg-warn">Type a Hindi verb, for example करना.</div></div>';
@@ -66,7 +89,8 @@
         var h = '<div class="card">';
         h += '<div class="row"><div><div style="font-size:calc(30px * var(--fs,1));font-weight:700" class="hi">'
            + esc(c.infinitive) + speak(c.infinitive, 'hi') + '</div>'
-           + V.hiRead(c.infinitive) + '</div>'
+           + V.hiRead(c.infinitive)
+           + meaningLine(c.infinitive, 'hi') + '</div>'
            + '<div class="spacer" style="flex:1"></div>'
            + '<span class="chip">stem ' + esc(c.stem) + '</span>'
            + '<span class="chip ' + (c.transitive ? 'blue' : 'green') + '">'
@@ -111,7 +135,8 @@
         var f = c.forms;
 
         var h = '<div class="card"><div class="row">'
-          + '<div style="font-size:calc(30px * var(--fs,1));font-weight:700">' + esc(f.base) + speak(f.base, 'en') + '</div>'
+          + '<div><div style="font-size:calc(30px * var(--fs,1));font-weight:700">' + esc(f.base) + speak(f.base, 'en') + '</div>'
+          + meaningLine(f.base, 'en') + '</div>'
           + '<div class="spacer" style="flex:1"></div>'
           + (f.irregular ? '<span class="chip amber">irregular</span>' : '<span class="chip green">regular</span>')
           + '</div>'

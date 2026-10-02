@@ -837,6 +837,58 @@
       var running = null;
       var stopBtn = root.querySelector('#aStop');
 
+      /* Reading controls belong beside every group of letters, not only at
+         the top of the page: somebody looking at the consonants should not
+         have to scroll back up to hear them, and "read them all" starting
+         from the first vowel every time is no use once you are past it. */
+      var lastTapped = null;
+
+      function sectionOf(cell) { return cell && cell.closest('.card'); }
+
+      function cellsIn(card) {
+        return [].slice.call(card.querySelectorAll('[data-letter]'));
+      }
+
+      function markFromHere() {
+        root.querySelectorAll('.alpha-cell.from-here').forEach(function (x) {
+          x.classList.remove('from-here');
+        });
+        var cell = lastTapped && (lastTapped.closest('.alpha-cell') || lastTapped);
+        if (cell) cell.classList.add('from-here');
+        root.querySelectorAll('[data-sec-from]').forEach(function (b) {
+          var mine = sectionOf(lastTapped) === b.closest('.card');
+          b.hidden = !mine;
+          if (mine) {
+            var ch = (lastTapped.getAttribute('data-letter') || '').trim();
+            b.textContent = '▶ Read on from ' + ch;
+          }
+        });
+      }
+
+      root.querySelectorAll('.card').forEach(function (card) {
+        var cells = cellsIn(card);
+        if (!cells.length) return;
+        var head = card.querySelector('h3');
+        if (!head) return;
+        var bar = document.createElement('div');
+        bar.className = 'row mt sec-read';
+        bar.innerHTML =
+            '<button class="btn btn-sm" data-sec-all type="button">▶ Read this section</button>'
+          + '<button class="btn btn-sm" data-sec-from type="button" hidden></button>';
+        /* after the heading and its subtitle, before the letters */
+        var sub = card.querySelector('.card-sub');
+        var anchor = sub || head;
+        anchor.parentNode.insertBefore(bar, anchor.nextSibling);
+        bar.querySelector('[data-sec-all]').addEventListener('click', function () {
+          readCells(cellsIn(card));
+        });
+        bar.querySelector('[data-sec-from]').addEventListener('click', function () {
+          var all = cellsIn(card);
+          var i = all.indexOf(lastTapped);
+          readCells(i < 0 ? all : all.slice(i));
+        });
+      });
+
       var modeRow = root.querySelector('#aMode');
       if (modeRow) modeRow.addEventListener('click', function (e) {
         var b = e.target.closest('[data-mode]');
@@ -873,11 +925,14 @@
         window.addEventListener(ev, function () { userScrolled = true; }, { passive: true });
       });
 
-      function readThemAll() {
+      function readThemAll() { readCells([].slice.call(root.querySelectorAll('[data-letter]'))); }
+
+      /* Any run of letters: the whole chart, one section, or from the letter
+         somebody tapped to the end of the section it sits in. */
+      function readCells(cells) {
         stopReading();
         userScrolled = false;
-        var cells = [].slice.call(root.querySelectorAll('[data-letter]'));
-        if (!cells.length) return;
+        if (!cells || !cells.length) return;
         var d = V.D();
         /* The chooser above says Letter + word, and this ignored it — so
            the one place a child would sit and listen gave them the least.
@@ -963,6 +1018,9 @@
         var cell = e.target.closest('[data-letter]');
         if (!cell) return;
         if (e.target.closest('[data-speak]')) return;   /* the word, on its own */
+        /* Where a reading would pick up from, if asked. */
+        lastTapped = cell;
+        markFromHere();
         stopReading();
         var lang = cell.getAttribute('data-lang') || 'ta';
         var d = V.D();

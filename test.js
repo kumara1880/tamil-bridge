@@ -735,11 +735,11 @@ section('SIGNING IN');
     /qs\.delete\('reset'\)/.test(app) && /history\.replaceState/.test(app));
   t('so restoring a session is decided by a flag, not by the address',
     /var resetting = resetPending/.test(app) && /resetPending = true/.test(app));
-  /* A remembered session used to win the race: the reset card appeared and
-     was wiped by the app a few milliseconds later, so the link looked
-     broken — it opened and vanished. */
-  t('a reset link beats a remembered session',
-    /restored && !resetting/.test(app));
+  /* The app no longer holds anybody at the door, so this is no longer a race
+     between a session and a token: choosing a new password is simply the one
+     thing that takes the screen before the app opens. */
+  t('a reset link still takes the screen first',
+    /if \(resetting\) \{/.test(app) && /resetPending = true/.test(app));
   t('and the new-password box takes the focus', /fNewPw.*focus|np\.focus/.test(app));
   /* And afterwards it asks for the new password, rather than walking into
      the account. Otherwise you never learn whether the password you just
@@ -3476,6 +3476,47 @@ section('DICTIONARY (offline)');
     /* A missing id must never be read as the guest bucket here. */
     TB.Store.deleteUser('');
     t('deleteUser ignores a missing id', !!ctx.localStorage.getItem('tb.data.guest'));
+
+    /* The door is open: an account keeps your progress, it is not the price
+       of looking. */
+    const app = require('fs').readFileSync(__dirname + '/js/app.js', 'utf8');
+    const html = require('fs').readFileSync(__dirname + '/index.html', 'utf8');
+    const store = require('fs').readFileSync(__dirname + '/js/store.js', 'utf8');
+    t('no session does not hold the screen', /\} else \{/.test(app) && /enter\(\);/.test(app));
+    t('the sign-in card has a way back out', /id="justLooking"/.test(html));
+    t('and the sidebar offers the way in', /Just looking/.test(app) && /data-act', 'in'/.test(app));
+
+    /* The day has to end at local midnight. toISOString gives the UTC date,
+       which in India turns over at half past five in the morning. */
+    t('the day is a local day', /localDay:/.test(store) && !/toISOString\(\)\.slice\(0, 10\)/.test(store));
+    const dayNow = TB.Store.localDay();
+    t('localDay looks like a date', /^\d{4}-\d{2}-\d{2}$/.test(dayNow), dayNow);
+    t('and matches this machine, not UTC', dayNow === (function () {
+      const n = new Date();
+      return n.getFullYear() + '-' + ('0' + (n.getMonth() + 1)).slice(-2) + '-' + ('0' + n.getDate()).slice(-2);
+    })());
+
+    /* A streak resets on a missed day; the days themselves do not vanish. */
+    const su = 'streaky';
+    TB.Store.touchStreak(su);
+    TB.Store.touchStreak(su);                      /* same day, no double count */
+    t('one day counts once', TB.Store.data(su).stats.daysUsed === 1,
+      TB.Store.data(su).stats.daysUsed);
+    const sd = TB.Store.data(su);
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    sd.stats.lastActive = TB.Store.localDay(y);
+    TB.Store.saveData(su, sd);
+    TB.Store.touchStreak(su);
+    t('a second day in a row makes a streak of two', TB.Store.data(su).stats.streak === 2,
+      TB.Store.data(su).stats.streak);
+    const sd2 = TB.Store.data(su);
+    const gap = new Date(); gap.setDate(gap.getDate() - 4);
+    sd2.stats.lastActive = TB.Store.localDay(gap);
+    TB.Store.saveData(su, sd2);
+    TB.Store.touchStreak(su);
+    t('a missed day resets the streak', TB.Store.data(su).stats.streak === 1);
+    t('but not the days used', TB.Store.data(su).stats.daysUsed === 3,
+      TB.Store.data(su).stats.daysUsed);
   } catch (e) {
     fail++; console.log('  FAIL  accounts threw: ' + e.message);
   }

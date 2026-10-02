@@ -228,7 +228,11 @@ TB.Views = (function () {
       + '</a>'
 
       + '<div class="grid g4 mb">'
-      +   stat('accent', d.stats.streak || 0, 'Day streak \u{1F525}')
+      /* The streak is days in a row and resets the moment one is missed,
+         which looks broken to somebody who has been coming back all week.
+         The total sits underneath so the work still shows. */
+      +   stat('accent', d.stats.streak || 0, 'Day streak \u{1F525}',
+             (d.stats.daysUsed || 0) > 1 ? d.stats.daysUsed + ' days in all' : '')
       +   stat('green', counts.learned, 'Words learned')
       +   stat('blue', counts.due, 'Due today')
       +   stat('purple', doneLessons + '/' + TB.LESSONS.length, 'Lessons done')
@@ -263,8 +267,9 @@ TB.Views = (function () {
 
       + '</div>';
 
-      function stat(cls, n, l) {
-        return '<div class="stat ' + cls + '"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>';
+      function stat(cls, n, l, sub) {
+        return '<div class="stat ' + cls + '"><div class="n">' + n + '</div><div class="l">' + l + '</div>'
+          + (sub ? '<div class="l tiny muted">' + sub + '</div>' : '') + '</div>';
       }
       function wordOfDay() {
         var day = Math.floor(Date.now() / 86400000);

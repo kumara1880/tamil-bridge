@@ -53,7 +53,7 @@ TB.Store = (function () {
       history: [],       /* newest first */
       srs: {},           /* wordId -> { ease, interval, due, reps, lapses } */
       progress: {},      /* lessonId -> { done, score, ts } */
-      stats: { xp: 0, streak: 0, lastActive: null, practiced: 0, translated: 0 },
+      stats: { xp: 0, streak: 0, daysUsed: 0, lastActive: null, practiced: 0, translated: 0 },
       prefs: {
         theme: 'dark', themeChosen: false, rate: 0.85, pitch: 1,
         voiceTa: '', voiceEn: '', voiceHi: '', voiceSex: '',
@@ -151,17 +151,36 @@ TB.Store = (function () {
     },
 
     /* ---------- stats / streak ---------- */
+    /* The day has to end at midnight where the person is. toISOString gives
+       the UTC date, which in India turns over at half past five in the
+       morning — so an evening session and the next morning's could land on
+       the same "day" and the streak would sit still, or a late-night one
+       could count as the day before. */
+    localDay: function (date) {
+      var t = date || new Date();
+      return t.getFullYear() + '-'
+        + ('0' + (t.getMonth() + 1)).slice(-2) + '-'
+        + ('0' + t.getDate()).slice(-2);
+    },
+
     touchStreak: function (userId) {
       var d = api.data(userId);
-      var today = new Date().toISOString().slice(0, 10);
+      var today = api.localDay();
       var last = d.stats.lastActive;
       if (last === today) return d.stats;
       if (last) {
-        var diff = Math.round((new Date(today) - new Date(last)) / 86400000);
-        d.stats.streak = diff === 1 ? (d.stats.streak || 0) + 1 : 1;
+        /* Both are plain YYYY-MM-DD, so compare them as dates at noon: parsing
+           a bare date string gives UTC midnight, and an hour either way then
+           rounds to the wrong number of days. */
+        var at = function (s2) { return new Date(s2 + 'T12:00:00'); };
+        var diff = Math.round((at(today) - at(last)) / 86400000);
+        d.stats.streak = diff === 1 ? (d.stats.streak || 0) + 1 : (diff === 0 ? (d.stats.streak || 1) : 1);
       } else {
         d.stats.streak = 1;
       }
+      /* Days used, which only ever goes up — a missed day resets the streak
+         but not the fact that the work was done. */
+      d.stats.daysUsed = (d.stats.daysUsed || 0) + 1;
       d.stats.lastActive = today;
       api.saveData(userId, d);
       return d.stats;

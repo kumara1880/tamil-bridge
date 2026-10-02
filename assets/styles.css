@@ -1949,3 +1949,20 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 /* Silent on purpose: no Tamil word, and no voice here that says it right. */
 .matrix td.mute { cursor: default; }
 .matrix td.mute:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+
+/* The letter a reading would pick up from, marked so it can be seen. */
+.alpha-cell.from-here {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.sec-read { gap: 8px; flex-wrap: wrap; }
+
+/* What a verb means, under the verb itself. */
+.conj-meaning {
+  margin-top: 4px;
+  font-size: calc(15px * var(--fs, 1));
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}

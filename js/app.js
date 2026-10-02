@@ -98,10 +98,20 @@ TB.App = (function () {
 
   function paintUser() {
     var u = TB.Auth.user();
-    if (!u) return;
+    var btn = document.getElementById('signOut');
+    /* Signed out is a normal way to be here. The sidebar says so plainly and
+       offers the way in, rather than the app pretending nobody is there. */
+    if (!u) {
+      document.getElementById('avatar').textContent = '👋';
+      document.getElementById('whoName').textContent = 'Just looking';
+      document.getElementById('whoSub').textContent = 'Sign in to keep your progress';
+      if (btn) { btn.textContent = 'Sign in'; btn.setAttribute('data-act', 'in'); }
+      return;
+    }
     document.getElementById('avatar').textContent = (u.name || '?').trim().charAt(0).toUpperCase();
     document.getElementById('whoName').textContent = u.name || '—';
     document.getElementById('whoSub').textContent = u.email || u.phone || '';
+    if (btn) { btn.textContent = 'Sign out'; btn.setAttribute('data-act', 'out'); }
   }
 
   /* Three text sizes. Elders learning an unfamiliar script need bigger type,
@@ -268,7 +278,11 @@ TB.App = (function () {
       applyTheme(d.prefs.theme);
     });
 
+    var look = document.getElementById('justLooking');
+    if (look) look.addEventListener('click', function () { enter(); });
+
     document.getElementById('signOut').addEventListener('click', function () {
+      if (this.getAttribute('data-act') === 'in') { showAuth(); return; }
       confirmBox('Sign out?', 'Your data stays safe on this device.', function () {
         TB.Auth.signOut();
         TB.Sync.clear();
@@ -686,6 +700,15 @@ TB.App = (function () {
     });
   }
 
+  /* The sign-in card, reachable on purpose rather than only by being shut
+     out. Leaving it goes back to the app, which is still there underneath. */
+  function showAuth() {
+    document.getElementById('auth').style.display = '';
+    document.getElementById('app').classList.remove('on');
+    var f = document.getElementById('fId');
+    if (f) f.focus();
+  }
+
   function enter() {
     document.getElementById('auth').style.display = 'none';
     document.getElementById('app').classList.add('on');
@@ -741,19 +764,20 @@ TB.App = (function () {
        the answer comes from the flag rather than from location.search. */
     var resetting = resetPending;
 
-    var restored = TB.Auth.restore();
-    if (restored && !resetting) enter();
-    else {
-      /* the sign-in screen should look like the rest of the app, not like
-         the old default */
+    TB.Auth.restore();
+    if (resetting) {
+      /* Choosing a new password is the one thing that has to happen before
+         anything else, so this still holds the screen. */
       applyTheme('light');
       applyTextSize('normal');
-      if (resetting) {
-        var np = document.getElementById('fNewPw');
-        if (np) np.focus();
-      } else {
-        document.getElementById('fId').focus();
-      }
+      var np = document.getElementById('fNewPw');
+      if (np) np.focus();
+    } else {
+      /* An account is for keeping your progress, not for being allowed to
+         look. Anyone who opens this can read, listen and learn straight
+         away; signing in is offered in the sidebar when they want to keep
+         what they do. */
+      enter();
     }
   }
 
