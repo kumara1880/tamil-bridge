@@ -131,6 +131,20 @@ TB.ALPHABET = {};
      can be put in front of a different one: ka -> k, nga -> ng, sa -> s. */
   function onset(say) { return String(say || '').replace(/a$/, ''); }
 
+  /* Combinations that do not occur in Tamil. Not an opinion: counted in
+     134,000 characters of this app's own Tamil — vocabulary, phrases,
+     lessons, grammar — where each of these appears zero times outside the
+     alphabet chart. ங is 97% ங், and 79% of that is the cluster ங்க.
+
+     A speech engine trained on Tamil has never met these, so asked for one
+     it says the nearest real thing instead: ஙொ came back as "ango", which
+     is அங்கு. The cell is marked, and pressing it plays a word where the
+     letter really occurs. */
+  var NOT_USED = {
+    'ங': 'ாிீுூெேைொோௌ',
+    'ஞ': 'ிீுூேைொோௌ'
+  };
+
   var grid = consonants.map(function (c) {
     return {
       base: c.base, r: c.r, say: c.say, cls: c.cls,
@@ -139,8 +153,13 @@ TB.ALPHABET = {};
         /* say — a reading a learner can act on. r — the scholarly form,
            kept because every dictionary uses it. The table used to print
            only r, so the ங row read ṅa and the ச row read ca. */
+        var skip = NOT_USED[c.base] && v.sign && NOT_USED[c.base].indexOf(v.sign) >= 0;
         return { ch: c.base + v.sign, r: c.r + v.r,
-                 say: onset(c.say) + v.say, vowel: v.ch };
+                 say: onset(c.say) + v.say, vowel: v.ch,
+                 /* not used in Tamil: say the letter's real word instead of
+                    asking a voice to invent a syllable */
+                 unused: !!skip,
+                 realWord: skip ? c.ex : '' };
       })
     };
   });

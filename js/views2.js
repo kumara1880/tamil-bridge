@@ -1096,6 +1096,13 @@
       +   '<br><b>Two l’s:</b> ல la <i>(teeth)</i> · ள ḷa <i>(curled back)</i>'
       +   ' &nbsp; <b>Two r’s:</b> ர ra <i>(one tap)</i> · ற ṟa <i>(hard, rolled)</i>'
       +   '<br><b>ங is /ŋ/</b> — the ng of <i>singer</i>, not of <i>finger</i>: no hard g after it.'
+      /* Counted in 134,000 characters of this app's own Tamil: ங appears
+         733 times and 712 of them carry the pulli; 79% of those are ங்க.
+         The other eleven ங forms appear zero times. */
+      +   '<br><b>Faded cells are not used in Tamil.</b> ங occurs almost only '
+      +   'as ங்க — அங்கே, தங்கம் — so ஙா, ஙி, ஙெ and the rest appear in no '
+      +   'Tamil word at all. A voice asked for one invents something; pressing '
+      +   'those cells plays a real word with the letter in it instead.'
       + '</div>'
       + '<div class="matrix"><table><thead><tr><th></th>';
     A.vowels.forEach(function (v) {
@@ -1106,7 +1113,16 @@
       h += '<tr><td class="rowhead ta">' + esc(row.mei)
          + '<span class="r">' + esc(row.r) + '</span></td>';
       row.cells.forEach(function (c) {
-        h += '<td class="ta" data-speak="' + esc(c.ch) + '" data-lang="ta">' + esc(c.ch)
+        /* A combination Tamil does not use. Asking a Tamil voice for it
+           gets the nearest real thing instead — ஙொ came back as "ango",
+           which is அங்கு — so the cell plays a word where the letter
+           really occurs, and says that is what it is doing. */
+        h += '<td class="ta' + (c.unused ? ' unused' : '') + '" data-speak="'
+           + esc(c.unused ? (c.realWord || row.base) : c.ch) + '" data-lang="ta"'
+           + (c.unused ? ' title="' + esc(c.ch) + ' is not used in any Tamil word — '
+               + 'this plays ' + esc(c.realWord || '') + ', where ' + esc(row.base)
+               + ' really occurs."' : '')
+           + '>' + esc(c.ch)
            + '<span class="say">' + esc(c.say) + '</span>'
            + '<span class="r">' + esc(c.r) + '</span></td>';
       });

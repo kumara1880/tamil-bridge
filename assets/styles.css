@@ -1900,3 +1900,15 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
   display: block; font-family: var(--ui);
   font-size: calc(9.5px * var(--fs, 1)); color: var(--text-mute); font-weight: 600;
 }
+
+/* A combination Tamil does not use. Shown, because the 247 is the complete
+   set and that is a fact of the grammar — but faded, because asking a
+   child to repeat a sound no Tamil word contains teaches nothing. */
+.matrix td.unused { opacity: .45; }
+.matrix td.unused .say { color: var(--text-mute); font-weight: 600; }
+.matrix td.unused::after {
+  content: ""; position: absolute; left: 50%; top: 6px;
+  width: 5px; height: 5px; margin-left: -2px; border-radius: 50%;
+  background: var(--text-mute); opacity: .5;
+}
+.matrix td { position: relative; }

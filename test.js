@@ -2886,6 +2886,34 @@ section('DICTIONARY (offline)');
        hard g that is not there. */
     t('and says which ng \u0b99 is', /the ng of <i>singer<\/i>, not of <i>finger<\/i>/.test(v2));
 
+    /* \u0b99\u0bbe is not a Tamil syllable. Counted in 134,000 characters of this
+       app's own Tamil: \u0b99 appears 733 times and 712 of them carry the pulli;
+       79% of those are the cluster \u0b99\u0bcd\u0b95. The eleven \u0b99 + vowel forms appear
+       zero times outside the chart itself.
+
+       A voice trained on Tamil has never met them, so asked for one it
+       says the nearest real thing \u2014 which is why \u0b99\u0bca came back as "ango"
+       and \u0b99\u0bc6 as "ange": \u0b85\u0b99\u0bcd\u0b95\u0bc1 and \u0b85\u0b99\u0bcd\u0b95\u0bc7. */
+    (function () {
+      var ng = TA.grid.filter(function (r) { return r.base === '\u0b99'; })[0];
+      t('the eleven \u0b99 forms Tamil never uses are marked',
+        ng.cells.filter(function (c) { return c.unused; }).length === 11,
+        ng.cells.filter(function (c) { return c.unused; }).length);
+      t('but bare \u0b99 is not, because \u0b99\u0bcd\u0b95 is everywhere', !ng.cells[0].unused);
+      t('and an unused cell plays a word where the letter really occurs',
+        ng.cells[1].realWord === '\u0b85\u0b99\u0bcd\u0b95\u0bc7');
+      var marked = 0;
+      TA.grid.forEach(function (r) { r.cells.forEach(function (c) { if (c.unused) marked++; }); });
+      t('twenty cells in all', marked === 20, marked);
+      /* \u0b9e\u0bbe is real \u2014 \u0b9e\u0bbe\u0baf\u0bbf\u0bb1\u0bc1, \u0b9e\u0bbe\u0ba9\u0bae\u0bcd \u2014 so it is not marked. */
+      var nya = TA.grid.filter(function (r) { return r.base === '\u0b9e'; })[0];
+      t('\u0b9e\u0bbe is left alone, because \u0b9e\u0bbe\u0baf\u0bbf\u0bb1\u0bc1 exists', !nya.cells[1].unused);
+    })();
+    t('the page says which cells those are and why',
+      /Faded cells are not used in Tamil/.test(v2));
+    t('and they speak the word, not the syllable',
+      /c\.unused \? \(c\.realWord \|\| row\.base\) : c\.ch/.test(v2));
+
     /* Hindi had k\u0101, k\u012b, k\u016b, and the same retroflex/dental collision. */
     t('every Hindi grid cell reads too', (function () {
       var bad = [];
