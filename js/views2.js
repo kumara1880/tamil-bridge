@@ -953,6 +953,10 @@
         var steps = [{ text: cell.getAttribute('data-letter'), lang: lang,
                        rate: 0.5, pause: 900 }];
         var word = cell.getAttribute('data-word');
+        /* If the letter itself is being said via its word, do not then say
+           the same word again. */
+        if (cell.hasAttribute('data-alone')
+            && word === cell.getAttribute('data-letter')) word = '';
         if (word && mode === 'pair' && !solo) {
           steps.push({ text: word, lang: lang, rate: 0.62, pause: 500 });
         }
@@ -982,8 +986,13 @@
   /* What this card says when it is pressed. For a mei letter that is its
      own name and nothing else: the dot is there precisely to say that the
      vowel has been taken away. */
+  /* Some letters cannot be said on their own by a voice trained on the
+     language, because no word in it begins with them — ङ, ञ, ण, the
+     anusvara. Asked anyway, an engine guesses. sayAs gives it a word where
+     the sound is actually audible. */
   function sayPair(it, lang, letter) {
-    return ' data-letter="' + esc(letter) + '" data-lang="' + lang + '"'
+    return ' data-letter="' + esc(it.sayAs || letter) + '" data-lang="' + lang + '"'
+      + (it.sayAs ? ' data-alone="1"' : '')
       + (it.ex ? ' data-word="' + esc(it.ex) + '"' : '');
   }
 

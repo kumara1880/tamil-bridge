@@ -2841,6 +2841,65 @@ section('DICTIONARY (offline)');
 
 
 
+
+  /* ---------------- the Hindi letters ---------------- */
+  section('HINDI LETTERS');
+  (function () {
+    var HI = TB.ALPHABET.hi;
+    function f(ch) {
+      var o = null;
+      HI.vowels.forEach(function (v) { if (v.ch === ch) o = v; });
+      HI.rows.forEach(function (r) { r.items.forEach(function (i) { if (i.ch === ch) o = i; }); });
+      return o;
+    }
+
+    /* \u091c\u094d\u091e\u093e\u0928 is said gy\u0101n, not ny\u0101n: \u091c\u094d\u091e is pronounced "gy" in Hindi, so
+       the one word on \u091e's card demonstrated a sound the letter was not
+       making. The /\u0272/ is written with the anusvara instead. */
+    t('\u091e no longer points at \u091c\u094d\u091e\u093e\u0928, which is said gy\u0101n',
+      f('\u091e').ex !== '\u091c\u094d\u091e\u093e\u0928', f('\u091e').ex);
+    t('and says where the sound really is', /\u092a\u0902\u091a/.test(f('\u091e').en));
+    /* \u0930\u0902\u0917 does not contain \u0919 \u2014 it contains the anusvara. */
+    t('\u0919 says that modern Hindi writes this sound with the anusvara',
+      /anusvara/.test(f('\u0919').en));
+
+    /* Named in the varnamala as a Hindi primer gives them. */
+    t('the anusvara is named am', f('\u0905\u0902').say === 'am');
+    t('and says its sound changes with what follows',
+      /takes the place of the consonant after it/.test(f('\u0905\u0902').en));
+    t('the visarga is aha', f('\u0905\u0903').say === 'aha');
+
+    /* None of these can be said alone by a voice trained on Hindi, because
+       no Hindi word begins with them. Each speaks a word instead. */
+    ['\u0919', '\u091e', '\u0923', '\u0905\u0902', '\u0905\u0903'].forEach(function (ch) {
+      t(ch + ' speaks a word rather than an unsayable letter', !!f(ch).sayAs, ch);
+    });
+    t('and the card is wired to use it',
+      /it\.sayAs \|\| letter/.test(fs.readFileSync(R + 'js/views2.js', 'utf8')));
+
+    /* The words a Hindi child is actually taught. */
+    [['\u0917', '\u0917\u092e\u0932\u093e'], ['\u0918', '\u0918\u0930'], ['\u091a', '\u091a\u092e\u091a'], ['\u091b', '\u091b\u0924\u0930\u0940'],
+     ['\u091d', '\u091d\u0930\u0928\u093e'], ['\u0920', '\u0920\u0920\u0947\u0930\u093e'], ['\u0921', '\u0921\u092e\u0930\u0942'], ['\u0922', '\u0922\u0915\u094d\u0915\u0928'],
+     ['\u0923', '\u092c\u093e\u0923'], ['\u0924', '\u0924\u0930\u092c\u0942\u091c'], ['\u0925', '\u0925\u0930\u094d\u092e\u0938'], ['\u0926', '\u0926\u0935\u093e'],
+     ['\u0932', '\u0932\u091f\u094d\u091f\u0942'], ['\u0935', '\u0935\u0915\u0940\u0932'], ['\u0936', '\u0936\u0932\u0917\u092e'], ['\u0938', '\u0938\u0921\u093c\u0915'],
+     ['\u0939', '\u0939\u093e\u0925']].forEach(function (p) {
+      t(p[0] + ' is for ' + p[1], f(p[0]).ex === p[1], f(p[0]).ex);
+    });
+    /* \u0932\u091f\u094d\u091f\u0942 is a spinning top; \u0932\u0921\u094d\u0921\u0942 is a sweet. Different words, and I
+       had the wrong one. */
+    t('and \u0932 is the top, not the laddu', f('\u0932').exEn === 'spinning top');
+
+    /* Every one complete, in all three. */
+    (function () {
+      var all = HI.vowels.slice();
+      HI.rows.forEach(function (r) { all = all.concat(r.items); });
+      var bad = all.filter(function (x) {
+        return !x.say || !x.ex || !x.exR || !x.exEn || !x.exTa || !x.exHi;
+      });
+      t('every Hindi letter is complete in all three languages',
+        bad.length === 0, bad.map(function (x) { return x.ch; }).join(' '));
+    })();
+  })();
   /* ---------------- the letter grids ---------------- */
   section('THE GRIDS');
   (function () {

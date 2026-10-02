@@ -261,10 +261,15 @@ TB.ALPHABET = {};
       ex: 'ओखली', exR: 'okhalī', exEn: 'mortar', exTa: 'உரல்', exHi: 'ओखली' },
     { ch: 'औ',  r: 'au',  say: 'au',  sign: 'ौ',  ta: 'ஔ',   en: 'au as in caught',
       ex: 'औरत', exR: 'aurat', exEn: 'woman', exTa: 'பெண்', exHi: 'औरत', pic: '👩' },
-    { ch: 'अं', r: 'aṁ',  say: 'an',  sign: 'ं',  ta: 'அன்', en: 'anusvara — the nasal that follows a vowel',
-      ex: 'अंगूर', exR: 'angūr', exEn: 'grapes', exTa: 'திராட்சை', exHi: 'अंगूर', pic: '🍇' },
-    { ch: 'अः', r: 'aḥ',  say: 'ah',  sign: 'ः',  ta: 'அஃ',  en: 'visarga — a breath after the vowel',
-      ex: 'प्रातः', exR: 'prātaḥ', exEn: 'dawn', exTa: 'விடியல்', exHi: 'भोर' }
+    { ch: 'अं', r: 'aṁ',  say: 'am',  sign: 'ं',  ta: 'அம்',
+      /* Named am in the varnamala, but its SOUND takes the place of
+         whatever follows: angūr before a g, panch before a ch, sambhav
+         before a bh. A learner meeting angūr under a letter called am
+         needs telling why. */
+      en: 'anusvara — named am, but it takes the place of the consonant after it: angūr, panch, sambhav',
+      ex: 'अंगूर', exR: 'angūr', exEn: 'grapes', sayAs: 'अंगूर', exTa: 'திராட்சை', exHi: 'अंगूर', pic: '🍇' },
+    { ch: 'अः', r: 'aḥ',  say: 'aha', sign: 'ः',  ta: 'அஹ',  en: 'visarga — a breath after the vowel, recited aha',
+      ex: 'प्रातः', exR: 'prātaḥ', exEn: 'dawn', sayAs: 'प्रातः', exTa: 'விடியல்', exHi: 'भोर' }
   ];
 
   var rows = [
@@ -274,43 +279,55 @@ TB.ALPHABET = {};
       { ch: 'ख', r: 'kha', say: 'kha', ta: 'க(kh)', en: 'k with a puff of air', asp: true,
         ex: 'खरगोश', exR: 'khargosh', exEn: 'rabbit', exTa: 'முயல்', exHi: 'खरगोश', pic: '🐰' },
       { ch: 'ग', r: 'ga',  say: 'ga',  ta: 'க(g)',  en: 'g — no puff of air', hard: true,
-        ex: 'गाय', exR: 'gāy', exEn: 'cow', exTa: 'பசு', exHi: 'गाय', pic: '🐄' },
+        ex: 'गमला', exR: 'gamlā', exEn: 'flower pot', exTa: 'பூந்தொட்டி', exHi: 'गमला', pic: '🪴'},
       { ch: 'घ', r: 'gha', say: 'gha', ta: 'க(gh)', en: 'g with a puff of air', asp: true, hard: true,
-        ex: 'घड़ी', exR: 'ghaṛī', exEn: 'clock', exTa: 'கடிகாரம்', exHi: 'घड़ी', pic: '⏰' },
-      { ch: 'ङ', r: 'ṅa',  say: 'nga', ta: 'ங',     en: 'ng as in sing — never starts a word',
-        ex: 'रंग', exR: 'rang', exEn: 'colour', exTa: 'நிறம்', exHi: 'रंग', pic: '🎨' }] },
+        ex: 'घर', exR: 'ghar', exEn: 'house', exTa: 'வீடு', exHi: 'घर', pic: '🏠'},
+      /* रंग does not contain ङ at all — it contains the anusvara. The
+         sound is right, which is why it looked right; the letter is not
+         there. Modern Hindi writes this sound with ं everywhere, and ङ
+         survives in Sanskritised spellings like अङ्क. */
+      { ch: 'ङ', r: 'ṅa',  say: 'nga', ta: 'ங',
+        en: 'ng as in sing. Modern Hindi writes this sound with the anusvara — रंग, गंगा — so ङ itself is rare, and never starts a word',
+        ex: 'गंगा', exR: 'gangā', exEn: 'the Ganges', exTa: 'கீர்கை', exHi: 'गंगा', pic: '🌊',
+        sayAs: 'गंगा' }] },
     { name: 'चवर्ग (palatals)', items: [
       { ch: 'च', r: 'ca',  say: 'cha', ta: 'ச',     en: 'ch — no puff of air',
-        ex: 'चाँद', exR: 'chānd', exEn: 'moon', exTa: 'நிலா', exHi: 'चाँद', pic: '🌙' },
+        ex: 'चमच', exR: 'chamach', exEn: 'spoon', exTa: 'கரண்டி', exHi: 'चमच', pic: '🥄'},
       { ch: 'छ', r: 'cha', say: 'chha', ta: 'ச(chh)', en: 'ch with a puff of air', asp: true,
-        ex: 'छाता', exR: 'chhātā', exEn: 'umbrella', exTa: 'குடை', exHi: 'छाता', pic: '☂️' },
+        ex: 'छतरी', exR: 'chhatrī', exEn: 'umbrella', exTa: 'குடை', exHi: 'छतरी', pic: '☂️'},
       { ch: 'ज', r: 'ja',  say: 'ja',  ta: 'ஜ',     en: 'j — no puff of air',
         ex: 'जहाज', exR: 'jahāj', exEn: 'ship', exTa: 'கப்பல்', exHi: 'जहाज', pic: '🚢' },
       { ch: 'झ', r: 'jha', say: 'jha', ta: 'ஜ(jh)', en: 'j with a puff of air', asp: true, hard: true,
-        ex: 'झंडा', exR: 'jhaṇḍā', exEn: 'flag', exTa: 'கொடி', exHi: 'झंडा', pic: '🚩' },
-      { ch: 'ञ', r: 'ña',  say: 'nya', ta: 'ஞ',     en: 'ny as in canyon — never starts a word',
-        ex: 'ज्ञान', exR: 'gyān', exEn: 'knowledge', exTa: 'ஞானம்', exHi: 'ज्ञान', pic: '📚' }] },
+        ex: 'झरना', exR: 'jharnā', exEn: 'waterfall', exTa: 'அருவி', exHi: 'झरना', pic: '🏞️'},
+      /* ज्ञान is said gyān, not nyān: the conjunct ज्ञ is pronounced
+         "gy" in Hindi, so the one word on this card demonstrated a sound
+         the letter was not making. The /ɲ/ sound is written with the
+         anusvara instead — पंच, चंचल. */
+      { ch: 'ञ', r: 'ña',  say: 'nya', ta: 'ஞ',
+        en: 'ny as in canyon. Written with the anusvara in modern Hindi — पंच, चंचल. The letter ञ survives mainly inside ज्ञ, where it is said gy, not ny',
+        ex: 'पंच', exR: 'panch', exEn: 'five', exTa: 'ஐந்து', exHi: 'पंच', pic: '5️⃣',
+        sayAs: 'पंच' }] },
     { name: 'टवर्ग (retroflex)', items: [
       { ch: 'ट', r: 'ṭa',  say: 'ta',  ta: 'ட',     en: 't with the tongue curled back',
         ex: 'टमाटर', exR: 'ṭamāṭar', exEn: 'tomato', exTa: 'தக्காளி', exHi: 'टमाटर', pic: '🍅' },
       { ch: 'ठ', r: 'ṭha', say: 'tha', ta: 'ட(th)', en: 'the same, with a puff of air', asp: true,
-        ex: 'ठेला', exR: 'ṭhelā', exEn: 'cart', exTa: 'வண்டி', exHi: 'ठेला', pic: '🛒' },
+        ex: 'ठठेरा', exR: 'ṭhaṭherā', exEn: 'coppersmith', exTa: 'கன்னான்', exHi: 'ठठेरा', pic: '🔨'},
       { ch: 'ड', r: 'ḍa',  say: 'da',  ta: 'ட(d)',  en: 'd with the tongue curled back', hard: true,
-        ex: 'डब्बा', exR: 'ḍabbā', exEn: 'box', exTa: 'பெட்டி', exHi: 'डब्बा', pic: '📦' },
+        ex: 'डमरू', exR: 'ḍamrū', exEn: 'small drum', exTa: 'உடுக்கை', exHi: 'डमरू', pic: '🪘'},
       { ch: 'ढ', r: 'ḍha', say: 'dha', ta: 'ட(dh)', en: 'the same, with a puff of air', asp: true, hard: true,
-        ex: 'ढोल', exR: 'ḍhol', exEn: 'drum', exTa: 'மேளம்', exHi: 'ढोल', pic: '🥁' },
+        ex: 'ढक्कन', exR: 'ḍhakkan', exEn: 'lid', exTa: 'மூடி', exHi: 'ढक्कन', pic: '🫙'},
       { ch: 'ण', r: 'ṇa',  say: 'na',  ta: 'ண',     en: 'n with the tongue curled back — never starts a word',
-        ex: 'गणेश', exR: 'gaṇesh', exEn: 'Ganesh', exTa: 'விநாயகர்', exHi: 'गणेश', pic: '🕉️' }] },
+        ex: 'बाण', exR: 'bāṇ', exEn: 'arrow', exTa: 'அம்பு', exHi: 'बाण', pic: '🏹', sayAs: 'बाण'}] },
     { name: 'तवर्ग (dentals)', items: [
       /* त was labelled "th" and द was labelled "dh" — the names that belong
          to थ and ध one line below. Both of these are the plain, unaspirated
          pair: tongue on the teeth, no puff of air. */
       { ch: 'त', r: 'ta',  say: 'ta',  ta: 'த',     en: 't on the teeth — no puff of air',
-        ex: 'तितली', exR: 'titlī', exEn: 'butterfly', exTa: 'வண்ணத்துப்பூச்சி', exHi: 'तितली', pic: '🦋' },
+        ex: 'तरबूज', exR: 'tarbūj', exEn: 'watermelon', exTa: 'தர்பூசணி', exHi: 'तरबूज', pic: '🍉'},
       { ch: 'थ', r: 'tha', say: 'tha', ta: 'த(th)', en: 'the same, with a puff of air', asp: true,
-        ex: 'थाली', exR: 'thālī', exEn: 'plate', exTa: 'தட்டு', exHi: 'थाली', pic: '🍽️' },
+        ex: 'थर्मस', exR: 'tharmas', exEn: 'thermos', exTa: 'வெப்பக்குடுவை', exHi: 'थर्मस', pic: '🍵'},
       { ch: 'द', r: 'da',  say: 'da',  ta: 'த(d)',  en: 'd on the teeth — no puff of air', hard: true,
-        ex: 'दवात', exR: 'davāt', exEn: 'inkpot', exTa: 'மஷிக்குப்பி', exHi: 'दवात', pic: '🖋️' },
+        ex: 'दवा', exR: 'davā', exEn: 'medicine', exTa: 'மருந்து', exHi: 'दवा', pic: '💊'},
       { ch: 'ध', r: 'dha', say: 'dha', ta: 'த(dh)', en: 'the same, with a puff of air', asp: true, hard: true,
         ex: 'धनुष', exR: 'dhanush', exEn: 'bow', exTa: 'வில்', exHi: 'धनुष', pic: '🏹' },
       { ch: 'न', r: 'na',  say: 'na',  ta: 'ந',     en: 'n on the teeth',
@@ -332,18 +349,18 @@ TB.ALPHABET = {};
       { ch: 'र', r: 'ra', say: 'ra', ta: 'ர', en: 'r — one light tap',
         ex: 'रथ', exR: 'rath', exEn: 'chariot', exTa: 'தேர்', exHi: 'रथ' },
       { ch: 'ल', r: 'la', say: 'la', ta: 'ல', en: 'l',
-        ex: 'लड्डू', exR: 'laddū', exEn: 'laddu', exTa: 'லட்டு', exHi: 'लड्डू', pic: '🍬' },
+        ex: 'लट्टू', exR: 'laṭṭū', exEn: 'spinning top', exTa: 'பம்பரம்', exHi: 'लट्टू', pic: '🪀'},
       { ch: 'व', r: 'va', say: 'va', ta: 'வ', en: 'v, and w in some words',
-        ex: 'वन', exR: 'van', exEn: 'forest', exTa: 'காடு', exHi: 'वन', pic: '🌳' }] },
+        ex: 'वकील', exR: 'vakīl', exEn: 'lawyer', exTa: 'வழக்கறிஞர்', exHi: 'वकील', pic: '⚖️'}] },
     { name: 'ऊष्म (sibilants & h)', items: [
       { ch: 'श', r: 'śa', say: 'sha', ta: 'ஷ', en: 'sh as in ship',
-        ex: 'शेर', exR: 'sher', exEn: 'lion', exTa: 'சிங்கம்', exHi: 'शेर', pic: '🦁' },
+        ex: 'शलगम', exR: 'shalgam', exEn: 'turnip', exTa: 'நூல்கோல்', exHi: 'शलगम', pic: '🥕'},
       { ch: 'ष', r: 'ṣa', say: 'sha', ta: 'ஷ', en: 'sh with the tongue curled back',
-        ex: 'षट्कोण', exR: 'shaṭkoṇ', exEn: 'hexagon', exTa: 'அறுகோணம்', exHi: 'षट्कोण' },
+        ex: 'षट्भुज', exR: 'shaṭbhuj', exEn: 'hexagon', exTa: 'அறுகோணம்', exHi: 'षट्भुज', pic: '⬢'},
       { ch: 'स', r: 'sa', say: 'sa',  ta: 'ஸ', en: 's',
-        ex: 'सूरज', exR: 'sūraj', exEn: 'sun', exTa: 'சூரியன்', exHi: 'सूरज', pic: '☀️' },
+        ex: 'सड़क', exR: 'saṛak', exEn: 'road', exTa: 'சாலை', exHi: 'सड़क', pic: '🛣️'},
       { ch: 'ह', r: 'ha', say: 'ha',  ta: 'ஹ', en: 'h as in hat',
-        ex: 'हाथी', exR: 'hāthī', exEn: 'elephant', exTa: 'யானை', exHi: 'हाथी', pic: '🐘' }] },
+        ex: 'हाथ', exR: 'hāth', exEn: 'hand', exTa: 'கை', exHi: 'हाथ', pic: '✋'}] },
     { name: 'संयुक्त (conjuncts)', items: [
       { ch: 'क्ष', r: 'kṣa', say: 'ksha', ta: 'க்ஷ', en: 'k and sh run together',
         ex: 'क्षमा', exR: 'kshmā', exEn: 'forgiveness', exTa: 'மன்னிப்பு', exHi: 'क्षमा', pic: '🙏' },
