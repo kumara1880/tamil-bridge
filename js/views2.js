@@ -777,6 +777,18 @@
         +       (sx.f ? '' : ' disabled') + '>\u{1F469} Woman</button>'
         +   '</div>'
         + '</div>'
+        /* Which of the three to hear. They teach different things: the
+           name of the letter, the sound it makes in a word, or the whole
+           set in order the way it is recited. */
+        + '<div class="row mt"><span class="tiny muted">Read:</span>'
+        +   '<div class="pill-row" id="aMode">'
+        +     '<button class="pill on" data-mode="pair" type="button">Letter + word</button>'
+        +     '<button class="pill" data-mode="letter" type="button">Letter only</button>'
+        +     '<button class="pill" data-mode="all" type="button">\u25B6 Read them all</button>'
+        +   '</div>'
+        +   '<span class="spacer" style="flex:1"></span>'
+        +   '<button class="btn btn-sm" id="aStop" type="button" hidden>\u23F9 Stop</button>'
+        + '</div>'
         + '<div class="tiny muted mt">'
         +   (sx.total === 0
             ? 'This device has no ' + (lang === 'ta' ? 'Tamil' : lang === 'hi' ? 'Hindi' : 'English')
@@ -797,10 +809,77 @@
       }
     },
     mount: function (root) {
+      var mode = 'pair';
+      var running = null;
+      var stopBtn = root.querySelector('#aStop');
+
+      var modeRow = root.querySelector('#aMode');
+      if (modeRow) modeRow.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-mode]');
+        if (!b) return;
+        var want = b.getAttribute('data-mode');
+        if (want === 'all') { readThemAll(); return; }
+        root.querySelectorAll('#aMode .pill').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        mode = want;
+      });
+
+      function clearLit() {
+        root.querySelectorAll('.alpha-cell.saying').forEach(function (x) {
+          x.classList.remove('saying');
+        });
+      }
+
+      function stopReading() {
+        if (running && running.cancel) running.cancel();
+        running = null;
+        TB.Speech.stop();
+        clearLit();
+        if (stopBtn) stopBtn.hidden = true;
+      }
+      if (stopBtn) stopBtn.addEventListener('click', stopReading);
+
+      /* The whole set, in order, with the letter lit as it is said \u2014 which
+         is the only way to tell which one you are hearing. */
+      function readThemAll() {
+        stopReading();
+        var cells = [].slice.call(root.querySelectorAll('[data-letter]'));
+        if (!cells.length) return;
+        var d = V.D();
+        var steps = cells.map(function (c) {
+          return { text: c.getAttribute('data-letter'), lang: c.getAttribute('data-lang') || 'ta',
+                   rate: 0.6, pause: 650 };
+        });
+        if (stopBtn) stopBtn.hidden = false;
+        running = TB.Speech.sequence(steps, {
+          sex: d.prefs.voiceSex || '',
+          voiceNames: { ta: d.prefs.voiceTa, en: d.prefs.voiceEn, hi: d.prefs.voiceHi },
+          onStep: function (step, i) {
+            clearLit();
+            var cell = cells[i];
+            if (!cell) return;
+            cell.classList.add('saying');
+            cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
+        });
+        running.then(function () {
+          clearLit();
+          if (stopBtn) stopBtn.hidden = true;
+          running = null;
+        });
+      }
+
       var sexRow = root.querySelector('#aVoice');
       if (sexRow) sexRow.addEventListener('click', function (e) {
         var b = e.target.closest('[data-sex]');
-        if (!b || b.disabled) return;
+        if (!b) return;
+        /* Pressing something that cannot work should say so. Silence reads
+           as broken. */
+        if (b.disabled) {
+          TB.App.toast('This device has no ' + (b.getAttribute('data-sex') === 'f'
+            ? 'woman\u2019s' : 'man\u2019s') + ' voice for this language.', 'warn');
+          return;
+        }
         root.querySelectorAll('#aVoice .pill').forEach(function (x) { x.classList.remove('on'); });
         b.classList.add('on');
         var d = V.D();
@@ -816,16 +895,24 @@
         var cell = e.target.closest('[data-letter]');
         if (!cell) return;
         if (e.target.closest('[data-speak]')) return;   /* the word, on its own */
+        stopReading();
         var lang = cell.getAttribute('data-lang') || 'ta';
         var d = V.D();
-        var sex = d.prefs.voiceSex || '';
-        var steps = [{ text: cell.getAttribute('data-letter'), lang: lang, rate: 0.55, pause: 520 }];
+        var steps = [];
+        /* A mei letter is named \u0b87\u0b95\u0bcd and sounded \u0b95. Both, in that order,
+           with a gap between \u2014 which is how it is taught and the only way
+           the two do not run into one another. */
+        var name = cell.getAttribute('data-name');
+        if (name) steps.push({ text: name, lang: lang, rate: 0.55, pause: 620 });
+        steps.push({ text: cell.getAttribute('data-letter'), lang: lang, rate: 0.55, pause: 620 });
         var word = cell.getAttribute('data-word');
-        if (word) steps.push({ text: word, lang: lang, rate: 0.7 });
-        TB.Speech.sequence(steps, {
-          sex: sex,
+        if (word && mode === 'pair') steps.push({ text: word, lang: lang, rate: 0.7 });
+        cell.classList.add('saying');
+        running = TB.Speech.sequence(steps, {
+          sex: d.prefs.voiceSex || '',
           voiceNames: { ta: d.prefs.voiceTa, en: d.prefs.voiceEn, hi: d.prefs.voiceHi }
         });
+        running.then(function () { cell.classList.remove('saying'); running = null; });
       });
     }
   };
@@ -843,7 +930,23 @@
      app-wide one does not also fire and cut the pair in half. */
   function sayPair(it, lang, letter) {
     return ' data-letter="' + esc(letter) + '" data-lang="' + lang + '"'
+      + (it.mei ? ' data-name="' + esc(it.mei) + '"' : '')
       + (it.ex ? ' data-word="' + esc(it.ex) + '"' : '');
+  }
+
+  /* A word a child cannot picture is a word they look up again tomorrow. */
+  function alphaPic(it) {
+    return it.pic ? '<div class="alpha-pic" aria-hidden="true">' + it.pic + '</div>' : '';
+  }
+
+  /* A mei letter has two names and both are taught: \u0b87\u0b95\u0bcd on its own, \u0b95
+     joined to its vowel. Everything else has just the one. */
+  function alphaSay(it) {
+    if (!it.meiSay) return '<div class="alpha-say">' + esc(it.say || it.r || '') + '</div>';
+    return '<div class="alpha-two">'
+      + '<b class="as-name"><small>letter</small>' + esc(it.meiSay) + '</b>'
+      + '<b class="as-sound"><small>sound</small>' + esc(it.say) + '</b>'
+      + '</div>';
   }
 
   function alphaWord(it, lang) {
@@ -868,10 +971,10 @@
             /* How to say it comes first and large. The scholarly form is
                kept underneath, because every dictionary uses it — but ā
                and ī are not a reading, they are a second thing to learn. */
-            + '<div class="alpha-say">' + esc(v.say || v.r) + '</div>'
+            + alphaSay(v)
             + '<div class="r">' + esc(v.r) + ' · ' + esc(v.kind) + '</div>'
             + '<div class="alpha-en">' + esc(v.en) + '</div>'
-            + alphaWord(v, 'ta') + '</div>';
+            + alphaPic(v) + alphaWord(v, 'ta') + '</div>';
         }) + '</div>';
 
     h += '<div class="card"><h3>Consonants — mei (18)</h3>'
@@ -881,18 +984,18 @@
              lines above. */
           return '<div class="alpha-cell"' + sayPair(c, 'ta', c.base) + '>'
             + '<div class="ch ta">' + esc(c.ch) + '</div>'
-            + '<div class="alpha-say">' + esc(c.say || c.rr) + '</div>'
-            + '<div class="r">' + esc(c.rr) + ' · ' + esc(c.cls) + '</div>'
+            + alphaSay(c)
+            + '<div class="r">' + esc(c.mei || '') + ' · ' + esc(c.cls) + '</div>'
             + '<div class="alpha-en">' + esc(c.en) + '</div>'
-            + alphaWord(c, 'ta') + '</div>';
+            + alphaPic(c) + alphaWord(c, 'ta') + '</div>';
         })
       + '<div class="mt"><div class="alpha-cell" style="max-width:170px"'
       + sayPair(A.aytham, 'ta', A.aytham.ch) + '>'
       + '<div class="ch ta">' + esc(A.aytham.ch) + '</div>'
-      + '<div class="alpha-say">' + esc(A.aytham.say) + '</div>'
+      + alphaSay(A.aytham)
       + '<div class="r">' + esc(A.aytham.name) + '</div>'
       + '<div class="alpha-en">' + esc(A.aytham.en) + '</div>'
-      + alphaWord(A.aytham, 'ta') + '</div></div></div>';
+      + alphaPic(A.aytham) + alphaWord(A.aytham, 'ta') + '</div></div></div>';
 
     h += '<div class="card"><h3>Compound letters — uyirmei (216)</h3>'
       + '<div class="card-sub">18 consonants × 12 vowels — tap any letter to hear it</div><div class="matrix"><table><thead><tr><th></th>';
@@ -919,10 +1022,10 @@
       + cellGrid(A.vowels, function (v) {
           return '<div class="alpha-cell"' + sayPair(v, 'hi', v.ch) + '>'
             + '<div class="ch hi">' + esc(v.ch) + '</div>'
-            + '<div class="alpha-say">' + esc(v.say || v.r) + '</div>'
+            + alphaSay(v)
             + '<div class="r">' + esc(v.r) + ' · <span class="ta">' + esc(v.ta) + '</span></div>'
             + '<div class="alpha-en">' + esc(v.en) + '</div>'
-            + alphaWord(v, 'hi') + '</div>';
+            + alphaPic(v) + alphaWord(v, 'hi') + '</div>';
         }) + '</div>';
 
     A.rows.forEach(function (row) {
@@ -931,10 +1034,10 @@
             return '<div class="alpha-cell' + (c.hard ? ' hard' : (c.asp ? ' asp' : '')) + '"'
               + sayPair(c, 'hi', c.ch) + '>'
               + '<div class="ch hi">' + esc(c.ch) + '</div>'
-              + '<div class="alpha-say">' + esc(c.say || c.r) + '</div>'
+              + alphaSay(c)
               + '<div class="r">' + esc(c.r) + ' · <span class="ta">' + esc(c.ta) + '</span></div>'
               + '<div class="alpha-en">' + esc(c.en) + '</div>'
-              + alphaWord(c, 'hi') + '</div>';
+              + alphaPic(c) + alphaWord(c, 'hi') + '</div>';
           })
         + '<div class="tiny muted mt">Red border = sound not in Tamil · amber = aspirated</div></div>';
     });

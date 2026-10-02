@@ -2867,7 +2867,43 @@ section('DICTIONARY (offline)');
        child learns slowest, so a tap says the letter slowly and then a word. */
     var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
     t('a tap says the letter slowly, then the word',
-      /rate: 0\.55, pause: 520/.test(v2) && /if \(word\) steps\.push/.test(v2));
+      /rate: 0\.55, pause: 620/.test(v2) && /if \(word && mode === 'pair'\) steps\.push/.test(v2));
+    /* A mei letter is named இக் and sounded க. Both are taught; the chart
+       gave neither, and then gave only one. */
+    t('every mei letter carries both of its readings', (function () {
+      var bad = TA.consonants.filter(function (c) { return !c.mei || !c.meiSay || !c.say; });
+      return bad.length === 0;
+    })());
+    t('and a tap says the name before the sound',
+      /data-name/.test(v2) && /if \(name\) steps\.push/.test(v2));
+    t('க் is இக் and க', (function () {
+      var k = TA.consonants.filter(function (c) { return c.base === 'க'; })[0];
+      return k.meiSay === 'ik' && k.say === 'ka';
+    })());
+
+    /* Three ways to hear it, and the whole set read in order. */
+    t('there are three ways to hear a letter', /data-mode="pair"/.test(v2)
+      && /data-mode="letter"/.test(v2) && /data-mode="all"/.test(v2));
+    t('and the one being read is lit as it is said',
+      /cell\.classList\.add\('saying'\)/.test(v2) && /\.alpha-cell\.saying/.test(
+        fs.readFileSync(R + 'assets/styles.css', 'utf8')));
+    t('with a way to stop it', /id="aStop"/.test(v2) && /function stopReading/.test(v2));
+
+    /* A button that cannot be pressed has to look like one, and say why. */
+    t('a disabled choice looks disabled',
+      /\.pill\[disabled\] \{/.test(fs.readFileSync(R + 'assets/styles.css', 'utf8')));
+    t('and says why rather than doing nothing',
+      /voice for this language/.test(v2) && /if \(b\.disabled\) \{/.test(v2));
+
+    /* A word a child cannot picture is one they look up again tomorrow. */
+    t('every Tamil letter has a picture',
+      TA.vowels.concat(TA.consonants).filter(function (x) { return !x.pic; }).length === 0);
+    (function () {
+      var all = HI.vowels.slice();
+      HI.rows.forEach(function (r) { all = all.concat(r.items); });
+      t('and most Hindi ones do', all.filter(function (x) { return x.pic; }).length >= 45,
+        all.filter(function (x) { return x.pic; }).length + '/' + all.length);
+    })();
     t('and the cell does not also fire the app-wide speaker',
       /if \(e\.target\.closest\(.\[data-speak\].\)\) return;/.test(v2));
 

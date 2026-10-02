@@ -1798,3 +1798,35 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 .alpha-ex .alpha-ex-r { font-size: calc(11px * var(--fs, 1)); color: var(--text-mute); font-style: italic; }
 .alpha-ex .alpha-ex-en { font-size: calc(11px * var(--fs, 1)); color: var(--teal); }
 .alpha-cell { text-align: center; }
+
+/* A button that cannot be pressed has to look like one. Without this, a
+   device with a single voice showed three choices and answered two. */
+.pill[disabled] {
+  opacity: .42;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+.pill[disabled]:hover { background: var(--panel); }
+
+/* The picture for a letter's word. Emoji, so it costs nothing, needs no
+   internet and scales to any size. */
+.alpha-pic {
+  font-size: calc(30px * var(--fs, 1));
+  line-height: 1.1;
+  margin-top: 4px;
+}
+/* The two readings of a mei letter: its name, and the sound it makes. */
+.alpha-two { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 3px 0 1px; }
+.alpha-two b {
+  font-size: calc(15px * var(--fs, 1)); font-weight: 700;
+  padding: 1px 8px; border-radius: 7px;
+}
+.alpha-two .as-name { color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); }
+.alpha-two .as-sound { color: var(--accent); background: var(--accent-dim); }
+.alpha-two small { display: block; font-size: calc(9px * var(--fs, 1)); font-weight: 600;
+  opacity: .8; letter-spacing: .3px; text-transform: uppercase; }
+/* The letter being read, while the whole set is read through. */
+.alpha-cell.saying {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+}
