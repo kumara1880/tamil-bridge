@@ -759,9 +759,36 @@
     title: 'Alphabet', sub: 'Tamil 247 · Hindi varnamala · English 26',
     html: function (param) {
       var which = param || 'ta';
+      var lang = which === 'en' ? 'en' : which;
+      var sx = TB.Speech.sexesFor(lang);
+      var pref = (V.D().prefs || {}).voiceSex || '';
       var h = '<div class="view wide"><div class="card"><div class="pill-row">'
         + tab('ta', 'Tamil (247)') + tab('hi', 'हिंदी वर्णमाला') + tab('en', 'English A–Z')
-        + '</div></div>';
+        + '</div>'
+        /* Offered only where the device really has both, and explained
+           where it does not — a button that cannot do anything is worse
+           than no button. */
+        + '<div class="row mt"><span class="tiny muted">Voice:</span>'
+        +   '<div class="pill-row" id="aVoice">'
+        +     '<button class="pill' + (pref ? '' : ' on') + '" data-sex="" type="button">Any</button>'
+        +     '<button class="pill' + (pref === 'm' ? ' on' : '') + '" data-sex="m" type="button"'
+        +       (sx.m ? '' : ' disabled') + '>\u{1F468} Man</button>'
+        +     '<button class="pill' + (pref === 'f' ? ' on' : '') + '" data-sex="f" type="button"'
+        +       (sx.f ? '' : ' disabled') + '>\u{1F469} Woman</button>'
+        +   '</div>'
+        + '</div>'
+        + '<div class="tiny muted mt">'
+        +   (sx.total === 0
+            ? 'This device has no ' + (lang === 'ta' ? 'Tamil' : lang === 'hi' ? 'Hindi' : 'English')
+              + ' voice, so it is read over the internet \u2014 which offers one voice only.'
+            : (sx.m && sx.f)
+              ? 'Tap a letter to hear it slowly, then a word that has it in.'
+              : 'This device has only ' + (sx.total === 1 ? 'one ' : sx.total + ' ')
+                + (lang === 'ta' ? 'Tamil' : lang === 'hi' ? 'Hindi' : 'English')
+                + ' voice' + (sx.total === 1 ? '' : 's') + ', so there is no choice of man or woman here. '
+                + 'Tap a letter to hear it slowly, then a word that has it in.')
+        + '</div>'
+        + '</div>';
       h += which === 'ta' ? tamilChart() : (which === 'hi' ? hindiChart() : englishChart());
       return h + '</div>';
 
@@ -769,11 +796,63 @@
         return '<a class="pill' + (which === id ? ' on' : '') + '" href="#/alphabet/' + id + '">' + label + '</a>';
       }
     },
-    mount: function () {}
+    mount: function (root) {
+      var sexRow = root.querySelector('#aVoice');
+      if (sexRow) sexRow.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-sex]');
+        if (!b || b.disabled) return;
+        root.querySelectorAll('#aVoice .pill').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        var d = V.D();
+        d.prefs.voiceSex = b.getAttribute('data-sex');
+        V.saveD(d);
+      });
+
+      /* The letter, slowly, and then a word that has it in — which is what
+         a teacher does, and what a speech engine needs: one character on
+         its own has no context to set its length or stress by, and several
+         engines read the character's name instead of its sound. */
+      root.addEventListener('click', function (e) {
+        var cell = e.target.closest('[data-letter]');
+        if (!cell) return;
+        if (e.target.closest('[data-speak]')) return;   /* the word, on its own */
+        var lang = cell.getAttribute('data-lang') || 'ta';
+        var d = V.D();
+        var sex = d.prefs.voiceSex || '';
+        var steps = [{ text: cell.getAttribute('data-letter'), lang: lang, rate: 0.55, pause: 520 }];
+        var word = cell.getAttribute('data-word');
+        if (word) steps.push({ text: word, lang: lang, rate: 0.7 });
+        TB.Speech.sequence(steps, {
+          sex: sex,
+          voiceNames: { ta: d.prefs.voiceTa, en: d.prefs.voiceEn, hi: d.prefs.voiceHi }
+        });
+      });
+    }
   };
 
   function cellGrid(items, render) {
     return '<div class="alpha-grid">' + items.map(render).join('') + '</div>';
+  }
+
+  /* A letter on its own is the thing a speech engine reads worst, and the
+     thing a child learns slowest. The word underneath is both the fix and
+     the lesson: tap the letter for the sound, tap the word to hear it where
+     it really lives. */
+  /* Put on the cell itself: what to say, and the word to say after it. The
+     alphabet's own handler reads both; the cell has no data-speak, so the
+     app-wide one does not also fire and cut the pair in half. */
+  function sayPair(it, lang, letter) {
+    return ' data-letter="' + esc(letter) + '" data-lang="' + lang + '"'
+      + (it.ex ? ' data-word="' + esc(it.ex) + '"' : '');
+  }
+
+  function alphaWord(it, lang) {
+    if (!it.ex) return '';
+    return '<div class="alpha-ex" data-speak="' + esc(it.ex) + '" data-lang="' + lang + '">'
+      + '<span class="' + lang + '">' + esc(it.ex) + '</span>'
+      + (it.exR ? '<span class="alpha-ex-r">' + esc(it.exR) + '</span>' : '')
+      + (it.exEn ? '<span class="alpha-ex-en">' + esc(it.exEn) + '</span>' : '')
+      + '</div>';
   }
 
   function tamilChart() {
@@ -784,19 +863,36 @@
 
     h += '<div class="card"><h3>Vowels — uyir (12)</h3>'
       + cellGrid(A.vowels, function (v) {
-          return '<div class="alpha-cell" data-speak="' + esc(v.ch) + '" data-lang="ta">'
-            + '<div class="ch ta">' + esc(v.ch) + '</div><div class="r">' + esc(v.r) + '</div>'
-            + '<div class="r">' + esc(v.kind) + '</div></div>';
+          return '<div class="alpha-cell"' + sayPair(v, 'ta', v.ch) + '>'
+            + '<div class="ch ta">' + esc(v.ch) + '</div>'
+            /* How to say it comes first and large. The scholarly form is
+               kept underneath, because every dictionary uses it — but ā
+               and ī are not a reading, they are a second thing to learn. */
+            + '<div class="alpha-say">' + esc(v.say || v.r) + '</div>'
+            + '<div class="r">' + esc(v.r) + ' · ' + esc(v.kind) + '</div>'
+            + '<div class="alpha-en">' + esc(v.en) + '</div>'
+            + alphaWord(v, 'ta') + '</div>';
         }) + '</div>';
 
     h += '<div class="card"><h3>Consonants — mei (18)</h3>'
       + cellGrid(A.consonants, function (c) {
-          return '<div class="alpha-cell" data-speak="' + esc(c.base) + '" data-lang="ta">'
-            + '<div class="ch ta">' + esc(c.ch) + '</div><div class="r">' + esc(c.rr) + '</div>'
-            + '<div class="r">' + esc(c.cls) + '</div></div>';
+          /* The letter is க்; what is spoken is க, because a mei letter
+             cannot be said on its own — which is what the chart says two
+             lines above. */
+          return '<div class="alpha-cell"' + sayPair(c, 'ta', c.base) + '>'
+            + '<div class="ch ta">' + esc(c.ch) + '</div>'
+            + '<div class="alpha-say">' + esc(c.say || c.rr) + '</div>'
+            + '<div class="r">' + esc(c.rr) + ' · ' + esc(c.cls) + '</div>'
+            + '<div class="alpha-en">' + esc(c.en) + '</div>'
+            + alphaWord(c, 'ta') + '</div>';
         })
-      + '<div class="mt"><div class="alpha-cell" style="max-width:110px" data-speak="' + esc(A.aytham.ch) + '" data-lang="ta">'
-      + '<div class="ch ta">' + esc(A.aytham.ch) + '</div><div class="r">' + esc(A.aytham.name) + '</div></div></div></div>';
+      + '<div class="mt"><div class="alpha-cell" style="max-width:170px"'
+      + sayPair(A.aytham, 'ta', A.aytham.ch) + '>'
+      + '<div class="ch ta">' + esc(A.aytham.ch) + '</div>'
+      + '<div class="alpha-say">' + esc(A.aytham.say) + '</div>'
+      + '<div class="r">' + esc(A.aytham.name) + '</div>'
+      + '<div class="alpha-en">' + esc(A.aytham.en) + '</div>'
+      + alphaWord(A.aytham, 'ta') + '</div></div></div>';
 
     h += '<div class="card"><h3>Compound letters — uyirmei (216)</h3>'
       + '<div class="card-sub">18 consonants × 12 vowels — tap any letter to hear it</div><div class="matrix"><table><thead><tr><th></th>';
@@ -821,17 +917,24 @@
 
     h += '<div class="card"><h3>Vowels — स्वर (13)</h3>'
       + cellGrid(A.vowels, function (v) {
-          return '<div class="alpha-cell" data-speak="' + esc(v.ch) + '" data-lang="hi">'
-            + '<div class="ch hi">' + esc(v.ch) + '</div><div class="r">' + esc(v.r) + '</div>'
-            + '<div class="r ta">' + esc(v.ta) + '</div></div>';
+          return '<div class="alpha-cell"' + sayPair(v, 'hi', v.ch) + '>'
+            + '<div class="ch hi">' + esc(v.ch) + '</div>'
+            + '<div class="alpha-say">' + esc(v.say || v.r) + '</div>'
+            + '<div class="r">' + esc(v.r) + ' · <span class="ta">' + esc(v.ta) + '</span></div>'
+            + '<div class="alpha-en">' + esc(v.en) + '</div>'
+            + alphaWord(v, 'hi') + '</div>';
         }) + '</div>';
 
     A.rows.forEach(function (row) {
       h += '<div class="card"><h3>' + esc(row.name) + '</h3>'
         + cellGrid(row.items, function (c) {
-            return '<div class="alpha-cell' + (c.hard ? ' hard' : (c.asp ? ' asp' : '')) + '" data-speak="' + esc(c.ch) + '" data-lang="hi">'
-              + '<div class="ch hi">' + esc(c.ch) + '</div><div class="r">' + esc(c.r) + '</div>'
-              + '<div class="r ta">' + esc(c.ta) + '</div></div>';
+            return '<div class="alpha-cell' + (c.hard ? ' hard' : (c.asp ? ' asp' : '')) + '"'
+              + sayPair(c, 'hi', c.ch) + '>'
+              + '<div class="ch hi">' + esc(c.ch) + '</div>'
+              + '<div class="alpha-say">' + esc(c.say || c.r) + '</div>'
+              + '<div class="r">' + esc(c.r) + ' · <span class="ta">' + esc(c.ta) + '</span></div>'
+              + '<div class="alpha-en">' + esc(c.en) + '</div>'
+              + alphaWord(c, 'hi') + '</div>';
           })
         + '<div class="tiny muted mt">Red border = sound not in Tamil · amber = aspirated</div></div>';
     });

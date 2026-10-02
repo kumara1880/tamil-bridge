@@ -104,27 +104,57 @@ TB.Speech = (function () {
     return score;
   }
 
+  /* Which voice is a man's and which a woman's. No browser reports this \u2014
+     the only thing on offer is the name \u2014 so these are the names the
+     common engines actually ship, plus the voices that say it outright.
+     A name that is not on either list is left as unknown rather than
+     guessed at: a wrong guess here is worse than no answer. */
+  var FEMALE = /(^|[^a-z])(hazel|susan|heera|zira|catherine|linda|hortense|samantha|victoria|karen|moira|tessa|fiona|serena|kalpana|swara|lekha|veena|priya|nita|aria|jenny|michelle|sonia|neerja|pallavi|female|woman|girl)([^a-z]|$)/i;
+  var MALE   = /(^|[^a-z])(george|ravi|david|mark|james|daniel|alex|fred|rishi|prabhat|hemant|valluvar|madhur|thomas|oliver|william|liam|guy|eric|brian|arjun|male|man|boy)([^a-z]|$)/i;
+
+  function voiceSex(v) {
+    var n = (v && v.name) || '';
+    if (FEMALE.test(n)) return 'f';
+    if (MALE.test(n)) return 'm';
+    return '';
+  }
+
   function bestOf(list) {
     if (!list.length) return null;
     return list.slice().sort(function (a, b) { return quality(b) - quality(a); })[0];
   }
 
   /* Resolve a BCP-47 tag or short code to the best available voice. */
-  function pickVoice(lang, preferredName) {
+  /* Every voice on the device for one language, best first. Named apart
+     from api.voicesFor below, which answers a different question. */
+  function voiceList(lang) {
+    var tags = LANGS[lang] || [lang];
+    for (var i = 0; i < tags.length; i++) {
+      var tag = tags[i].toLowerCase();
+      var hits = voices.filter(function (v) { return (v.lang || '').toLowerCase().replace('_', '-') === tag; });
+      if (hits.length) return hits.slice().sort(function (a, b) { return quality(b) - quality(a); });
+    }
+    /* prefix match: "ta" matches "ta-IN" */
+    var base = (LANGS[lang] ? LANGS[lang][0] : lang).split('-')[0].toLowerCase();
+    return voices.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(base) === 0; })
+      .sort(function (a, b) { return quality(b) - quality(a); });
+  }
+
+  function pickVoice(lang, preferredName, sex) {
     if (!voices.length) return null;
     if (preferredName) {
       var exact = voices.filter(function (v) { return v.name === preferredName; })[0];
       if (exact) return exact;
     }
-    var tags = LANGS[lang] || [lang];
-    for (var i = 0; i < tags.length; i++) {
-      var tag = tags[i].toLowerCase();
-      var hits = voices.filter(function (v) { return (v.lang || '').toLowerCase().replace('_', '-') === tag; });
-      if (hits.length) return bestOf(hits);
+    var hits = voiceList(lang);
+    if (!hits.length) return null;
+    /* Asked for a man or a woman: give one if the device has one, and
+       otherwise give the best voice it does have rather than silence. */
+    if (sex === 'm' || sex === 'f') {
+      var want = hits.filter(function (v) { return voiceSex(v) === sex; });
+      if (want.length) return want[0];
     }
-    /* prefix match: "ta" matches "ta-IN" */
-    var base = (LANGS[lang] ? LANGS[lang][0] : lang).split('-')[0].toLowerCase();
-    return bestOf(voices.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(base) === 0; }));
+    return hits[0];
   }
 
   function bcp47(lang) { return (LANGS[lang] && LANGS[lang][0]) || lang; }
@@ -331,6 +361,18 @@ TB.Speech = (function () {
       return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
     },
     voices: function () { return voices.slice(); },
+    voiceSex: voiceSex,
+    /* What this device can actually offer for a language, so the chooser
+       can say so instead of showing a button that does nothing. */
+    sexesFor: function (lang) {
+      var hits = voiceList(lang);
+      var out = { m: 0, f: 0, unknown: 0, total: hits.length };
+      hits.forEach(function (v) {
+        var sx = voiceSex(v);
+        if (sx === 'm') out.m++; else if (sx === 'f') out.f++; else out.unknown++;
+      });
+      return out;
+    },
     voicesFor: function (lang) {
       var base = (LANGS[lang] ? LANGS[lang][0] : lang).split('-')[0].toLowerCase();
       return voices.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(base) === 0; });
@@ -366,6 +408,7 @@ TB.Speech = (function () {
          surfaces missingVoiceMessage(lang). */
       /* No voice on the device: ask the network before telling somebody
          their machine cannot do it. */
+      /* A chosen voice beats a chosen sex; both beat the default. */
       if (api.missing(lang) && !opts.force) {
         /* Claim the queue first, then silence: anything already speaking
            sees the token move and gives up rather than racing this. */
@@ -385,7 +428,7 @@ TB.Speech = (function () {
 
       return new Promise(function (resolve) {
         var u = new SpeechSynthesisUtterance(String(text));
-        var v = pickVoice(lang, opts.voiceName);
+        var v = pickVoice(lang, opts.voiceName, opts.sex);
         if (v) u.voice = v;
         u.lang = v ? v.lang : bcp47(lang);
         u.rate = opts.rate != null ? opts.rate : 0.85;
@@ -451,6 +494,7 @@ TB.Speech = (function () {
         if (opts.onStep) { try { opts.onStep(s, i - 1); } catch (e) {} }
         return api.speak(s.text, s.lang, {
           seq: mine,
+          sex: s.sex || opts.sex || '',
           rate: s.rate != null ? s.rate : opts.rate,
           pitch: s.pitch != null ? s.pitch : opts.pitch,
           volume: s.volume != null ? s.volume : opts.volume,

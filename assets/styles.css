@@ -1770,3 +1770,31 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent), var(--sh-2);
 }
+
+/* How to say the letter: the thing a learner came for, so it is the thing
+   they see. The scholarly transliteration keeps its place underneath. */
+.alpha-say {
+  font-size: calc(17px * var(--fs, 1));
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: .2px;
+  margin: 2px 0 1px;
+}
+.alpha-en {
+  font-size: calc(11px * var(--fs, 1));
+  color: var(--text-dim);
+  line-height: 1.4;
+  margin-top: 3px;
+}
+/* The word that carries the sound. Tappable in its own right. */
+.alpha-ex {
+  margin-top: 7px; padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
+  cursor: pointer; border-radius: 0 0 8px 8px;
+  font-size: calc(13.5px * var(--fs, 1));
+}
+.alpha-ex:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.alpha-ex span { display: block; }
+.alpha-ex .alpha-ex-r { font-size: calc(11px * var(--fs, 1)); color: var(--text-mute); font-style: italic; }
+.alpha-ex .alpha-ex-en { font-size: calc(11px * var(--fs, 1)); color: var(--teal); }
+.alpha-cell { text-align: center; }

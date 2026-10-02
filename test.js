@@ -2805,6 +2805,82 @@ section('DICTIONARY (offline)');
       && (v11.match(/function showOne\(/g) || []).length === 1);
   })();
 
+
+  /* ---------------- the alphabet ---------------- */
+  section('ALPHABET');
+  (function () {
+    var TA = TB.ALPHABET.ta, HI = TB.ALPHABET.hi;
+
+    /* The page showed the scholarly transliteration — ṅ, c, ñ, ṭ, ḻ — which
+       is right for a catalogue and useless to a child. ச shown as c tells
+       an English reader to say k, the one sound it never makes. */
+    var noSay = TA.vowels.concat(TA.consonants).filter(function (x) { return !x.say; });
+    t('every Tamil letter has a reading a learner can use', noSay.length === 0, noSay.length);
+    t('and ச is not called c', TA.consonants.filter(function (c) {
+      return c.base === 'ச'; })[0].say === 'sa');
+    t('nor ங called ṅ', TA.consonants.filter(function (c) {
+      return c.base === 'ங'; })[0].say === 'nga');
+
+    /* A sound is learnt in a word. It is also the only way a speech engine
+       reads reliably — one character alone has no context at all. */
+    var noEx = TA.vowels.concat(TA.consonants).filter(function (x) { return !x.ex; });
+    t('and a word that has the letter in it', noEx.length === 0, noEx.length);
+    /* Six Tamil letters never begin a word, so their example must not.
+       ஞ is NOT one of them — ஞாயிறு, ஞானம் and ஞாபகம் all begin with
+       it — which this test got wrong before the data did. */
+    (function () {
+      var wrong = [];
+      ['ங', 'ண', 'ழ', 'ள', 'ற', 'ன'].forEach(function (ch) {
+        var c = TA.consonants.filter(function (x) { return x.base === ch; })[0];
+        if (c && c.ex && c.ex.charAt(0) === ch) wrong.push(ch);
+      });
+      t('and no example starts with a letter that cannot start a word',
+        wrong.length === 0, wrong.join(' '));
+    })();
+    t('the 247 still add up', TA.vowels.length === 12 && TA.consonants.length === 18
+      && TA.grid.length * TA.grid[0].cells.length === 216);
+
+    /* त was labelled th and द dh — the names belonging to थ and ध on the
+       line below. Both are the plain unaspirated pair. */
+    function hi(ch) {
+      var out = null;
+      HI.rows.forEach(function (r) { r.items.forEach(function (i) { if (i.ch === ch) out = i; }); });
+      return out;
+    }
+    t('त is a t, not a th', /^t on the teeth/.test(hi('त').en), hi('त').en);
+    t('द is a d, not a dh', /^d on the teeth/.test(hi('द').en), hi('द').en);
+    t('and थ and ध are the ones with the breath',
+      /puff of air/.test(hi('थ').en) && /puff of air/.test(hi('ध').en));
+    /* The aspirates were spelt in Tamil with a pulli and ஹ — க்ஹ — which a
+       Tamil reader sounds out as two syllables, k-ha. */
+    var twoSyllable = [];
+    HI.rows.forEach(function (r) { r.items.forEach(function (i) {
+      if (i.ta && /்ஹ/.test(i.ta)) twoSyllable.push(i.ch); }); });
+    t('no Tamil approximation spells an aspirate as two syllables',
+      twoSyllable.length === 0, twoSyllable.join(' '));
+    var hiNo = HI.vowels.filter(function (v) { return !v.say || !v.ex; });
+    HI.rows.forEach(function (r) { r.items.forEach(function (i) {
+      if (!i.say || !i.ex) hiNo.push(i); }); });
+    t('every Hindi letter has a reading and a word', hiNo.length === 0, hiNo.length);
+
+    /* The audio. A letter alone is what an engine reads worst and what a
+       child learns slowest, so a tap says the letter slowly and then a word. */
+    var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
+    t('a tap says the letter slowly, then the word',
+      /rate: 0\.55, pause: 520/.test(v2) && /if \(word\) steps\.push/.test(v2));
+    t('and the cell does not also fire the app-wide speaker',
+      /if \(e\.target\.closest\(.\[data-speak\].\)\) return;/.test(v2));
+
+    /* A man or a woman, only where the device really has one. */
+    t('the voice can be a man or a woman', typeof TB.Speech.sexesFor === 'function');
+    t('and the chooser is built from what the device has',
+      /sx\.m \? .. : . disabled./.test(v2) && /sx\.f \? .. : . disabled./.test(v2));
+    t('and says so when there is only one voice',
+      /no choice of man or woman here/.test(v2));
+    t('a name on neither list is left unknown, not guessed',
+      /return ..;\s*\n  \}\s*\n\s*function bestOf/.test(fs.readFileSync(R + 'js/speech.js', 'utf8')));
+  })();
+
   /* ---------------- accounts ---------------- */
   section('ACCOUNTS');
   try {

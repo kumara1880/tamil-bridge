@@ -212,7 +212,9 @@ TB.App = (function () {
         sp.classList.add('playing');
         pendingSpeak = sp;
         TB.Speech.speak(text, lang, {
-          rate: d.prefs.rate, pitch: d.prefs.pitch, voiceName: names[lang]
+          rate: d.prefs.rate, pitch: d.prefs.pitch, voiceName: names[lang],
+          /* A man or a woman, when the device has both. */
+          sex: d.prefs.voiceSex || ''
         }).then(function (res) {
           sp.classList.remove('playing');
           /* Only once everything has actually been tried. */
