@@ -1918,3 +1918,18 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
   color: var(--text); line-height: 1.35; margin-top: 2px;
 }
 .matrix td { position: relative; }
+
+/* A letter no voice can say on its own, written in the form that it can:
+   the letter with a vowel in front and its own vowel killed. */
+.alpha-alone {
+  display: inline-flex; align-items: baseline; gap: 5px; flex-wrap: wrap;
+  justify-content: center; max-width: 100%;
+  margin: 2px auto 0; padding: 1px 8px;
+  border: 1px dashed var(--line); border-radius: 9px;
+  font-size: calc(12.5px * var(--fs, 1)); font-weight: 700; color: var(--blue);
+}
+.alpha-alone .hi { font-size: calc(15px * var(--fs, 1)); color: var(--text); }
+.alpha-alone small {
+  font-size: calc(8.5px * var(--fs, 1)); font-weight: 600; color: var(--text-mute);
+  text-transform: uppercase; letter-spacing: .3px;
+}

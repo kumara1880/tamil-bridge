@@ -2870,12 +2870,25 @@ section('DICTIONARY (offline)');
     t('the visarga is aha', f('\u0905\u0903').say === 'aha');
 
     /* None of these can be said alone by a voice trained on Hindi, because
-       no Hindi word begins with them. Each speaks a word instead. */
-    ['\u0919', '\u091e', '\u0923', '\u0905\u0902', '\u0905\u0903'].forEach(function (ch) {
-      t(ch + ' speaks a word rather than an unsayable letter', !!f(ch).sayAs, ch);
+       no Hindi word begins with them. Each gets a sayable form of THE
+       LETTER \u2014 \u0905\u0919\u094d, \u0905\u091e\u094d, \u0905\u0923\u094d \u2014 a vowel in front and its own vowel
+       killed, the convention Tamil already names its mei letters with.
+       Not a substitute for the letter: for a while sayAs pointed at the
+       example word, so the card said only the word and the letter was
+       never heard, which is worse than the problem it was fixing. */
+    var v2b = fs.readFileSync(R + 'js/views2.js', 'utf8');
+    [['\u0919', '\u0905\u0919\u094d'], ['\u091e', '\u0905\u091e\u094d'], ['\u0923', '\u0905\u0923\u094d'],
+     ['\u0905\u0902', '\u0905\u092e\u094d'], ['\u0905\u0903', '\u0905\u0939']].forEach(function (p) {
+      t(p[0] + ' has a sayable form of itself', f(p[0]).letterSay === p[1],
+        f(p[0]).letterSay);
+      /* It must be the letter, not the word. */
+      t('and it is not the example word', f(p[0]).letterSay !== f(p[0]).ex);
     });
-    t('and the card is wired to use it',
-      /it\.sayAs \|\| letter/.test(fs.readFileSync(R + 'js/views2.js', 'utf8')));
+    t('the card speaks that form, then the word',
+      /it\.letterSay \|\| letter/.test(v2b)
+      && /if \(word && mode === 'pair' && !solo\)/.test(v2b));
+    t('and shows it, so the reading and the sound agree',
+      /class="alpha-alone"/.test(v2b));
 
     /* The words a Hindi child is actually taught. */
     [['\u0917', '\u0917\u092e\u0932\u093e'], ['\u0918', '\u0918\u0930'], ['\u091a', '\u091a\u092e\u091a'], ['\u091b', '\u091b\u0924\u0930\u0940'],
@@ -2979,10 +2992,15 @@ section('DICTIONARY (offline)');
           wordless.map(function (c) { return c.cluster; }).join(' '));
         t('and they still have a sound to say',
           wordless.every(function (c) { return c.onItsOwn && c.onItsOwnR; }));
-        t('which is the cluster with a leading \u0b87, as a mei letter is named',
-          wordless[0].onItsOwn === '\u0b87\u0b99\u0bcd\u0b95\u0bca' && wordless[0].onItsOwnR === 'ingo'
-          && wordless[1].onItsOwn === '\u0b87\u0b99\u0bcd\u0b95\u0bcc' && wordless[1].onItsOwnR === 'ingau',
+        /* The cluster itself, read ngo and ngau \u2014 not with a vowel put in
+           front of it. I had them as \u0b87\u0b99\u0bcd\u0b95\u0bca and ingo, which is the convention
+           a MEI letter is named by; these are not mei letters. */
+        t('which is the cluster itself, read ngo and ngau',
+          wordless[0].onItsOwn === '\u0b99\u0bcd\u0b95\u0bca' && wordless[0].onItsOwnR === 'ngo'
+          && wordless[1].onItsOwn === '\u0b99\u0bcd\u0b95\u0bcc' && wordless[1].onItsOwnR === 'ngau',
           wordless.map(function (c) { return c.onItsOwn + '=' + c.onItsOwnR; }).join(' '));
+        t('and not with a vowel put in front of it',
+          wordless.every(function (c) { return c.onItsOwnR.charAt(0) !== 'i'; }));
       })();
       t('no word is repeated', (function () {
         var w = ng.cells.map(function (c) { return c.word; }).filter(Boolean);

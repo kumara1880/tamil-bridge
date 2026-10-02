@@ -189,8 +189,10 @@ TB.ALPHABET = {};
                     pronounceable; it simply never starts one. Named the way
                     a mei letter is named — இக், இங் — it becomes a real
                     syllable shape a voice can manage: இங்கொ, like இங்கு. */
-                 onItsOwn: (ngi && !ngi.w) ? '\u0b87' + ngi.c : '',
-                 onItsOwnR: (ngi && !ngi.w) ? 'i' + onset(c.say) + v.say : '',
+                 /* Read as the cluster itself — ngo, ngau — not with a
+                    vowel put in front of it. */
+                 onItsOwn: (ngi && !ngi.w) ? ngi.c : '',
+                 onItsOwnR: (ngi && !ngi.w) ? onset(c.say) + v.say : '',
                  word: ngi ? ngi.w : '', wordR: ngi ? ngi.r : '',
                  wordEn: ngi ? ngi.en : '', wordPic: ngi ? ngi.pic : '' };
       })
@@ -267,9 +269,9 @@ TB.ALPHABET = {};
          before a bh. A learner meeting angūr under a letter called am
          needs telling why. */
       en: 'anusvara — named am, but it takes the place of the consonant after it: angūr, panch, sambhav',
-      ex: 'अंगूर', exR: 'angūr', exEn: 'grapes', sayAs: 'अंगूर', exTa: 'திராட்சை', exHi: 'अंगूर', pic: '🍇' },
+      ex: 'अंगूर', exR: 'angūr', exEn: 'grapes', letterSay: 'अम्', letterSayR: 'am', exTa: 'திராட்சை', exHi: 'अंगूर', pic: '🍇' },
     { ch: 'अः', r: 'aḥ',  say: 'aha', sign: 'ः',  ta: 'அஹ',  en: 'visarga — a breath after the vowel, recited aha',
-      ex: 'प्रातः', exR: 'prātaḥ', exEn: 'dawn', sayAs: 'प्रातः', exTa: 'விடியல்', exHi: 'भोर' }
+      ex: 'प्रातः', exR: 'prātaḥ', exEn: 'dawn', letterSay: 'अह', letterSayR: 'aha', exTa: 'விடியல்', exHi: 'भोर' }
   ];
 
   var rows = [
@@ -288,8 +290,8 @@ TB.ALPHABET = {};
          survives in Sanskritised spellings like अङ्क. */
       { ch: 'ङ', r: 'ṅa',  say: 'nga', ta: 'ங',
         en: 'ng as in sing. Modern Hindi writes this sound with the anusvara — रंग, गंगा — so ङ itself is rare, and never starts a word',
-        ex: 'गंगा', exR: 'gangā', exEn: 'the Ganges', exTa: 'கீர்கை', exHi: 'गंगा', pic: '🌊',
-        sayAs: 'गंगा' }] },
+        ex: 'गंगा', exR: 'gangā', exEn: 'the Ganges', exTa: 'கங்கை', exHi: 'गंगा', pic: '🌊',
+        letterSay: 'अङ्', letterSayR: 'ang' }] },
     { name: 'चवर्ग (palatals)', items: [
       { ch: 'च', r: 'ca',  say: 'cha', ta: 'ச',     en: 'ch — no puff of air',
         ex: 'चमच', exR: 'chamach', exEn: 'spoon', exTa: 'கரண்டி', exHi: 'चमच', pic: '🥄'},
@@ -306,7 +308,7 @@ TB.ALPHABET = {};
       { ch: 'ञ', r: 'ña',  say: 'nya', ta: 'ஞ',
         en: 'ny as in canyon. Written with the anusvara in modern Hindi — पंच, चंचल. The letter ञ survives mainly inside ज्ञ, where it is said gy, not ny',
         ex: 'पंच', exR: 'panch', exEn: 'five', exTa: 'ஐந்து', exHi: 'पंच', pic: '5️⃣',
-        sayAs: 'पंच' }] },
+        letterSay: 'अञ्', letterSayR: 'any' }] },
     { name: 'टवर्ग (retroflex)', items: [
       { ch: 'ट', r: 'ṭa',  say: 'ta',  ta: 'ட',     en: 't with the tongue curled back',
         ex: 'टमाटर', exR: 'ṭamāṭar', exEn: 'tomato', exTa: 'தக्காளி', exHi: 'टमाटर', pic: '🍅' },
@@ -317,7 +319,7 @@ TB.ALPHABET = {};
       { ch: 'ढ', r: 'ḍha', say: 'dha', ta: 'ட(dh)', en: 'the same, with a puff of air', asp: true, hard: true,
         ex: 'ढक्कन', exR: 'ḍhakkan', exEn: 'lid', exTa: 'மூடி', exHi: 'ढक्कन', pic: '🫙'},
       { ch: 'ण', r: 'ṇa',  say: 'na',  ta: 'ண',     en: 'n with the tongue curled back — never starts a word',
-        ex: 'बाण', exR: 'bāṇ', exEn: 'arrow', exTa: 'அம்பு', exHi: 'बाण', pic: '🏹', sayAs: 'बाण'}] },
+        ex: 'बाण', exR: 'bāṇ', exEn: 'arrow', exTa: 'அம்பு', exHi: 'बाण', pic: '🏹', letterSay: 'अण्', letterSayR: 'aṇ'}] },
     { name: 'तवर्ग (dentals)', items: [
       /* त was labelled "th" and द was labelled "dh" — the names that belong
          to थ and ध one line below. Both of these are the plain, unaspirated

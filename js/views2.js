@@ -953,10 +953,6 @@
         var steps = [{ text: cell.getAttribute('data-letter'), lang: lang,
                        rate: 0.5, pause: 900 }];
         var word = cell.getAttribute('data-word');
-        /* If the letter itself is being said via its word, do not then say
-           the same word again. */
-        if (cell.hasAttribute('data-alone')
-            && word === cell.getAttribute('data-letter')) word = '';
         if (word && mode === 'pair' && !solo) {
           steps.push({ text: word, lang: lang, rate: 0.62, pause: 500 });
         }
@@ -988,11 +984,15 @@
      vowel has been taken away. */
   /* Some letters cannot be said on their own by a voice trained on the
      language, because no word in it begins with them — ङ, ञ, ण, the
-     anusvara. Asked anyway, an engine guesses. sayAs gives it a word where
-     the sound is actually audible. */
+     anusvara. Asked anyway, an engine guesses.
+
+     letterSay is a sayable form of THAT LETTER, not a substitute for it:
+     अङ्, अञ्, अण् — a vowel in front and the vowel killed, the same
+     convention Tamil names its mei letters with (இக், இங்). The card still
+     says the letter and then the word; it was briefly saying only the
+     word, which is worse than the problem it was fixing. */
   function sayPair(it, lang, letter) {
-    return ' data-letter="' + esc(it.sayAs || letter) + '" data-lang="' + lang + '"'
-      + (it.sayAs ? ' data-alone="1"' : '')
+    return ' data-letter="' + esc(it.letterSay || letter) + '" data-lang="' + lang + '"'
       + (it.ex ? ' data-word="' + esc(it.ex) + '"' : '');
   }
 
@@ -1008,7 +1008,15 @@
      different letter, and is pressed on its own — which is the whole point
      of the dot. */
   function alphaSay(it) {
-    if (!it.meiSay) return '<div class="alpha-say">' + esc(it.say || it.r || '') + '</div>';
+    if (!it.meiSay) {
+      return '<div class="alpha-say">' + esc(it.say || it.r || '') + '</div>'
+        /* A letter no voice can say alone is said in this form instead —
+           the letter, with a vowel in front and its own vowel killed. */
+        + (it.letterSay
+           ? '<div class="alpha-alone"><span class="hi">' + esc(it.letterSay) + '</span> '
+             + esc(it.letterSayR) + '<small>said alone</small></div>'
+           : '');
+    }
     /* The letter with its vowel back is a section of its own further down.
        It used to sit on this card as a small button, and கல் was printed
        under க் — a word that starts with the undotted letter, on the card
