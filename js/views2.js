@@ -775,6 +775,11 @@
         +       (sx.m ? '' : ' disabled') + '>\u{1F468} Man</button>'
         +     '<button class="pill' + (pref === 'f' ? ' on' : '') + '" data-sex="f" type="button"'
         +       (sx.f ? '' : ' disabled') + '>\u{1F469} Woman</button>'
+        /* A different speaker again, and a native one for each language.
+           Offered as what it is rather than as a gender, which is not
+           something this page can know. */
+        +     '<button class="pill' + (pref === 'net' ? ' on' : '') + '" data-sex="net" type="button"'
+        +       (sx.online ? '' : ' disabled') + '>\u{1F310} Online voice</button>'
         +   '</div>'
         + '</div>'
         /* Which of the three to hear. They teach different things: the
@@ -797,7 +802,8 @@
               ? 'Tap a letter to hear it slowly, then a word that has it in.'
               : 'This device has only ' + (sx.total === 1 ? 'one ' : sx.total + ' ')
                 + (lang === 'ta' ? 'Tamil' : lang === 'hi' ? 'Hindi' : 'English')
-                + ' voice' + (sx.total === 1 ? '' : 's') + ', so there is no choice of man or woman here. '
+                + ' voice' + (sx.total === 1 ? '' : 's') + ', so there is no choice of man or woman here \u2014 '
+                + 'but the online voice is a different speaker, and a native one. '
                 + 'Tap a letter to hear it slowly, then a word that has it in.')
         + '</div>'
         + '</div>';
@@ -835,35 +841,50 @@
         running = null;
         TB.Speech.stop();
         clearLit();
+        root.classList.remove('reading');
         if (stopBtn) stopBtn.hidden = true;
       }
       if (stopBtn) stopBtn.addEventListener('click', stopReading);
 
       /* The whole set, in order, with the letter lit as it is said \u2014 which
          is the only way to tell which one you are hearing. */
+      /* Set the moment somebody scrolls by hand, cleared when a reading
+         starts. Only a real gesture counts; scrollIntoView is not one. */
+      var userScrolled = false;
+      ['wheel', 'touchmove', 'keydown'].forEach(function (ev) {
+        window.addEventListener(ev, function () { userScrolled = true; }, { passive: true });
+      });
+
       function readThemAll() {
         stopReading();
+        userScrolled = false;
         var cells = [].slice.call(root.querySelectorAll('[data-letter]'));
         if (!cells.length) return;
         var d = V.D();
         var steps = cells.map(function (c) {
           return { text: c.getAttribute('data-letter'), lang: c.getAttribute('data-lang') || 'ta',
-                   rate: 0.6, pause: 650 };
+                   rate: 0.5, pause: 950 };
         });
         if (stopBtn) stopBtn.hidden = false;
+        root.classList.add('reading');   /* floats Stop where it can be reached */
         running = TB.Speech.sequence(steps, {
-          sex: d.prefs.voiceSex || '',
+          sex: d.prefs.voiceSex === 'net' ? '' : (d.prefs.voiceSex || ''),
+          online: d.prefs.voiceSex === 'net',
           voiceNames: { ta: d.prefs.voiceTa, en: d.prefs.voiceEn, hi: d.prefs.voiceHi },
           onStep: function (step, i) {
             clearLit();
             var cell = cells[i];
             if (!cell) return;
             cell.classList.add('saying');
-            cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            /* Following along is useful; being dragged back is not. Once
+               somebody has scrolled themselves — to reach Stop, usually —
+               the page stops moving under them. */
+            if (!userScrolled) cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
           }
         });
         running.then(function () {
           clearLit();
+          root.classList.remove('reading');
           if (stopBtn) stopBtn.hidden = true;
           running = null;
         });
@@ -885,6 +906,12 @@
         var d = V.D();
         d.prefs.voiceSex = b.getAttribute('data-sex');
         V.saveD(d);
+        /* Heard at once, rather than on the next thing tapped. */
+        TB.Speech.speak(lang === 'ta' ? 'அ' : lang === 'hi' ? 'अ' : 'a', lang, {
+          rate: 0.5,
+          sex: d.prefs.voiceSex === 'net' ? '' : d.prefs.voiceSex,
+          online: d.prefs.voiceSex === 'net'
+        });
       });
 
       /* The letter, slowly, and then a word that has it in — which is what
@@ -898,21 +925,24 @@
         stopReading();
         var lang = cell.getAttribute('data-lang') || 'ta';
         var d = V.D();
-        var steps = [];
-        /* A mei letter is named \u0b87\u0b95\u0bcd and sounded \u0b95. Both, in that order,
-           with a gap between \u2014 which is how it is taught and the only way
-           the two do not run into one another. */
-        var name = cell.getAttribute('data-name');
-        if (name) steps.push({ text: name, lang: lang, rate: 0.55, pause: 620 });
-        steps.push({ text: cell.getAttribute('data-letter'), lang: lang, rate: 0.55, pause: 620 });
+        var solo = cell.hasAttribute('data-solo');   /* the undotted letter, alone */
+        /* Slowly, and with room after it. Some engines report a line as
+           finished while the sound is still going, so the next one used
+           to land on the tail of the one before. */
+        var steps = [{ text: cell.getAttribute('data-letter'), lang: lang,
+                       rate: 0.5, pause: 900 }];
         var word = cell.getAttribute('data-word');
-        if (word && mode === 'pair') steps.push({ text: word, lang: lang, rate: 0.7 });
-        cell.classList.add('saying');
+        if (word && mode === 'pair' && !solo) {
+          steps.push({ text: word, lang: lang, rate: 0.62, pause: 500 });
+        }
+        var lit = (solo && cell.closest('.alpha-cell')) || cell;
+        lit.classList.add('saying');
         running = TB.Speech.sequence(steps, {
-          sex: d.prefs.voiceSex || '',
+          sex: d.prefs.voiceSex === 'net' ? '' : (d.prefs.voiceSex || ''),
+          online: d.prefs.voiceSex === 'net',
           voiceNames: { ta: d.prefs.voiceTa, en: d.prefs.voiceEn, hi: d.prefs.voiceHi }
         });
-        running.then(function () { cell.classList.remove('saying'); running = null; });
+        running.then(function () { lit.classList.remove('saying'); running = null; });
       });
     }
   };
@@ -928,9 +958,11 @@
   /* Put on the cell itself: what to say, and the word to say after it. The
      alphabet's own handler reads both; the cell has no data-speak, so the
      app-wide one does not also fire and cut the pair in half. */
+  /* What this card says when it is pressed. For a mei letter that is its
+     own name and nothing else: the dot is there precisely to say that the
+     vowel has been taken away. */
   function sayPair(it, lang, letter) {
     return ' data-letter="' + esc(letter) + '" data-lang="' + lang + '"'
-      + (it.mei ? ' data-name="' + esc(it.mei) + '"' : '')
       + (it.ex ? ' data-word="' + esc(it.ex) + '"' : '');
   }
 
@@ -941,12 +973,19 @@
 
   /* A mei letter has two names and both are taught: \u0b87\u0b95\u0bcd on its own, \u0b95
      joined to its vowel. Everything else has just the one. */
+  /* The two readings, kept apart on purpose. The dotted letter reads ik and
+     is what this card says when pressed. The undotted one reads ka, is a
+     different letter, and is pressed on its own — which is the whole point
+     of the dot. */
   function alphaSay(it) {
     if (!it.meiSay) return '<div class="alpha-say">' + esc(it.say || it.r || '') + '</div>';
     return '<div class="alpha-two">'
-      + '<b class="as-name"><small>letter</small>' + esc(it.meiSay) + '</b>'
-      + '<b class="as-sound"><small>sound</small>' + esc(it.say) + '</b>'
-      + '</div>';
+      + '<b class="as-name"><small>' + esc(it.mei) + '</small>' + esc(it.meiSay) + '</b>'
+      + '</div>'
+      + '<button class="alpha-with" type="button" data-letter="' + esc(it.base) + '" '
+      +   'data-lang="ta" data-solo="1">'
+      +   '<span class="ta">' + esc(it.base) + '</span> ' + esc(it.say)
+      +   '<small>with அ</small></button>';
   }
 
   function alphaWord(it, lang) {
@@ -954,7 +993,11 @@
     return '<div class="alpha-ex" data-speak="' + esc(it.ex) + '" data-lang="' + lang + '">'
       + '<span class="' + lang + '">' + esc(it.ex) + '</span>'
       + (it.exR ? '<span class="alpha-ex-r">' + esc(it.exR) + '</span>' : '')
+      /* The meaning in all three, not just in English. A page that claims
+         three languages and explains in one is a page in one. */
       + (it.exEn ? '<span class="alpha-ex-en">' + esc(it.exEn) + '</span>' : '')
+      + (it.exTa ? '<span class="alpha-ex-m ta">' + esc(it.exTa) + '</span>' : '')
+      + (it.exHi ? '<span class="alpha-ex-m hi">' + esc(it.exHi) + '</span>' : '')
       + '</div>';
   }
 
@@ -982,7 +1025,10 @@
           /* The letter is க்; what is spoken is க, because a mei letter
              cannot be said on its own — which is what the chart says two
              lines above. */
-          return '<div class="alpha-cell"' + sayPair(c, 'ta', c.base) + '>'
+          /* The card shows க் and says இக். It used to show the dot and
+             say the undotted letter, which is the one thing the dot is
+             there to prevent. */
+          return '<div class="alpha-cell"' + sayPair(c, 'ta', c.mei || c.base) + '>'
             + '<div class="ch ta">' + esc(c.ch) + '</div>'
             + alphaSay(c)
             + '<div class="r">' + esc(c.mei || '') + ' · ' + esc(c.cls) + '</div>'

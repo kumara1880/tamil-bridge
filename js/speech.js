@@ -371,6 +371,10 @@ TB.Speech = (function () {
         var sx = voiceSex(v);
         if (sx === 'm') out.m++; else if (sx === 'f') out.f++; else out.unknown++;
       });
+      /* Whether there is an online voice to offer as well. It is a native
+         speaker of each language, and a different one from the device's. */
+      out.online = typeof Audio !== 'undefined'
+        && !(typeof navigator !== 'undefined' && navigator.onLine === false);
       return out;
     },
     voicesFor: function (lang) {
@@ -386,7 +390,12 @@ TB.Speech = (function () {
        mean the language cannot be spoken: when there is no local voice the
        network one is used, which is why nothing calls this to decide
        whether to speak \u2014 only to explain what will happen. */
-    missing: function (lang) { return voices.length > 0 && !pickVoice(lang); },
+    /* No voice on this device that speaks this language. The old test also
+       required the voice list to be non-empty, which is exactly backwards:
+       an empty list is the case where there is certainly no Tamil voice,
+       and it let a Tamil letter be read by the browser's default English
+       one. */
+    missing: function (lang) { return !pickVoice(lang); },
 
     /* What this language will actually be read with. */
     voiceSource: function (lang) {
@@ -409,7 +418,14 @@ TB.Speech = (function () {
       /* No voice on the device: ask the network before telling somebody
          their machine cannot do it. */
       /* A chosen voice beats a chosen sex; both beat the default. */
-      if (api.missing(lang) && !opts.force) {
+      /* Asked for a woman and the device has only a man, or the other way
+         round: the online voice is a different speaker again, so it is
+         worth going to rather than silently handing back the one that was
+         just turned down. */
+      var noSuchSex = opts.sex && voiceList(lang).length
+        && !voiceList(lang).some(function (v) { return voiceSex(v) === opts.sex; });
+
+      if ((api.missing(lang) || opts.online || noSuchSex) && !opts.force) {
         /* Claim the queue first, then silence: anything already speaking
            sees the token move and gives up rather than racing this. */
         var netToken = ++queueToken;
@@ -495,6 +511,7 @@ TB.Speech = (function () {
         return api.speak(s.text, s.lang, {
           seq: mine,
           sex: s.sex || opts.sex || '',
+          online: s.online != null ? s.online : opts.online,
           rate: s.rate != null ? s.rate : opts.rate,
           pitch: s.pitch != null ? s.pitch : opts.pitch,
           volume: s.volume != null ? s.volume : opts.volume,

@@ -11,7 +11,17 @@ ctx.localStorage = (() => { const m = new Map(); return {
   getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)),
   removeItem: k => m.delete(k), clear: () => m.clear() }; })();
 ctx.crypto = require('crypto').webcrypto;
-ctx.speechSynthesis = { getVoices: () => [], speak() {}, cancel() {}, addEventListener() {} };
+/* Voices, because missing(lang) now means "nothing here speaks it" — which
+   with an empty list is true of every language, and would send every test
+   down the network path instead of through the engine. */
+ctx.speechSynthesis = {
+  getVoices: () => ([
+    { name: 'Test Valluvar', lang: 'ta-IN', localService: true },
+    { name: 'Test Hazel',    lang: 'en-IN', localService: true },
+    { name: 'Test George',   lang: 'en-GB', localService: true },
+    { name: 'Test Kalpana',  lang: 'hi-IN', localService: true }
+  ]),
+  speak() {}, cancel() {}, addEventListener() {} };
 ctx.document = { addEventListener() {}, head: { appendChild() {} }, createElement: () => ({}) };
 vm.createContext(ctx);
 
@@ -1164,7 +1174,13 @@ section('VOICE');
     /new Audio\(\)/.test(sp));
   t('a long line is cut at word boundaries', /function netChunks/.test(sp));
   t('a voice the device has is still preferred: the network is only asked',
-    /if \(api\.missing\(lang\) && !opts\.force\) \{[\s\S]{0,320}netSpeak\(/.test(sp));
+    /if \(\(api\.missing\(lang\) \|\| opts\.online \|\| noSuchSex\) && !opts\.force\) \{[\s\S]{0,360}netSpeak\(/.test(sp));
+  /* An empty voice list is the case where there is CERTAINLY no Tamil
+     voice. The old test required the list to be non-empty, so a browser
+     that had not loaded its voices yet read Tamil with its default English
+     one, silently. */
+  t('and nothing on the device means missing, whatever the reason',
+    /missing: function \(lang\) \{ return !pickVoice\(lang\); \}/.test(sp));
   t('stopping stops the network voice too', /netAudio\.pause\(\)/.test(sp));
   /* A phone grants permission to an audio element while a person is
      tapping, not to a page. A new element made for the second half of a
@@ -2867,15 +2883,50 @@ section('DICTIONARY (offline)');
        child learns slowest, so a tap says the letter slowly and then a word. */
     var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
     t('a tap says the letter slowly, then the word',
-      /rate: 0\.55, pause: 620/.test(v2) && /if \(word && mode === 'pair'\) steps\.push/.test(v2));
+      /rate: 0\.5, pause: 900/.test(v2) && /if \(word && mode === 'pair' && !solo\)/.test(v2));
     /* A mei letter is named இக் and sounded க. Both are taught; the chart
        gave neither, and then gave only one. */
     t('every mei letter carries both of its readings', (function () {
       var bad = TA.consonants.filter(function (c) { return !c.mei || !c.meiSay || !c.say; });
       return bad.length === 0;
     })());
-    t('and a tap says the name before the sound',
-      /data-name/.test(v2) && /if \(name\) steps\.push/.test(v2));
+    /* க் has a dot. A dotted letter is read இக் and never "ka" — "ka"
+       is க, the same letter with its vowel back, and a different thing to
+       press. Reading both off one card taught a child that the dot makes
+       no difference, which is the one thing it does. */
+    t('a dotted letter says only its own name', !/data-name/.test(v2));
+    t('and the letter with its vowel is pressed separately',
+      /data-solo="1"/.test(v2) && /class="alpha-with"/.test(v2));
+    /* The card SHOWS \u0b95\u0bcd and must SAY \u0b87\u0b95\u0bcd. It used to show the dot and
+       say the undotted letter, which is the one thing the dot prevents. */
+    t('and the dotted card is wired to its own name, not to \u0b95',
+      /sayPair\(c, 'ta', c\.mei \|\| c\.base\)/.test(v2));
+    /* Nothing is cut off: some engines report a line finished while the
+       sound is still going, so every step gets room after it. */
+    t('a letter is given room before the next thing is said',
+      /rate: 0\.5, pause: 900/.test(v2) && /rate: 0\.5, pause: 950/.test(v2));
+    /* Stop has to be reachable while the page is scrolling itself. */
+    t('Stop follows you down the page while it reads',
+      /\.reading #aStop \{[\s\S]{0,120}position: fixed/.test(
+        fs.readFileSync(R + 'assets/styles.css', 'utf8')));
+    t('and the page stops dragging you back once you scroll',
+      /if \(!userScrolled\) cell\.scrollIntoView/.test(v2));
+    /* The online voice: a different speaker, and a native one. Offered as
+       what it is, because what it sounds like is not something this page
+       can know. */
+    t('the online voice is offered as its own choice',
+      /data-sex="net"/.test(v2) && /Online voice/.test(v2));
+    t('and is not dressed up as a gender', !/Online woman|Woman \(online\)/.test(v2));
+
+    /* The meaning in all three, on a page that claims three. */
+    (function () {
+      var all = TA.vowels.concat(TA.consonants);
+      HI.vowels.forEach(function (v) { all.push(v); });
+      HI.rows.forEach(function (r) { r.items.forEach(function (i) { all.push(i); }); });
+      var one = all.filter(function (x) { return x.exEn && (!x.exTa || !x.exHi); });
+      t('every example word is explained in all three languages',
+        one.length === 0, one.length + ' still in English only');
+    })();
     t('க் is இக் and க', (function () {
       var k = TA.consonants.filter(function (c) { return c.base === 'க'; })[0];
       return k.meiSay === 'ik' && k.say === 'ka';
