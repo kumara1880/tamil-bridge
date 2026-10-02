@@ -2918,6 +2918,26 @@ section('DICTIONARY (offline)');
       /data-sex="net"/.test(v2) && /Online voice/.test(v2));
     t('and is not dressed up as a gender', !/Online woman|Woman \(online\)/.test(v2));
 
+    /* The English chart had an IPA symbol and nothing else \u2014 no word, no
+       picture, no meaning \u2014 on the page a child is most likely to open
+       first. */
+    (function () {
+      var EN = TB.ALPHABET.en.letters;
+      var bare = EN.filter(function (l) { return !l.ex || !l.pic || !l.exTa || !l.exHi; });
+      t('every English letter has a word, a picture and three meanings',
+        bare.length === 0, bare.map(function (l) { return l.ch; }).join(''));
+      t('A is for apple', EN[0].ex === 'apple' && EN[0].pic);
+      /* X sounds /ks/ at the END of a word. Primers use xylophone, where
+         the x is really a z and teaches the wrong sound. */
+      t('and X is for box, not xylophone',
+        EN.filter(function (l) { return l.ch === 'X'; })[0].ex === 'box');
+      t('the English card is tappable like the other two',
+        /wcard alpha-cell/.test(v2) && /alphaPic\(l\) \+ alphaWord\(l, 'en'\)/.test(v2));
+      /* "apple / apple" \u2014 on this chart the word is its own meaning. */
+      t('and a word is not printed as its own translation',
+        /it\.exEn !== it\.ex/.test(v2));
+    })();
+
     /* The meaning in all three, on a page that claims three. */
     (function () {
       var all = TA.vowels.concat(TA.consonants);

@@ -995,7 +995,10 @@
       + (it.exR ? '<span class="alpha-ex-r">' + esc(it.exR) + '</span>' : '')
       /* The meaning in all three, not just in English. A page that claims
          three languages and explains in one is a page in one. */
-      + (it.exEn ? '<span class="alpha-ex-en">' + esc(it.exEn) + '</span>' : '')
+      /* On the English chart the word IS its own English meaning, so
+         printing both gave "apple / apple". */
+      + (it.exEn && it.exEn !== it.ex
+         ? '<span class="alpha-ex-en">' + esc(it.exEn) + '</span>' : '')
       + (it.exTa ? '<span class="alpha-ex-m ta">' + esc(it.exTa) + '</span>' : '')
       + (it.exHi ? '<span class="alpha-ex-m hi">' + esc(it.exHi) + '</span>' : '')
       + '</div>';
@@ -1111,14 +1114,19 @@
 
     h += '<div class="card"><h3>All letters (26)</h3><div class="grid gauto">';
     A.letters.forEach(function (l) {
-      h += '<div class="wcard" data-speak="' + esc(l.ch) + '" data-lang="en">'
+      /* The same card as the other two alphabets: the letter, a word a
+         child knows, a picture of it, and the meaning in all three. This
+         one had an IPA symbol and nothing else, on the page a child is
+         most likely to open first. */
+      h += '<div class="wcard alpha-cell"' + sayPair(l, 'en', l.ch) + '>'
         + '<div class="row"><div style="font-size:calc(26px * var(--fs,1));font-weight:700">' + esc(l.ch) + ' ' + esc(l.low) + '</div>'
         + '<div class="spacer" style="flex:1"></div>'
         + '<span class="chip' + (l.type === 'vowel' ? ' accent' : (l.type === 'semi-vowel' ? ' amber' : '')) + '">'
         + (l.type === 'vowel' ? 'vowel' : (l.type === 'semi-vowel' ? 'semi' : 'consonant')) + '</span></div>'
         + '<div class="small ta">Name: ' + esc(l.name) + '</div>'
         + '<div class="tiny" style="color:var(--teal)">' + esc(l.sounds.join(' · ')) + '</div>'
-        + '<div class="tiny muted ta">Tamil sound: ' + esc(l.ta) + '</div></div>';
+        + '<div class="tiny muted ta">Tamil sound: ' + esc(l.ta) + '</div>'
+        + alphaPic(l) + alphaWord(l, 'en') + '</div>';
     });
     return h + '</div></div>';
   }
