@@ -2761,6 +2761,50 @@ section('DICTIONARY (offline)');
     t('before a j sound it is ny', /ஞ்ஜ/.test(ta('संज्ञा')), ta('संज्ञा'));
   })();
 
+
+  /* ---------------- the number chart ---------------- */
+  section('NUMBER CHART');
+  (function () {
+    var v11 = fs.readFileSync(R + 'js/views11.js', 'utf8');
+
+    /* Six fixed ranges and nothing else: no way to ask for 101 to 2,000,
+       and no way to look up one number. */
+    t('there is a thousand-long chart', /data-r="1-1000"/.test(v11));
+    t('and a range you choose yourself', /data-r="any"/.test(v11)
+      && /id="cFrom"/.test(v11) && /id="cTo"/.test(v11));
+    t('and a box to find one number', /id="cFind"/.test(v11));
+
+    /* 101 to ten lakh is 9,99,900 numbers. Drawing them all would hang the
+       browser; refusing would be a limit dressed up as an answer. */
+    t('a long range is paged rather than refused', /var PAGE = 500/.test(v11)
+      && /Math\.ceil\(howMany\(\) \/ PAGE\)/.test(v11));
+    t('only the page being looked at is built',
+      /for \(var i = 0; i < PAGE; i\+\+\)/.test(v11));
+    t('and the pages are only shown when there is more than one',
+      /if \(n <= 1\) return ..;/.test(v11));
+
+    /* Said backwards is still a range. */
+    t('a range given backwards is turned round',
+      /if \(a > b\) \{ var t = a; a = b; b = t; \}/.test(v11));
+    t('and one past what the names can say is clipped, and says so',
+      /These names go up to/.test(v11) && /b = MAX;/.test(v11));
+    t('an empty box is told, not ignored', /Put a number in both boxes/.test(v11));
+
+    /* Finding a number opens the chart at it rather than leaving somebody
+       to scroll for it. */
+    t('finding a number opens the chart at it',
+      /from = n; to = Math\.min\(MAX, n \+ 99\)/.test(v11) && /found = n;/.test(v11));
+    t('and marks it so the eye lands on it',
+      /n === found \? . on found./.test(v11));
+    var css = fs.readFileSync(R + 'assets/styles.css', 'utf8');
+    t('which has a style to be marked with', /\.num-cell\.found \{/.test(css));
+
+    /* The card under the chart is reached two ways now, so it is written
+       once. */
+    t('the card is written once for both ways in', /function cardFor\(/.test(v11)
+      && (v11.match(/function showOne\(/g) || []).length === 1);
+  })();
+
   /* ---------------- accounts ---------------- */
   section('ACCOUNTS');
   try {

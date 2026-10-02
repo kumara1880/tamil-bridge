@@ -1763,3 +1763,10 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 
 /* The rod label says its place in English and in Tamil. */
 .ab-place .ta { display: block; font-size: calc(8.5px * var(--fs, 1)); opacity: .85; }
+
+/* The number that was asked for by name, so the eye lands on it in a page
+   of five hundred. */
+.num-cell.found {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent), var(--sh-2);
+}

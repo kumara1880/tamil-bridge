@@ -258,11 +258,32 @@
         +   '<div class="pill-row" id="cRange">'
         +     '<button class="pill on" data-r="1-20" type="button">1–20</button>'
         +     '<button class="pill" data-r="1-100" type="button">1–100</button>'
+        +     '<button class="pill" data-r="1-1000" type="button">1–1,000</button>'
         +     '<button class="pill" data-r="tens" type="button">Tens</button>'
         +     '<button class="pill" data-r="hundreds" type="button">Hundreds</button>'
         +     '<button class="pill" data-r="big" type="button">Big numbers</button>'
+        +     '<button class="pill" data-r="any" type="button">↔ Any range</button>'
         +   '</div>'
         + '</div>'
+        /* Any two numbers, however far apart. A range too long to draw is
+           walked through a page at a time rather than refused. */
+        + '<div class="row mt" id="cAny" hidden>'
+        +   '<span class="tiny muted">From</span>'
+        +   '<input id="cFrom" class="mnum" style="max-width:150px" inputmode="numeric" '
+        +     'aria-label="from" value="101">'
+        +   '<span class="tiny muted">to</span>'
+        +   '<input id="cTo" class="mnum" style="max-width:150px" inputmode="numeric" '
+        +     'aria-label="to" value="2000">'
+        +   '<button class="btn btn-sm btn-primary" id="cGo" type="button">Show</button>'
+        + '</div>'
+        /* And one number on its own, for somebody who only wants that one. */
+        + '<div class="row mt">'
+        +   '<span class="tiny muted">Find a number</span>'
+        +   '<input id="cFind" class="mnum" style="max-width:190px" inputmode="numeric" '
+        +     'aria-label="find a number" placeholder="4732">'
+        +   '<button class="btn btn-sm" id="cFindGo" type="button">\u{1F50E} Find</button>'
+        + '</div>'
+        + '<div id="cNote"></div>'
         /* Which voices a tap plays. All three by default, because the three
            names share nothing and hearing them together is the point; one at
            a time for when a learner wants to drill just the one. */
@@ -284,24 +305,87 @@
       var body = root.querySelector('#cBody');
       var range = '1-20';
       var voice = 'all';
+      /* How many cells one page of the chart holds. Five hundred is a long
+         page and a browser draws it without complaint; five hundred
+         thousand is neither. */
+      var PAGE = 500;
+      /* As far as the number names go. */
+      var MAX = 1000000000;
+      var from = 101, to = 2000;
+      var page = 0;
+      var found = null;          /* a number asked for by name */
 
-      function numbersFor(r) {
-        var out = [], i;
-        if (r === '1-20') { for (i = 1; i <= 20; i++) out.push(i); }
-        else if (r === '1-100') { for (i = 1; i <= 100; i++) out.push(i); }
-        else if (r === 'tens') { for (i = 10; i <= 100; i += 10) out.push(i); }
-        else if (r === 'hundreds') { for (i = 100; i <= 1000; i += 100) out.push(i); }
-        else out = [1000, 5000, 10000, 50000, 100000, 500000, 1000000, 10000000];
+      var BIG = [1000, 5000, 10000, 50000, 100000, 500000, 1000000, 10000000];
+
+      /* first, last and the gap between, for whichever range is chosen */
+      function span() {
+        if (range === '1-20') return { a: 1, b: 20, step: 1 };
+        if (range === '1-100') return { a: 1, b: 100, step: 1 };
+        if (range === '1-1000') return { a: 1, b: 1000, step: 1 };
+        if (range === 'tens') return { a: 10, b: 100, step: 10 };
+        if (range === 'hundreds') return { a: 100, b: 1000, step: 100 };
+        return { a: from, b: to, step: 1 };
+      }
+
+      function howMany() {
+        if (range === 'big') return BIG.length;
+        var s = span();
+        return Math.max(0, Math.floor((s.b - s.a) / s.step) + 1);
+      }
+
+      function pages() { return Math.max(1, Math.ceil(howMany() / PAGE)); }
+
+      /* Only the numbers on the page being looked at. */
+      function numbersFor() {
+        if (range === 'big') return BIG.slice();
+        var s = span(), out = [];
+        var start = s.a + page * PAGE * s.step;
+        for (var i = 0; i < PAGE; i++) {
+          var n = start + i * s.step;
+          if (n > s.b) break;
+          out.push(n);
+        }
         return out;
       }
 
+      function note(html) {
+        var el = root.querySelector('#cNote');
+        if (el) el.innerHTML = html || '';
+      }
+
+      /* ‹ Previous   101–600 of 1,900 numbers   Next ›
+         Only when there is more than one page to walk through. */
+      function pager() {
+        var n = pages();
+        if (n <= 1) return '';
+        var list = numbersFor();
+        if (!list.length) return '';
+        return '<div class="card"><div class="row" style="justify-content:center">'
+          + '<button class="btn btn-sm" data-page="' + (page - 1) + '" type="button"'
+          +   (page === 0 ? ' disabled' : '') + '>\u2039 Previous</button>'
+          + '<span class="tiny muted" style="text-align:center;min-width:170px">'
+          +   list[0].toLocaleString('en-IN') + '\u2013' + list[list.length - 1].toLocaleString('en-IN')
+          +   '<br>page ' + (page + 1) + ' of ' + n.toLocaleString('en-IN')
+          +   ' \u00b7 ' + howMany().toLocaleString('en-IN') + ' numbers</span>'
+          + '<button class="btn btn-sm" data-page="' + (page + 1) + '" type="button"'
+          +   (page >= n - 1 ? ' disabled' : '') + '>Next \u203a</button>'
+          + '</div></div>';
+      }
+
       function draw() {
-        var list = numbersFor(range);
-        var big = list.length <= 24;
-        body.innerHTML = '<div class="card"><div class="num-chart' + (big ? ' roomy' : '') + '">'
+        var list = numbersFor();
+        var roomy = list.length <= 24;
+        if (!list.length) {
+          body.innerHTML = '<div class="empty">Nothing in that range. '
+            + 'Check that the first number is not bigger than the second.</div>';
+          return;
+        }
+        body.innerHTML = pager()
+          + '<div class="card"><div class="num-chart' + (roomy ? ' roomy' : '') + '">'
           + list.map(function (n) {
               var en = TB.Numbers.enIndian(n), ta = TB.Numbers.ta(n), hi = TB.Numbers.hi(n);
-              return '<button class="num-cell" data-n="' + n + '" type="button">'
+              return '<button class="num-cell' + (n === found ? ' on found' : '')
+                + '" data-n="' + n + '" type="button">'
                 + '<span class="num-fig">' + n.toLocaleString('en-IN') + '</span>'
                 + '<span class="num-en">' + esc(en) + '</span>'
                 + '<span class="num-ta ta">' + esc(ta) + '</span>'
@@ -309,7 +393,14 @@
                 + '</button>';
             }).join('')
           + '</div></div>'
+          + pager()
           + '<div id="cOne"></div>';
+
+        if (shown) showOne(shown.n, false);
+        if (found != null) {
+          var cell = body.querySelector('.num-cell.found');
+          if (cell) cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
       }
 
       root.querySelector('#cVoice').addEventListener('click', function (e) {
@@ -326,7 +417,71 @@
         root.querySelectorAll('#cRange .pill').forEach(function (x) { x.classList.remove('on'); });
         b.classList.add('on');
         range = b.getAttribute('data-r');
+        page = 0; found = null;
+        root.querySelector('#cAny').hidden = range !== 'any';
+        note('');
         draw();
+      });
+
+      /* Two numbers, in either order, within what the names can say. */
+      function applyRange() {
+        var a = parseInt(root.querySelector('#cFrom').value, 10);
+        var b = parseInt(root.querySelector('#cTo').value, 10);
+        if (isNaN(a) || isNaN(b)) {
+          note('<div class="msg msg-warn mt">Put a number in both boxes.</div>');
+          return;
+        }
+        if (a > b) { var t = a; a = b; b = t; }     /* said backwards is still a range */
+        var clipped = '';
+        if (a < 0) { a = 0; clipped = 'The first number cannot be below zero.'; }
+        if (b > MAX) {
+          b = MAX;
+          clipped = 'These names go up to ' + MAX.toLocaleString('en-IN') + '.';
+        }
+        from = a; to = b; range = 'any'; page = 0; found = null;
+        root.querySelector('#cFrom').value = a;
+        root.querySelector('#cTo').value = b;
+        var count = howMany();
+        note(clipped ? '<div class="msg msg-warn mt">' + clipped + '</div>'
+             : (count > PAGE
+                ? '<div class="tiny muted mt">' + count.toLocaleString('en-IN')
+                  + ' numbers \u2014 shown ' + PAGE + ' to a page.</div>'
+                : ''));
+        draw();
+      }
+
+      /* One number, wherever it is. The chart opens at it rather than
+         somebody hunting for it. */
+      function findOne() {
+        var n = parseInt(root.querySelector('#cFind').value, 10);
+        if (isNaN(n)) { note('<div class="msg msg-warn mt">Type a number to find.</div>'); return; }
+        if (n < 0 || n > MAX) {
+          note('<div class="msg msg-warn mt">These names go from 0 to '
+            + MAX.toLocaleString('en-IN') + '.</div>');
+          return;
+        }
+        /* A hundred numbers starting at the one asked for, so it is seen in
+           company rather than alone. */
+        from = n; to = Math.min(MAX, n + 99);
+        range = 'any'; page = 0; found = n;
+        root.querySelectorAll('#cRange .pill').forEach(function (x) {
+          x.classList.toggle('on', x.getAttribute('data-r') === 'any');
+        });
+        var any = root.querySelector('#cAny');
+        any.hidden = false;
+        root.querySelector('#cFrom').value = from;
+        root.querySelector('#cTo').value = to;
+        note('');
+        showOne(n, true);
+        draw();
+      }
+
+      root.querySelector('#cGo').addEventListener('click', applyRange);
+      root.querySelector('#cFindGo').addEventListener('click', findOne);
+      root.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        if (e.target.id === 'cFrom' || e.target.id === 'cTo') { e.preventDefault(); applyRange(); }
+        if (e.target.id === 'cFind') { e.preventDefault(); findOne(); }
       });
 
       /* Kept outside the handler so the button under the chart can play the
@@ -341,19 +496,19 @@
         TB.Speech.speak(text, voice, { rate: 0.78 });
       }
 
-      body.addEventListener('click', function (e) {
-        /* Hear the three again, whatever the chooser is set to — that is
-           what the button says it does. */
-        if (e.target.closest('#cAll')) { say(true); return; }
-
-        var cell = e.target.closest('[data-n]');
-        if (!cell) return;
-        var n = +cell.getAttribute('data-n');
+      /* The card under the chart. Written once, because a number can be
+         arrived at by tapping it or by asking for it by name. */
+      function showOne(n, speakIt) {
         var en = TB.Numbers.enIndian(n), ta = TB.Numbers.ta(n), hi = TB.Numbers.hi(n);
         shown = { n: n, en: en, ta: ta, hi: hi };
-        body.querySelectorAll('.num-cell').forEach(function (x) { x.classList.remove('on'); });
-        cell.classList.add('on');
-        body.querySelector('#cOne').innerHTML = '<div class="card">'
+        var one = body.querySelector('#cOne');
+        if (!one) return;
+        one.innerHTML = cardFor(n, en, ta, hi);
+        if (speakIt) say(false);
+      }
+
+      function cardFor(n, en, ta, hi) {
+        return '<div class="card">'
           + '<div class="ab-value">' + n.toLocaleString('en-IN') + '</div>'
           + '<div class="lang-line"><div class="en">' + esc(en) + speak(en, 'en') + '</div>'
           + readAid(en, 'en') + '</div>'
@@ -364,7 +519,32 @@
           + '<button class="btn btn-primary mt" id="cAll" type="button">'
           +   '\u{1F50A} Hear all three again</button>'
           + '</div>';
-        say(false);
+      }
+
+      body.addEventListener('click', function (e) {
+        /* Hear the three again, whatever the chooser is set to — that is
+           what the button says it does. */
+        if (e.target.closest('#cAll')) { say(true); return; }
+
+        var step = e.target.closest('[data-page]');
+        if (step) {
+          var want = +step.getAttribute('data-page');
+          if (want < 0 || want >= pages()) return;
+          page = want; found = null;
+          draw();
+          window.scrollTo(0, 0);
+          return;
+        }
+
+        var cell = e.target.closest('[data-n]');
+        if (!cell) return;
+        var n = +cell.getAttribute('data-n');
+        body.querySelectorAll('.num-cell').forEach(function (x) {
+          x.classList.remove('on'); x.classList.remove('found');
+        });
+        cell.classList.add('on');
+        found = null;
+        showOne(n, true);
       });
 
       draw();
