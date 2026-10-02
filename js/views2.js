@@ -865,10 +865,24 @@
         var cells = [].slice.call(root.querySelectorAll('[data-letter]'));
         if (!cells.length) return;
         var d = V.D();
-        var steps = cells.map(function (c) {
-          return { text: c.getAttribute('data-letter'), lang: c.getAttribute('data-lang') || 'ta',
-                   rate: 0.5, pause: 950 };
+        /* The chooser above says Letter + word, and this ignored it — so
+           the one place a child would sit and listen gave them the least.
+           It reads what the chooser says to read. */
+        var steps = [];
+        cells.forEach(function (c) {
+          var lang = c.getAttribute('data-lang') || 'ta';
+          steps.push({ text: c.getAttribute('data-letter'), lang: lang, rate: 0.5, pause: 700 });
+          var word = c.getAttribute('data-word');
+          if (word && mode === 'pair') {
+            steps.push({ text: word, lang: lang, rate: 0.62, pause: 850, forCell: true });
+          }
         });
+        /* which card each step belongs to */
+        var cellOf = [], ci = 0;
+        steps.forEach(function (st) { cellOf.push(ci); if (!st.forCell) { /* letter */ } });
+        cellOf = []; ci = -1;
+        steps.forEach(function (st) { if (!st.forCell) ci++; cellOf.push(ci); });
+
         if (stopBtn) stopBtn.hidden = false;
         root.classList.add('reading');   /* floats Stop where it can be reached */
         running = TB.Speech.sequence(steps, {
@@ -876,8 +890,11 @@
           online: d.prefs.voiceSex === 'net',
           voiceNames: { ta: d.prefs.voiceTa, en: d.prefs.voiceEn, hi: d.prefs.voiceHi },
           onStep: function (step, i) {
+            /* Two steps can belong to one card now, so the lit card is the
+               one this step came from, not the i-th. */
+            if (step.forCell) return;      /* the word: leave its letter lit */
             clearLit();
-            var cell = cells[i];
+            var cell = cells[cellOf[i]];
             if (!cell) return;
             cell.classList.add('saying');
             /* Following along is useful; being dragged back is not. Once
@@ -983,13 +1000,13 @@
      of the dot. */
   function alphaSay(it) {
     if (!it.meiSay) return '<div class="alpha-say">' + esc(it.say || it.r || '') + '</div>';
+    /* The letter with its vowel back is a section of its own further down.
+       It used to sit on this card as a small button, and கல் was printed
+       under க் — a word that starts with the undotted letter, on the card
+       whose whole job is to teach the difference. */
     return '<div class="alpha-two">'
       + '<b class="as-name"><small>' + esc(it.mei) + '</small>' + esc(it.meiSay) + '</b>'
-      + '</div>'
-      + '<button class="alpha-with" type="button" data-letter="' + esc(it.base) + '" '
-      +   'data-lang="ta" data-solo="1">'
-      +   '<span class="ta">' + esc(it.base) + '</span> ' + esc(it.say)
-      +   '<small>with அ</small></button>';
+      + '</div>';
   }
 
   function alphaWord(it, lang) {
@@ -1028,6 +1045,9 @@
         }) + '</div>';
 
     h += '<div class="card"><h3>Consonants — mei (18)</h3>'
+      + '<div class="card-sub">The dot means the vowel has been taken away. '
+      + 'Each is named <b>ik, ing, ich</b> — and the word beside it is one '
+      + 'where that dotted letter really appears.</div>'
       + cellGrid(A.consonants, function (c) {
           /* The letter is க்; what is spoken is க, because a mei letter
              cannot be said on its own — which is what the chart says two
@@ -1049,6 +1069,22 @@
       + '<div class="r">' + esc(A.aytham.name) + '</div>'
       + '<div class="alpha-en">' + esc(A.aytham.en) + '</div>'
       + alphaPic(A.aytham) + alphaWord(A.aytham, 'ta') + '</div></div></div>';
+
+    /* அ வரிசை — the same eighteen with their vowel back. Different
+       letters, different readings, different words, so: a different
+       section. */
+    h += '<div class="card"><h3>With their vowel — அ வரிசை (18)</h3>'
+      + '<div class="card-sub">The same eighteen without the dot. க் is <b>ik</b>; '
+      + 'க is <b>ka</b>, and it is க that starts கல்.</div>'
+      + cellGrid(A.withA, function (c) {
+          return '<div class="alpha-cell"' + sayPair(c, 'ta', c.ch) + '>'
+            + '<div class="ch ta">' + esc(c.ch) + '</div>'
+            + '<div class="alpha-say">' + esc(c.say) + '</div>'
+            + '<div class="r">' + esc(c.r) + ' · ' + esc(c.cls) + '</div>'
+            + '<div class="alpha-en">' + esc(c.en) + '</div>'
+            + alphaPic(c) + alphaWord(c, 'ta') + '</div>';
+        })
+      + '</div>';
 
     h += '<div class="card"><h3>Compound letters — uyirmei (216)</h3>'
       + '<div class="card-sub">18 consonants × 12 vowels — tap any letter to hear it</div><div class="matrix"><table><thead><tr><th></th>';

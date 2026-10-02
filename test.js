@@ -2913,8 +2913,38 @@ section('DICTIONARY (offline)');
        press. Reading both off one card taught a child that the dot makes
        no difference, which is the one thing it does. */
     t('a dotted letter says only its own name', !/data-name/.test(v2));
-    t('and the letter with its vowel is pressed separately',
-      /data-solo="1"/.test(v2) && /class="alpha-with"/.test(v2));
+    /* \u0b95\u0bb2\u0bcd does not start with \u0b95\u0bcd. It starts with \u0b95. The mei card read
+       "ik" and printed \u0b95\u0bb2\u0bcd underneath, so the card whose whole job is to
+       teach the dot was contradicting it. They are two sections now. */
+    t('the letter with its vowel has a section of its own',
+      /\u0b85 \u0bb5\u0bb0\u0bbf\u0b9a\u0bc8 \(18\)/.test(v2) || /withA/.test(v2));
+    t('and the mei card no longer carries it', !/class="alpha-with"/.test(v2));
+    t('every mei word really contains its dotted letter', (function () {
+      var bad = TA.consonants.filter(function (c) { return c.ex.indexOf(c.ch) < 0; });
+      return bad.length === 0;
+    })(), TA.consonants.filter(function (c) { return c.ex.indexOf(c.ch) < 0; })
+      .map(function (c) { return c.ch + '=' + c.ex; }).join(' '));
+    /* The undotted letter takes the word that STARTS with it \u2014 except for
+       the nine that cannot begin a Tamil word at all (\u0b99 \u0b9f \u0ba3 \u0bb0 \u0bb2 \u0bb4 \u0bb3 \u0bb1 \u0ba9),
+       whose words show them where they really occur. \u0b9e is not among them:
+       \u0b9e\u0bbe\u0baf\u0bbf\u0bb1\u0bc1 and \u0b9e\u0bbe\u0ba9\u0bae\u0bcd both begin with it. */
+    (function () {
+      var cannotStart = '\u0b99\u0b9f\u0ba3\u0bb0\u0bb2\u0bb4\u0bb3\u0bb1\u0ba9';
+      var wrong = TA.withA.filter(function (c) {
+        return c.ex.charAt(0) !== c.ch && cannotStart.indexOf(c.ch) < 0;
+      });
+      t('the undotted letter takes the word that starts with it',
+        wrong.length === 0, wrong.map(function (c) { return c.ch + '=' + c.ex; }).join(' '));
+      var oddly = TA.withA.filter(function (c) {
+        return c.ex.charAt(0) === c.ch && cannotStart.indexOf(c.ch) >= 0;
+      });
+      t('and a letter that cannot begin a word is never shown beginning one',
+        oddly.length === 0, oddly.map(function (c) { return c.ch; }).join(' '));
+    })();
+    /* Both sections: letters, words and pictures. */
+    t('both sections have a word and a picture for every letter',
+      TA.consonants.filter(function (c) { return !c.ex || !c.pic; }).length === 0
+      && TA.withA.filter(function (c) { return !c.ex || !c.pic; }).length === 0);
     /* The card SHOWS \u0b95\u0bcd and must SAY \u0b87\u0b95\u0bcd. It used to show the dot and
        say the undotted letter, which is the one thing the dot prevents. */
     t('and the dotted card is wired to its own name, not to \u0b95',
@@ -2922,7 +2952,13 @@ section('DICTIONARY (offline)');
     /* Nothing is cut off: some engines report a line finished while the
        sound is still going, so every step gets room after it. */
     t('a letter is given room before the next thing is said',
-      /rate: 0\.5, pause: 900/.test(v2) && /rate: 0\.5, pause: 950/.test(v2));
+      /rate: 0\.5, pause: 900/.test(v2) && /rate: 0\.5, pause: 700/.test(v2));
+    /* Read them all was reading only letters while the chooser above it
+       said Letter + word — the one place a child would sit and listen
+       gave them the least. */
+    t('and Read them all reads what the chooser says',
+      /if \(word && mode === .pair.\) \{[\s\S]{0,120}forCell: true/.test(v2));
+    t('with the card staying lit through its word', /if \(step\.forCell\) return;/.test(v2));
     /* Stop has to be reachable while the page is scrolling itself. */
     t('Stop follows you down the page while it reads',
       /\.reading #aStop \{[\s\S]{0,120}position: fixed/.test(

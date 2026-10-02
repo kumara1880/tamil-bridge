@@ -1797,7 +1797,11 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 .alpha-ex span { display: block; }
 .alpha-ex .alpha-ex-r { font-size: calc(11px * var(--fs, 1)); color: var(--text-mute); font-style: italic; }
 .alpha-ex .alpha-ex-en { font-size: calc(11px * var(--fs, 1)); color: var(--teal); }
-.alpha-cell { text-align: center; }
+.alpha-cell { text-align: center; min-width: 0; }
+/* Nothing in a letter card may hang off the side of it. */
+.alpha-cell > *, .alpha-ex, .alpha-en, .alpha-two { max-width: 100%; min-width: 0; }
+.alpha-ex span, .alpha-en { overflow-wrap: anywhere; }
+.alpha-two { flex-wrap: wrap; }
 
 /* A button that cannot be pressed has to look like one. Without this, a
    device with a single voice showed three choices and answered two. */
@@ -1834,8 +1838,11 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 /* க — the same letter with its vowel back. A different letter, a different
    reading, and so a different thing to press. */
 .alpha-with {
-  display: inline-flex; align-items: baseline; gap: 5px;
-  margin: 3px auto 0; padding: 2px 9px;
+  /* It was inline-flex with no wrapping, in a grid cell narrower than its
+     own content, so "WITH அ" hung off the side of the card. */
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: center; gap: 4px 5px;
+  max-width: 100%; margin: 3px auto 0; padding: 3px 8px;
   border: 1px dashed var(--line); border-radius: 9px;
   background: transparent; color: var(--accent);
   font-size: calc(13px * var(--fs, 1)); font-weight: 700; cursor: pointer;
