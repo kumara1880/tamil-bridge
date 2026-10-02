@@ -39,9 +39,8 @@ TB.ALPHABET = {};
       ex: 'ஒட்டகம்', exR: 'oṭṭagam', exEn: 'camel', exTa: 'ஒட்டகம்', exHi: 'ऊँट', pic: '🐪' },
     { ch: 'ஓ', r: 'ō',  say: 'oh',  sign: 'ோ', kind: 'long', en: 'o as in go',
       ex: 'ஓடு', exR: 'ōḍu', exEn: 'run', exTa: 'ஓடு', exHi: 'दौड़', pic: '🏃' },
-    /* say  — how it composes in a syllable: கௌ kau, ஙௌ ngau.
-         alone — how the letter reads by itself: ow, as in now. */
-    { ch: 'ஔ', r: 'au', say: 'au', alone: 'ow', sign: 'ௌ', kind: 'long',
+    /* ow everywhere: on the card, in கௌ kow, and in அங்கௌ angow. */
+    { ch: 'ஔ', r: 'au', say: 'ow', sign: 'ௌ', kind: 'long',
       /* A glide: it starts on அ and lands on உ. The old note said only
          "ow as in now", which gets the start right and leaves the finish
          to guesswork — and the finish is the whole of it. */
@@ -198,9 +197,12 @@ TB.ALPHABET = {};
                  /* அ in front, so the voice has a syllable it can begin;
                     and the vowel takes its stand-alone reading, so ௌ is ow
                     and this is angow, not ango. */
+                 /* ஙௌ is the one no voice here says correctly — every
+                    spelling came back as something else — so that cell is
+                    silent. ஙொ is not: it keeps its sound. */
+                 mute: !!(ngi && !ngi.w && v.sign === 'ௌ'),
                  onItsOwn: (ngi && !ngi.w) ? 'அ' + ngi.c : '',
-                 onItsOwnR: (ngi && !ngi.w)
-                   ? 'a' + onset(c.say) + (v.alone || v.say) : '',
+                 onItsOwnR: (ngi && !ngi.w) ? 'a' + onset(c.say) + v.say : '',
                  word: ngi ? ngi.w : '', wordR: ngi ? ngi.r : '',
                  wordEn: ngi ? ngi.en : '', wordPic: ngi ? ngi.pic : '' };
       })

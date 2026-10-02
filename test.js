@@ -2852,17 +2852,19 @@ section('DICTIONARY (offline)');
     /* The letter standing alone reads ow, as in now. Inside a syllable the
        same vowel composes as au \u2014 \u0b95\u0bcc kau, \u0b99\u0bcc ngau, which was checked and
        approved. One reading cannot serve both, so the card has its own. */
-    t('\u0b94 reads ow on its own', au.alone === 'ow');
-    t('and still composes as au in a syllable', au.say === 'au');
-    t('so \u0b99\u0bcc is still ngau', (function () {
-      var ng = TA.grid.filter(function (r) { return r.base === '\u0b99'; })[0];
-      return ng.cells[11].say === 'ngau';
-    })());
-    t('and \u0b95\u0bcc is still kau', (function () {
+    /* One reading, not two. I had it ow on the card and au inside a
+       syllable, preserving an earlier answer instead of following the
+       instruction given since. A reading that changes with which table
+       you are looking at is not a reading. */
+    t('\u0b94 reads ow', au.say === 'ow');
+    t('and so does every \u0bcc in the grid', (function () {
+      return TA.grid.every(function (r) { return /ow$/.test(r.cells[11].say); });
+    })(), TA.grid.map(function (r) { return r.cells[11].say; }).slice(0, 4).join(' '));
+    t('\u0b95\u0bcc is kow', (function () {
       var k = TA.grid.filter(function (r) { return r.base === '\u0b95'; })[0];
-      return k.cells[11].say === 'kau';
+      return k.cells[11].say === 'kow';
     })());
-    t('the card shows the one read alone', /it\.alone \|\| it\.say/.test(v2));
+    t('and the scholarly au stays underneath', au.r === 'au');
     /* "ow as in now" got the start right and left the finish to guesswork,
        and the finish is the whole of it: \u0b94 lands on \u0b89. */
     t('and says where the sound ends', /ending on an oo/.test(au.en));
@@ -2951,6 +2953,46 @@ section('DICTIONARY (offline)');
     t('every Hindi letter is complete in all three languages',
         bad.length === 0, bad.map(function (x) { return x.ch; }).join(' '));
     })();
+  })();
+
+  /* ---------------- a second test pass ---------------- */
+  section('TEST PASS 2');
+  (function () {
+    var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
+
+    /* Pressing a voice button on the alphabet page threw every time:
+       `lang` is a variable of html() and the handler lives in mount(), a
+       different scope. Nobody had pressed it since the preview was added,
+       so it had never been seen. */
+    t('the voice button does not reach for a variable it cannot see',
+      !/TB\.Speech\.speak\(lang ===/.test(v2));
+    t('it reads the tab from the address, which both scopes can',
+      /var tab = \(location\.hash\.split\('\/'\)\[2\] \|\| 'ta'\);/.test(v2));
+
+    /* Four controls in Settings had a <label> beside them and no `for`, so
+       nothing tied the two together. */
+    ['sVoiceTa', 'sVoiceEn', 'sVoiceHi'].forEach(function (id) {
+      t(id + ' has its label tied on', v2.indexOf('<label for="' + id + '">') > 0);
+    });
+    t('and the import file input has a name', /id="sImport"[\s\S]{0,140}aria-label=/.test(v2));
+
+    /* \u0b99\u0bcc: no Tamil word, and no voice here that says it correctly. A
+       wrong sound on a chart a child copies is worse than none. */
+    var ng = TB.ALPHABET.ta.grid.filter(function (r) { return r.base === '\u0b99'; })[0];
+    t('\u0b99\u0bcc is the only silent cell in 216',
+      ng.cells.filter(function (c) { return c.mute; }).length === 1
+      && ng.cells[11].mute === true);
+    t('and \u0b99\u0bca is not silent', ng.cells[9].mute === false);
+    t('a silent cell is given no speak target at all',
+      /mute \? '' : ' data-speak=/.test(v2));
+    t('and says so on its face', /no sound here/.test(v2));
+
+    /* \u0bcc reads ow everywhere, not au in one table and ow in another. */
+    var au = TB.ALPHABET.ta.vowels.filter(function (v) { return v.ch === '\u0b94'; })[0];
+    t('\u0bcc reads ow on the card', au.say === 'ow');
+    t('and in every row of the grid',
+      TB.ALPHABET.ta.grid.every(function (r) { return /ow$/.test(r.cells[11].say); }));
+    t('and in the stand-alone cluster', ng.cells[11].onItsOwnR === 'angow');
   })();
   /* ---------------- the letter grids ---------------- */
   section('THE GRIDS');
@@ -3049,7 +3091,17 @@ section('DICTIONARY (offline)');
         ng.cells.filter(function (c) { return c.word; })
           .every(function (c) { return c.wordR && c.wordEn && c.wordPic; }));
       t('and the cell speaks the word, or the cluster said on its own',
-        /var saying = c\.word \|\| c\.onItsOwn \|\| c\.ch;/.test(v2));
+        /data-speak="' \+ esc\(c\.word \|\| c\.ch\)/.test(v2));
+      /* \u0b99\u0bcc is the one no voice here says correctly — every spelling
+         tried came back as something else. A wrong sound on a chart a
+         child copies is worse than no sound, so that one cell is silent.
+         \u0b99\u0bca is not: it keeps its sound. */
+      t('except \u0b99\u0bcc, which is silent',
+        ng.cells[11].mute === true && ng.cells[9].mute === false,
+        'ngo mute=' + ng.cells[9].mute + ' ngau mute=' + ng.cells[11].mute);
+      t('and only that one', ng.cells.filter(function (c) { return c.mute; }).length === 1);
+      t('a silent cell carries no speak target at all',
+        /mute \? '' : ' data-speak=/.test(v2));
 
       /* \u0b9e is NOT one of these. I had marked \u0b9e\u0bbf and \u0b9e\u0bc6 from counting this
          app's own Tamil and finding them absent \u2014 which is evidence about

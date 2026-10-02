@@ -1945,3 +1945,7 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
   display: block; font-size: calc(8.5px * var(--fs, 1)); font-weight: 600;
   color: var(--text-mute); text-transform: uppercase; letter-spacing: .3px;
 }
+
+/* Silent on purpose: no Tamil word, and no voice here that says it right. */
+.matrix td.mute { cursor: default; }
+.matrix td.mute:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }

@@ -927,8 +927,14 @@
         var d = V.D();
         d.prefs.voiceSex = b.getAttribute('data-sex');
         V.saveD(d);
-        /* Heard at once, rather than on the next thing tapped. */
-        TB.Speech.speak(lang === 'ta' ? 'அ' : lang === 'hi' ? 'अ' : 'a', lang, {
+        /* Heard at once, rather than on the next thing tapped.
+
+           `lang` is a variable of html(); this handler is in mount(), a
+           different scope, so pressing one of these threw a ReferenceError
+           every time. The tab is in the address, which both scopes can
+           read. */
+        var tab = (location.hash.split('/')[2] || 'ta');
+        TB.Speech.speak(tab === 'ta' ? 'அ' : tab === 'hi' ? 'अ' : 'a', tab, {
           rate: 0.5,
           sex: d.prefs.voiceSex === 'net' ? '' : d.prefs.voiceSex,
           online: d.prefs.voiceSex === 'net'
@@ -1009,10 +1015,7 @@
      of the dot. */
   function alphaSay(it) {
     if (!it.meiSay) {
-      /* A letter can read one way alone and compose another way inside a
-         syllable: ஔ is ow by itself and au in கௌ, ஙௌ. The card shows the
-         first; the grid keeps the second. */
-      return '<div class="alpha-say">' + esc(it.alone || it.say || it.r || '') + '</div>'
+      return '<div class="alpha-say">' + esc(it.say || it.r || '') + '</div>'
         /* A letter no voice can say alone is said in this form instead —
            the letter, with a vowel in front and its own vowel killed. */
         + (it.letterSay
@@ -1127,8 +1130,9 @@
       +   '<br><b>ங is never met on its own</b>, and it never carries a vowel. It '
       +   'is ங் before க, and the vowel sits on that க — so the cell marked ஙி is '
       +   'really ங்கி, and each cell in that row shows its own cluster with a word '
-      +   'that contains it. Two have no everyday word, so they give the cluster '
-      +   'said on its own instead — இங்கொ, named the way இக் and இங் are.'
+      +   'that contains it. Two have no Tamil word, so they give the cluster '
+      +   'said on its own. ஙௌ is silent: no voice here says it correctly, and '
+      +   'a wrong sound is worse than none on a chart a child copies.'
       + '</div>'
       + '<div class="matrix"><table><thead><tr><th></th>';
     A.vowels.forEach(function (v) {
@@ -1152,13 +1156,17 @@
            containing it. Where no everyday word exists, the cluster is
            still a sound — named the way a mei letter is, இங்கொ — which is
            a shape a voice can actually say. */
-        var saying = c.word || c.onItsOwn || c.ch;
+        /* A cluster with no Tamil word behind it is also one no voice here
+           can say: every spelling tried came back as something else. A
+           wrong sound on an alphabet chart is worse than no sound, because
+           a child repeats what they hear. These are silent. */
+        var mute = !!c.mute;
         h += '<td class="ta' + (c.cluster ? ' withword' : '')
-           + (c.cluster && !c.word ? ' nonword' : '') + '" data-speak="'
-           + esc(saying) + '" data-lang="ta"'
+           + (mute ? ' nonword mute' : '') + '"'
+           + (mute ? '' : ' data-speak="' + esc(c.word || c.ch) + '" data-lang="ta"')
            + (c.cluster ? ' title="' + esc(c.cluster) + ' — '
                + esc(c.word ? c.wordR + ' — ' + c.wordEn
-                            : c.onItsOwnR + ', said on its own') + '"' : '')
+                            : c.onItsOwnR + ' — no Tamil word, and no voice here says it') + '"' : '')
            + '>' + esc(c.ch)
            + '<span class="say">' + esc(c.say) + '</span>'
            + (c.cluster
@@ -1169,7 +1177,8 @@
                      + '<span class="r">' + esc(c.wordEn) + '</span>'
                    : '<span class="inword ta">' + esc(c.onItsOwn) + '</span>'
                      + '<span class="say">' + esc(c.onItsOwnR) + '</span>'
-                     + '<span class="r">' + esc(c.wordEn) + '</span>')
+                     + '<span class="r">' + (c.mute ? '\u{1F507} no sound here'
+                                                    : 'said on its own') + '</span>')
               : '<span class="r">' + esc(c.r) + '</span>')
            + '</td>';
       });
@@ -1586,9 +1595,9 @@
       +   '<div class="field"><label>Pitch — <span id="pitchVal">' + d.prefs.pitch + '</span></label>'
       +     '<input id="sPitch" type="range" min="0.6" max="1.6" step="0.05" value="' + d.prefs.pitch + '"></div>'
       +   '<div class="grid g3">'
-      +     '<div class="field"><label>Tamil voice</label><select id="sVoiceTa">' + voiceOpts('ta', d.prefs.voiceTa) + '</select></div>'
-      +     '<div class="field"><label>English voice</label><select id="sVoiceEn">' + voiceOpts('en', d.prefs.voiceEn) + '</select></div>'
-      +     '<div class="field"><label>हिंदी आवाज़</label><select id="sVoiceHi">' + voiceOpts('hi', d.prefs.voiceHi) + '</select></div>'
+      +     '<div class="field"><label for="sVoiceTa">Tamil voice</label><select id="sVoiceTa">' + voiceOpts('ta', d.prefs.voiceTa) + '</select></div>'
+      +     '<div class="field"><label for="sVoiceEn">English voice</label><select id="sVoiceEn">' + voiceOpts('en', d.prefs.voiceEn) + '</select></div>'
+      +     '<div class="field"><label for="sVoiceHi">हिंदी आवाज़</label><select id="sVoiceHi">' + voiceOpts('hi', d.prefs.voiceHi) + '</select></div>'
       +   '</div>'
       +   '<label class="row small" style="cursor:pointer"><input id="sAuto" type="checkbox"' + (d.prefs.autoSpeak ? ' checked' : '') + ' style="width:auto"> Speak automatically during practice</label>'
       +   '<div class="row mt"><button class="btn btn-sm" data-speak="வணக்கம், நான் உங்கள் ஆசிரியர்." data-lang="ta" type="button">Test Tamil</button>'
@@ -1631,7 +1640,8 @@
       + '<div class="card"><h3>Data</h3>'
       +   '<div class="row"><button class="btn btn-sm" id="sExport" type="button">⬇ Download everything</button>'
       +   '<button class="btn btn-sm" id="sImportBtn" type="button">⬆ Restore</button>'
-      +   '<input id="sImport" type="file" accept="application/json" style="display:none"></div>'
+      +   '<input id="sImport" type="file" accept="application/json" style="display:none" '
+      +     'aria-label="Choose a backup file to bring back"></div>'
       +   '<div class="tiny muted mt">Your data lives in this browser, and on the server too if sync is on. '
       +   'Clearing browser data deletes the local copy — download a backup now and then.</div>'
       +   '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)">'
