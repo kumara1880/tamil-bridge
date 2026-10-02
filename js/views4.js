@@ -40,7 +40,7 @@
         + '</div>'
         + '<div class="card"><h3>Another language</h3>'
         +   '<div class="card-sub">Translate the written-out number into any language</div>'
-        +   '<div class="row"><select id="numLang" style="padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg-soft)">' + langs + '</select>'
+        +   '<div class="row"><select id="numLang" aria-label="Which language to show" style="padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg-soft)">' + langs + '</select>'
         +   '<button class="btn btn-sm" id="numTr" type="button">Translate</button></div>'
         +   '<div id="numTrOut" class="mt"></div>'
         + '</div>'

@@ -137,7 +137,14 @@ TB.Dict = (function () {
 
     /* Resolve a word. Returns a promise of a rich meaning card.
        targets defaults to the three study languages.                        */
-    lookup: function (word, srcLang, targets) {
+    /* opts.onEarly is handed the card as soon as the offline answer is
+       assembled, before anything is asked of the network. A word that is
+       already in the local dictionary was taking five seconds to appear,
+       because the senses and definitions are fetched whether or not they
+       are needed and the page waited for all of it. The answer is known at
+       once; the extras can arrive afterwards. */
+    lookup: function (word, srcLang, targets, opts) {
+      opts = opts || {};
       word = String(word || '').trim();
       targets = targets || ['ta', 'en', 'hi'];
       if (!word) return Promise.resolve(null);
@@ -221,7 +228,23 @@ TB.Dict = (function () {
         }), 6000));
       }
 
+      /* Everything the device already knew. Enough to read, if the local
+         dictionary had the word. */
+      if (opts.onEarly) {
+        var ready = targets.every(function (t) { return !!card.translations[t]; });
+        if (ready) {
+          if (!card.translations[src]) card.translations[src] = word;
+          card.romanised = {};
+          Object.keys(card.translations).forEach(function (L) {
+            if (L === 'ta' || L === 'hi') card.romanised[L] = TB.Translit.roman(card.translations[L], L);
+          });
+          card.partial = true;
+          try { opts.onEarly(card); } catch (e) {}
+        }
+      }
+
       return Promise.all(jobs).then(function () {
+        card.partial = false;
         if (!card.translations[src]) card.translations[src] = word;
         /* romanisation for every script answer, so a Tamil learner can read it */
         card.romanised = {};

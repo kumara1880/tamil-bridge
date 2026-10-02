@@ -2357,12 +2357,30 @@ section('DICTIONARY (offline)');
     var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
     var v5 = fs.readFileSync(R + 'js/views5.js', 'utf8');
     t('vocabulary is a list of themes, not three thousand words',
-      /Object\.keys\(byTheme\)\.forEach\(function \(th, gi\)/.test(v2)
-      && /<details class="card fold"' \+ \(gi === 0/.test(v2));
+      /keys\.forEach\(function \(th, gi\)/.test(v2)
+      && /<details class="card fold" data-theme=/.test(v2));
+    /* Folding them hid the cost without removing it: <details> renders its
+       children whether or not it is open, so the page still built all
+       3,040 words — 49,004 nodes and 2.27MB, measured — to show 49
+       headings. */
+    t('and a theme is built only when it is opened',
+      /if \(!box \|\| box\.firstChild\) return;/.test(v2)
+      && /addEventListener\('toggle'/.test(v2));
+    t('except the first, which is open from the start',
+      /isOpen \? byTheme\[th\]\.map\(wordCard\)\.join\(''\) : ''/.test(v2)
+      && /var isOpen = open1 \|\| gi === 0/.test(v2));
+    /* Folding is right for browsing and wrong the moment somebody has
+       asked for something: "water" matched nine themes and showed four
+       cards, the rest folded away behind a search they had just run. */
+    t('but a search opens everything it matched', /var open1 = !!q;/.test(v2));
+    t('and so does a phrase search',
+      /var first = \(shown\+\+ === 0\) \|\| !!q;/.test(
+        fs.readFileSync(R + 'js/views5.js', 'utf8')));
     t('the sound groups fold', /P\.groups\.forEach\(function \(g, gi\)/.test(v2));
     t('and so does the phrasebook', /shown\+\+ === 0/.test(v5));
     /* Something has to stay open, or the page looks broken. */
-    t('the first group of each is open', (v2.match(/gi === 0 \? ' open'/g) || []).length === 2);
+    t('the first group of each is open',
+      /isOpen \? ' open' : ''/.test(v2) && /gi === 0 \? ' open' : ''/.test(v2));
     /* And you should know how much is inside before you open it. */
     t('a folded group says how many are inside',
       /<span class="chip">' \+ byTheme\[th\]\.length/.test(v2)
@@ -2988,6 +3006,63 @@ section('DICTIONARY (offline)');
       /return ..;\s*\n  \}\s*\n\s*function bestOf/.test(fs.readFileSync(R + 'js/speech.js', 'utf8')));
   })();
 
+
+  /* ---------------- what a test pass found ---------------- */
+  section('TEST PASS');
+  (function () {
+    var vw  = fs.readFileSync(R + 'js/views.js', 'utf8');
+    var v2  = fs.readFileSync(R + 'js/views2.js', 'utf8');
+    var v4  = fs.readFileSync(R + 'js/views4.js', 'utf8');
+    var dct = fs.readFileSync(R + 'js/dict.js', 'utf8');
+    var srv = fs.readFileSync(R + 'server/index.js', 'utf8');
+    var html = fs.readFileSync(R + 'index.html', 'utf8');
+
+    /* Two elements shared the id swapBtn: the sign-in screen's button and
+       Translate's swap arrows. getElementById returns whichever comes
+       first, and duplicate ids are invalid besides. */
+    t('no two elements share the id swapBtn',
+      !/id="swapBtn"/.test(vw) && /id="trSwapBtn"/.test(vw)
+      && (html.match(/id="swapBtn"/g) || []).length === 1);
+
+    /* Eight controls had no accessible name \u2014 a screen reader announced
+       them as "combo box" and nothing else. */
+    t('the language pickers have names',
+      /id="srcLang" aria-label=/.test(vw) && /id="dstLang" aria-label=/.test(vw)
+      && /id="numLang" aria-label=/.test(v4) && /id="ocrLang" aria-label=/.test(v2));
+    t('and so do the file pickers and the name field',
+      /id="file"[\s\S]{0,120}aria-label=/.test(v2)
+      && /id="cam"[\s\S]{0,120}aria-label=/.test(v2)
+      && /<label for="sName">/.test(v2));
+
+    /* A word already in the offline dictionary sat behind a spinner for
+       five seconds, waiting on network enrichment that may never come.
+       Measured: 5,013ms before, 87ms after. */
+    t('the offline answer is handed over before the network is asked',
+      /opts\.onEarly/.test(dct) && /card\.partial = true/.test(dct));
+    t('and the page shows it at once', /onEarly: function \(c\)/.test(vw));
+    t('while a later failure does not wipe it', /if \(!shown\)/.test(vw));
+
+    /* Leaving Translate mid-keystroke threw: the debounce and the promise
+       both wrote to elements that render() had already replaced. */
+    t('Translate stops writing to a page that has gone',
+      /function alive\(\) \{ return document\.body\.contains\(src\); \}/.test(vw)
+      && (vw.match(/!alive\(\)/g) || []).length >= 3);
+
+    /* 49,004 nodes and 2.27MB to show 49 headings: <details> builds its
+       children whether it is open or not. */
+    t('a vocabulary theme is built when it is opened', /\[data-words\]/.test(v2));
+    t('and a phrase group too',
+      /\[data-rows\]/.test(fs.readFileSync(R + 'js/views5.js', 'utf8')));
+
+    /* An API that answers in JSON should answer its errors in JSON too. */
+    t('malformed JSON gets a JSON error', /entity\.parse\.failed/.test(srv));
+    t('and an over-large body does as well', /entity\.too\.large/.test(srv));
+    t('the framework banner is off', /app\.disable\('x-powered-by'\)/.test(srv));
+
+    /* A bead is 34x21; what a finger has to hit is a different thing. */
+    t('an abacus bead is easier to hit than it is to see',
+      /\.ab-bead::after/.test(fs.readFileSync(R + 'assets/styles.css', 'utf8')));
+  })();
   /* ---------------- accounts ---------------- */
   section('ACCOUNTS');
   try {

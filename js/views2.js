@@ -294,9 +294,11 @@
         + '<div class="card">'
         +   '<div class="grid g2 mb">'
         +     '<div class="field" style="margin:0"><label>Language in the photo</label>'
-        +       '<select id="ocrLang"><option value="auto" selected>Detect automatically</option>' + packs + '</select>'
+        +       '<select id="ocrLang" aria-label="Language in the picture">'
+        +         '<option value="auto" selected>Detect automatically</option>' + packs + '</select>'
         +       '<div class="hint">Leave this on automatic unless it gets it wrong.</div></div>'
-        +     '<div class="field" style="margin:0"><label>Translate into</label><select id="ocrTarget">' + targets + '</select>'
+        +     '<div class="field" style="margin:0"><label for="ocrTarget">Translate into</label>'
+        +     '<select id="ocrTarget">' + targets + '</select>'
         +       '<div class="hint">Change this any time — the picture is not read again.</div></div>'
         +   '</div>'
         +   '<div class="drop" id="drop">'
@@ -309,8 +311,10 @@
            you already have, so the only way to read a saved rhyme was to
            photograph the screen it was on — which is how a clean page of
            English came back as "¥ / IV 2 | 2 i oe". */
-        +   '<input id="file" type="file" accept="image/*" style="display:none">'
-        +   '<input id="cam" type="file" accept="image/*" capture="environment" style="display:none">'
+        +   '<input id="file" type="file" accept="image/*" style="display:none" '
+        +     'aria-label="Choose a picture from this device">'
+        +   '<input id="cam" type="file" accept="image/*" capture="environment" style="display:none" '
+        +     'aria-label="Take a photograph">'
         +   '<div class="row mt"><button class="btn btn-sm" id="pickBtn" type="button">🖼️ Choose a picture</button>'
         +     '<button class="btn btn-sm" id="camBtn" type="button">📷 Take a photo</button></div>'
         +   '<div id="ocrProg" style="display:none;margin-top:12px"><div class="bar"><i id="ocrBar" style="width:0"></i></div>'
@@ -1236,29 +1240,53 @@
         var byTheme = {};
         list.forEach(function (w) { (byTheme[w.th] = byTheme[w.th] || []).push(w); });
 
+        /* One word's card. Built when its theme is opened, not before. */
+        function wordCard(w) {
+          /* English and Hindi lead; Tamil sits underneath as the reading aid */
+          return '<div class="wcard">'
+            + '<div class="row"><div class="w-en">' + esc(w.en) + '</div><div class="spacer" style="flex:1"></div>' + speak(w.en, 'en') + '</div>'
+            + '<div class="w-ipa">' + esc(w.enIpa || '') + ' · ' + esc(w.enTa || '') + '</div>'
+            + '<div class="row" style="margin-top:7px"><div class="w-hi">' + esc(w.hi) + '</div><div class="spacer" style="flex:1"></div>' + speak(w.hi, 'hi') + '</div>'
+            + V.hiRead(w.hi, w.hiR, w.hiTa)
+            + '<div class="w-gloss">' + esc(w.ta) + speak(w.ta, 'ta')
+            + '<span class="w-r"> ' + esc(w.taR) + '</span></div>'
+            + (w.tip ? '<div class="tiny muted" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line-soft)">💡 ' + esc(w.tip) + '</div>' : '')
+            + '</div>';
+        }
+
         var h = '';
         /* Three thousand words in one column meant scrolling past ten themes
-           to reach the eleventh. Shut, the page is the list of themes. */
-        Object.keys(byTheme).forEach(function (th, gi) {
-          h += '<details class="card fold"' + (gi === 0 ? ' open' : '') + '>'
+           to reach the eleventh. Shut, the page is the list of themes — and
+           now it is only the list of themes: building all three thousand
+           every time came to 49,004 nodes and 2.27MB, on a page whose job
+           at that moment is to show forty-nine headings. <details> renders
+           its children whether or not it is open, so folding them hid the
+           cost without removing it. */
+        var keys = Object.keys(byTheme);
+        /* Searching opens everything that matched. "water" used to match
+           nine themes and show four cards, with the rest folded away. */
+        var open1 = !!q;
+        keys.forEach(function (th, gi) {
+          var isOpen = open1 || gi === 0;
+          h += '<details class="card fold" data-theme="' + esc(th) + '"'
+             + (isOpen ? ' open' : '') + '>'
              + '<summary class="fold-head"><div><h3>' + esc(themeName(th)) + '</h3></div>'
              + '<span class="chip">' + byTheme[th].length + '</span></summary>'
-             + '<div class="grid gauto">';
-          byTheme[th].forEach(function (w) {
-            /* English and Hindi lead; Tamil sits underneath as the reading aid */
-            h += '<div class="wcard">'
-              + '<div class="row"><div class="w-en">' + esc(w.en) + '</div><div class="spacer" style="flex:1"></div>' + speak(w.en, 'en') + '</div>'
-              + '<div class="w-ipa">' + esc(w.enIpa || '') + ' · ' + esc(w.enTa || '') + '</div>'
-              + '<div class="row" style="margin-top:7px"><div class="w-hi">' + esc(w.hi) + '</div><div class="spacer" style="flex:1"></div>' + speak(w.hi, 'hi') + '</div>'
-              + V.hiRead(w.hi, w.hiR, w.hiTa)
-              + '<div class="w-gloss">' + esc(w.ta) + speak(w.ta, 'ta')
-              + '<span class="w-r"> ' + esc(w.taR) + '</span></div>'
-              + (w.tip ? '<div class="tiny muted" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line-soft)">💡 ' + esc(w.tip) + '</div>' : '')
-              + '</div>';
-          });
-          h += '</div></details>';
+             + '<div class="grid gauto" data-words>'
+             + (isOpen ? byTheme[th].map(wordCard).join('') : '')
+             + '</div></details>';
         });
         el.innerHTML = h;
+
+        /* Fill a theme the first time it is opened. */
+        el.querySelectorAll('details[data-theme]').forEach(function (d) {
+          d.addEventListener('toggle', function () {
+            if (!d.open) return;
+            var box = d.querySelector('[data-words]');
+            if (!box || box.firstChild) return;
+            box.innerHTML = (byTheme[d.getAttribute('data-theme')] || []).map(wordCard).join('');
+          });
+        });
       }
 
       root.querySelector('#vSearch').addEventListener('input', function () { q = this.value.trim(); draw(); });
@@ -1405,7 +1433,8 @@
       return '<div class="view">'
 
       + '<div class="card"><h3>Account</h3>'
-      +   '<div class="field"><label>Name</label><input id="sName" value="' + esc(u.name || '') + '"></div>'
+      +   '<div class="field"><label for="sName">Name</label>'
+      +     '<input id="sName" value="' + esc(u.name || '') + '"></div>'
       /* A legacy account made with a number has no address to show; leaving
          the box empty invites one rather than offering back a value that can
          no longer be saved. */

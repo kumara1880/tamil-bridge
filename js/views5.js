@@ -52,6 +52,24 @@
         var byGroup = {};
         list.forEach(function (p) { (byGroup[p.g] = byGroup[p.g] || []).push(p); });
 
+        /* One phrase. Built when its group is opened, not before: a
+           <details> renders its children whether it is open or not, so
+           folding the groups hid the cost of all 214 without removing it. */
+        function phraseRow(p) {
+          return '<div class="phrase" data-pid="' + p.id + '">'
+             + '<div class="row" style="align-items:flex-start">'
+             +   '<div style="flex:1;min-width:0">'
+             +     '<div class="ph-en">' + V.tappable(p.en, 'en') + '</div>'
+             +     '<div class="ph-hi hi">' + V.tappable(p.hi, 'hi') + '</div>'
+             +     V.hiRead(p.hi)
+             +     '<div class="w-gloss">' + esc(p.ta) + '</div>'
+             +   '</div>'
+             +   '<div class="ph-actions">'
+             +     speak(p.en, 'en') + speak(p.hi, 'hi') + speak(p.ta, 'ta')
+             +   '</div>'
+             + '</div></div>';
+        }
+
         var h = '';
         var shown = 0;
         TB.PHRASE_GROUPS.forEach(function (g) {
@@ -59,27 +77,28 @@
           if (!items) return;
           /* Every group at once was a page you scrolled rather than used.
              The first one is open so it is obvious the rest will open too. */
-          h += '<details class="card fold"' + (shown++ === 0 ? ' open' : '') + '>'
+          /* Browsing: the first is open and the rest are a list. Searching:
+             everything that matched is open, because it is what was asked
+             for — it used to match two groups and show one. */
+          var first = (shown++ === 0) || !!q;
+          h += '<details class="card fold" data-group="' + esc(g.id) + '"' + (first ? ' open' : '') + '>'
              + '<summary class="fold-head"><div><h3>' + g.icon + ' ' + esc(g.en) + '</h3>'
              + '<div class="card-sub ta">' + esc(g.ta) + '</div></div>'
-             + '<span class="chip">' + items.length + '</span></summary>';
-          items.forEach(function (p) {
-            h += '<div class="phrase" data-pid="' + p.id + '">'
-               + '<div class="row" style="align-items:flex-start">'
-               +   '<div style="flex:1;min-width:0">'
-               +     '<div class="ph-en">' + V.tappable(p.en, 'en') + '</div>'
-               +     '<div class="ph-hi hi">' + V.tappable(p.hi, 'hi') + '</div>'
-               +     V.hiRead(p.hi)
-               +     '<div class="w-gloss">' + esc(p.ta) + '</div>'
-               +   '</div>'
-               +   '<div class="ph-actions">'
-               +     speak(p.en, 'en') + speak(p.hi, 'hi') + speak(p.ta, 'ta')
-               +   '</div>'
-               + '</div></div>';
-          });
+             + '<span class="chip">' + items.length + '</span></summary>'
+             + '<div data-rows>' + (first ? items.map(phraseRow).join('') : '') + '</div>';
           h += '</details>';
         });
         el.innerHTML = h;
+
+        /* Fill a group the first time it is opened. */
+        el.querySelectorAll('details[data-group]').forEach(function (d) {
+          d.addEventListener('toggle', function () {
+            if (!d.open) return;
+            var box = d.querySelector('[data-rows]');
+            if (!box || box.firstChild) return;
+            box.innerHTML = (byGroup[d.getAttribute('data-group')] || []).map(phraseRow).join('');
+          });
+        });
       }
 
       root.querySelector('#phSearch').addEventListener('input', function () {

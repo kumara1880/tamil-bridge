@@ -1860,3 +1860,14 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
   color: var(--text-dim);
   line-height: 1.5;
 }
+
+/* A bead is 34×21 because that is what a bead looks like. What a finger
+   has to hit is a different measurement, and 21 is under any of the floors
+   for it — on a page built for children. The bead keeps its size; the area
+   that answers a tap grows past it. */
+.ab-bead { position: relative; }
+.ab-bead::after {
+  content: ''; position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 30px; transform: translateY(-50%);
+}

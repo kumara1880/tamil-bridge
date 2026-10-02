@@ -308,7 +308,7 @@ TB.Views = (function () {
       + '<div class="tr-wrap">'
 
       + '<div class="tr-pane">'
-      +   '<div class="tr-bar"><select id="srcLang">' + opts('auto', true) + '</select>'
+      +   '<div class="tr-bar"><select id="srcLang" aria-label="Translate from">' + opts('auto', true) + '</select>'
       +   '<span class="chip" id="detChip" style="display:none"></span><div style="flex:1"></div>'
       +   '<button class="btn btn-sm" id="translitBtn" type="button" title="Type in English letters to get Tamil / Hindi script">A→அ</button></div>'
       +   '<div class="tr-body"><textarea id="srcText" placeholder="Type here… it translates as you type" autofocus></textarea></div>'
@@ -322,10 +322,11 @@ TB.Views = (function () {
       +     '<button class="btn btn-sm btn-ghost" id="srcClear" type="button">Clear</button></div>'
       + '</div>'
 
-      + '<div class="swap-col"><button class="swap" id="swapBtn" type="button" title="Swap languages">⇄</button></div>'
+      + '<div class="swap-col"><button class="swap" id="trSwapBtn" type="button" '
+      +   'title="Swap languages" aria-label="Swap the two languages">⇄</button></div>'
 
       + '<div class="tr-pane out">'
-      +   '<div class="tr-bar"><select id="dstLang">' + opts(d.prefs.target || 'en', false) + '</select>'
+      +   '<div class="tr-bar"><select id="dstLang" aria-label="Translate into">' + opts(d.prefs.target || 'en', false) + '</select>'
       +   '<div style="flex:1"></div><span class="tiny muted" id="provider"></span></div>'
       +   '<div class="tr-out" id="dstText"></div>'
       +   '<div class="tr-roman" id="dstRoman" style="display:none"></div>'
@@ -346,7 +347,15 @@ TB.Views = (function () {
       var sl = root.querySelector('#srcLang'), dl = root.querySelector('#dstLang');
       var timer = null, seq = 0, translitOn = false;
 
+      /* Typing is debounced and translating is a promise, so both can come
+         back after the person has already left this page — by which time
+         render() has replaced everything inside root and every lookup below
+         returns null. Leaving Translate mid-keystroke threw an uncaught
+         TypeError every time. */
+      function alive() { return document.body.contains(src); }
+
       function run() {
+        if (!alive()) return;
         var text = src.value;
         root.querySelector('#charCount').textContent = text.length;
         root.querySelector('#srcSpeak').setAttribute('data-speak', text);
@@ -366,7 +375,7 @@ TB.Views = (function () {
         var my = ++seq;
         dst.innerHTML = '<span class="spin"></span>';
         TB.Translate.translate(text, sl.value, dl.value).then(function (r) {
-          if (my !== seq) return;
+          if (my !== seq || !alive()) return;
           dst.innerHTML = tappable(r.text, dl.value);
           root.querySelector('#dstSpeak').setAttribute('data-speak', r.text);
           root.querySelector('#dstSpeak').setAttribute('data-lang', dl.value);
@@ -387,13 +396,14 @@ TB.Views = (function () {
           });
           TB.App.refreshChips();
         }).catch(function (e) {
-          if (my !== seq) return;
+          if (my !== seq || !alive()) return;
           dst.innerHTML = '<span style="color:var(--red);font-size:calc(15px * var(--fs,1))">' + esc(e.message) + '</span>';
         });
       }
 
       function showRoman(sel, text, lang) {
         var el = root.querySelector(sel);
+        if (!el) return;              /* the page has moved on */
         if ((lang === 'ta' || lang === 'hi') && text) {
           el.textContent = TB.Translit.roman(text, lang);
           el.style.display = '';
@@ -427,7 +437,7 @@ TB.Views = (function () {
           : 'Direct typing');
       });
 
-      root.querySelector('#swapBtn').addEventListener('click', function () {
+      root.querySelector('#trSwapBtn').addEventListener('click', function () {
         var outText = dst.textContent;
         var newSrc = dl.value;
         var newDst = sl.value === 'auto' ? (TB.Translate.detect(src.value) || 'en') : sl.value;
@@ -485,8 +495,17 @@ TB.Views = (function () {
         var w = input.value.trim();
         if (!w) return;
         out.innerHTML = '<div class="card center"><span class="spin"></span> Searching…</div>';
-        TB.Dict.lookup(w).then(function (c) {
-          if (!c) { out.innerHTML = '<div class="empty">Not found.</div>'; return; }
+        /* Show what is already known at once, and let the rest catch up.
+           A word in the offline dictionary used to sit behind a spinner for
+           five seconds waiting on a network that may not be there. */
+        var shown = false;
+        TB.Dict.lookup(w, null, null, {
+          onEarly: function (c) { shown = true; out.innerHTML = card(c); }
+        }).then(function (c) {
+          if (!c) {
+            if (!shown) out.innerHTML = '<div class="empty">Not found.</div>';
+            return;
+          }
           out.innerHTML = card(c);
           TB.Store.addHistory(TB.Auth.userId(), {
             type: 'meaning', from: c.lang, to: 'multi', src: w,
@@ -494,7 +513,8 @@ TB.Views = (function () {
           });
           TB.App.refreshChips();
         }).catch(function (e) {
-          out.innerHTML = '<div class="card"><div class="msg msg-err">' + esc(e.message) + '</div></div>';
+          /* The offline answer, if there was one, stays on the screen. */
+          if (!shown) out.innerHTML = '<div class="card"><div class="msg msg-err">' + esc(e.message) + '</div></div>';
         });
       }
 

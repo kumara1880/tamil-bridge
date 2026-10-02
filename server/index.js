@@ -336,7 +336,21 @@ function rateLimit(max, windowMs) {
 /* ------------------------------------------------------------------ app */
 const app = express();
 app.set('trust proxy', 1);
+/* Nothing is gained by telling the world which framework this is. */
+app.disable('x-powered-by');
 app.use(express.json({ limit: '2mb' }));
+/* Body that is not JSON got Express's own HTML error page, from an API
+   where every other answer is JSON — so a client doing the obvious thing
+   and parsing the reply threw on the error instead of reading it. */
+app.use((err, _req, res, next) => {
+  if (err && err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'That request was not valid JSON.' });
+  }
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'That request was too large.' });
+  }
+  return next(err);
+});
 app.use(cors({
   origin: ALLOWED.includes('*') ? true : ALLOWED,
   credentials: false
