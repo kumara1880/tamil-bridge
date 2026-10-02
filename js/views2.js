@@ -1102,7 +1102,8 @@
       +   '<br><b>ங is never met on its own</b>, and it never carries a vowel. It '
       +   'is ங் before க, and the vowel sits on that க — so the cell marked ஙி is '
       +   'really ங்கி, and each cell in that row shows its own cluster with a word '
-      +   'that contains it. Two clusters have no everyday word and say so.'
+      +   'that contains it. Two have no everyday word, so they give the cluster '
+      +   'said on its own instead — இங்கொ, named the way இக் and இங் are.'
       + '</div>'
       + '<div class="matrix"><table><thead><tr><th></th>';
     A.vowels.forEach(function (v) {
@@ -1121,11 +1122,18 @@
            the க that ங் always precedes, so the cell shows that cluster and
            a word containing it — ங்கி, வங்கி — rather than a syllable
            no Tamil word has and no voice can say. */
+        /* ங never carries a vowel. The vowel of this cell sits on the க
+           that ங் always precedes, so the cell shows that cluster and a word
+           containing it. Where no everyday word exists, the cluster is
+           still a sound — named the way a mei letter is, இங்கொ — which is
+           a shape a voice can actually say. */
+        var saying = c.word || c.onItsOwn || c.ch;
         h += '<td class="ta' + (c.cluster ? ' withword' : '')
            + (c.cluster && !c.word ? ' nonword' : '') + '" data-speak="'
-           + esc(c.word || c.ch) + '" data-lang="ta"'
-           + (c.word ? ' title="' + esc(c.cluster) + ' — ' + esc(c.wordR)
-               + ' — ' + esc(c.wordEn) + '"' : '')
+           + esc(saying) + '" data-lang="ta"'
+           + (c.cluster ? ' title="' + esc(c.cluster) + ' — '
+               + esc(c.word ? c.wordR + ' — ' + c.wordEn
+                            : c.onItsOwnR + ', said on its own') + '"' : '')
            + '>' + esc(c.ch)
            + '<span class="say">' + esc(c.say) + '</span>'
            + (c.cluster
@@ -1134,7 +1142,9 @@
                    ? (c.wordPic ? '<span class="wpic">' + c.wordPic + '</span>' : '')
                      + '<span class="inword ta">' + esc(c.word) + '</span>'
                      + '<span class="r">' + esc(c.wordEn) + '</span>'
-                   : '<span class="r">' + esc(c.wordEn) + '</span>')
+                   : '<span class="inword ta">' + esc(c.onItsOwn) + '</span>'
+                     + '<span class="say">' + esc(c.onItsOwnR) + '</span>'
+                     + '<span class="r">' + esc(c.wordEn) + '</span>')
               : '<span class="r">' + esc(c.r) + '</span>')
            + '</td>';
       });

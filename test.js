@@ -2907,11 +2907,24 @@ section('DICTIONARY (offline)');
       t('ten of the twelve have an everyday word',
         ng.cells.filter(function (c) { return c.word; }).length === 10,
         ng.cells.filter(function (c) { return c.word; }).length);
-      /* \u0b99\u0bcd\u0b95\u0bca and \u0b99\u0bcd\u0b95\u0bcc have none worth teaching a child, and say so rather
-         than carry something invented to fill the row. */
-      t('and the two that do not, say so',
-        ng.cells.filter(function (c) { return c.cluster && !c.word; })
-          .every(function (c) { return /no everyday word/.test(c.wordEn); }));
+      /* \u0b99\u0bcd\u0b95\u0bca and \u0b99\u0bcd\u0b95\u0bcc have no everyday word. That does not mean they have
+         no sound \u2014 the cluster is pronounceable, it just never starts a
+         word anyone uses. Named the way a mei letter is named (\u0b87\u0b95\u0bcd, \u0b87\u0b99\u0bcd)
+         it becomes \u0b87\u0b99\u0bcd\u0b95\u0bca and \u0b87\u0b99\u0bcd\u0b95\u0bcc: a real syllable shape, the same as
+         \u0b87\u0b99\u0bcd\u0b95\u0bc1, which a voice can say where it could not say \u0b99\u0bca. */
+      (function () {
+        var wordless = ng.cells.filter(function (c) { return c.cluster && !c.word; });
+        t('the two without a word are \u0b99\u0bcd\u0b95\u0bca and \u0b99\u0bcd\u0b95\u0bcc',
+          wordless.length === 2
+          && wordless[0].cluster === '\u0b99\u0bcd\u0b95\u0bca' && wordless[1].cluster === '\u0b99\u0bcd\u0b95\u0bcc',
+          wordless.map(function (c) { return c.cluster; }).join(' '));
+        t('and they still have a sound to say',
+          wordless.every(function (c) { return c.onItsOwn && c.onItsOwnR; }));
+        t('which is the cluster with a leading \u0b87, as a mei letter is named',
+          wordless[0].onItsOwn === '\u0b87\u0b99\u0bcd\u0b95\u0bca' && wordless[0].onItsOwnR === 'ingo'
+          && wordless[1].onItsOwn === '\u0b87\u0b99\u0bcd\u0b95\u0bcc' && wordless[1].onItsOwnR === 'ingau',
+          wordless.map(function (c) { return c.onItsOwn + '=' + c.onItsOwnR; }).join(' '));
+      })();
       t('no word is repeated', (function () {
         var w = ng.cells.map(function (c) { return c.word; }).filter(Boolean);
         return new Set(w).size === w.length;
@@ -2919,8 +2932,8 @@ section('DICTIONARY (offline)');
       t('each with its reading, its meaning and a picture',
         ng.cells.filter(function (c) { return c.word; })
           .every(function (c) { return c.wordR && c.wordEn && c.wordPic; }));
-      t('and the cell speaks the word, not the syllable',
-        /esc\(c\.word \|\| c\.ch\)/.test(v2));
+      t('and the cell speaks the word, or the cluster said on its own',
+        /var saying = c\.word \|\| c\.onItsOwn \|\| c\.ch;/.test(v2));
 
       /* \u0b9e is NOT one of these. I had marked \u0b9e\u0bbf and \u0b9e\u0bc6 from counting this
          app's own Tamil and finding them absent \u2014 which is evidence about

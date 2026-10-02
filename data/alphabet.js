@@ -163,9 +163,9 @@ TB.ALPHABET = {};
     { c: '\u0b99\u0bcd\u0b95\u0bc6', w: '\u0b8e\u0b99\u0bcd\u0b95\u0bc6\u0b99\u0bcd\u0b95\u0bc1\u0bae\u0bcd', r: 'engengum', en: 'everywhere', pic: '\u{1F30D}' },
     { c: '\u0b99\u0bcd\u0b95\u0bc7', w: '\u0b85\u0b99\u0bcd\u0b95\u0bc7', r: 'ang\u0113', en: 'there', pic: '\u{1F449}' },
     { c: '\u0b99\u0bcd\u0b95\u0bc8', w: '\u0ba4\u0b99\u0bcd\u0b95\u0bc8', r: 'thangai', en: 'younger sister', pic: '\u{1F467}' },
-    { c: '\u0b99\u0bcd\u0b95\u0bca', w: '', r: '', en: 'no everyday word', pic: '' },
+    { c: '\u0b99\u0bcd\u0b95\u0bca', w: '', r: '', en: 'said on its own', pic: '' },
     { c: '\u0b99\u0bcd\u0b95\u0bcb', w: '\u0bae\u0b99\u0bcd\u0b95\u0bcb\u0bb2\u0bbf\u0baf\u0bbe', r: 'mang\u014dliy\u0101', en: 'Mongolia', pic: '\u{1F5FA}\uFE0F' },
-    { c: '\u0b99\u0bcd\u0b95\u0bcc', w: '', r: '', en: 'no everyday word', pic: '' }
+    { c: '\u0b99\u0bcd\u0b95\u0bcc', w: '', r: '', en: 'said on its own', pic: '' }
   ];
 
   var grid = consonants.map(function (c) {
@@ -185,6 +185,12 @@ TB.ALPHABET = {};
                     the vowel sits on that க. So this cell's word has to
                     contain THIS cell's cluster, not merely ங. */
                  cluster: ngi ? ngi.c : '',
+                 /* No everyday word does not mean no sound. The cluster is
+                    pronounceable; it simply never starts one. Named the way
+                    a mei letter is named — இக், இங் — it becomes a real
+                    syllable shape a voice can manage: இங்கொ, like இங்கு. */
+                 onItsOwn: (ngi && !ngi.w) ? '\u0b87' + ngi.c : '',
+                 onItsOwnR: (ngi && !ngi.w) ? 'i' + onset(c.say) + v.say : '',
                  word: ngi ? ngi.w : '', wordR: ngi ? ngi.r : '',
                  wordEn: ngi ? ngi.en : '', wordPic: ngi ? ngi.pic : '' };
       })
