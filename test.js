@@ -3350,8 +3350,14 @@ section('DICTIONARY (offline)');
 
     /* A man or a woman, only where the device really has one. */
     t('the voice can be a man or a woman', typeof TB.Speech.sexesFor === 'function');
-    t('and the chooser is built from what the device has',
-      /sx\.m \? .. : . disabled./.test(v2) && /sx\.f \? .. : . disabled./.test(v2));
+    /* Stricter than it was: a single voice is no choice at all, and the sex
+       is only ever guessed from the voice's name, so offering "Man" and then
+       playing whatever the one voice is would be a promise it cannot keep. */
+    t('and a choice is offered only where there really is one',
+      /var canChoose = sx\.total > 1 && sx\.m && sx\.f;/.test(v2));
+    t('both pills turn on the same condition',
+      (v2.match(/\(canChoose \? '' : ' disabled'\)/g) || []).length === 2,
+      (v2.match(/\(canChoose \? '' : ' disabled'\)/g) || []).length + ' of 2');
     t('and says so when there is only one voice',
       /no choice of man or woman here/.test(v2));
     t('a name on neither list is left unknown, not guessed',

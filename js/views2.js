@@ -779,6 +779,13 @@
       var which = TB.ALPHABET[param] ? param : 'ta';
       var lang = which === 'en' ? 'en' : which;
       var sx = TB.Speech.sexesFor(lang);
+      /* A choice of man or woman exists only when the device really has
+         both. With a single voice there is nothing to choose between, and
+         the sex is only ever guessed from the voice's name — which is not
+         something this page can know. Offering "Man" and then playing the
+         one voice there is, whatever it sounds like, is a promise the app
+         cannot keep; the note below already says there is no choice. */
+      var canChoose = sx.total > 1 && sx.m && sx.f;
       var pref = (V.D().prefs || {}).voiceSex || '';
       var h = '<div class="view wide"><div class="card"><div class="pill-row">'
         + tab('ta', 'Tamil (247)') + tab('hi', 'हिंदी वर्णमाला') + tab('en', 'English A–Z')
@@ -790,9 +797,9 @@
         +   '<div class="pill-row" id="aVoice">'
         +     '<button class="pill' + (pref ? '' : ' on') + '" data-sex="" type="button">Any</button>'
         +     '<button class="pill' + (pref === 'm' ? ' on' : '') + '" data-sex="m" type="button"'
-        +       (sx.m ? '' : ' disabled') + '>\u{1F468} Man</button>'
+        +       (canChoose ? '' : ' disabled') + '>\u{1F468} Man</button>'
         +     '<button class="pill' + (pref === 'f' ? ' on' : '') + '" data-sex="f" type="button"'
-        +       (sx.f ? '' : ' disabled') + '>\u{1F469} Woman</button>'
+        +       (canChoose ? '' : ' disabled') + '>\u{1F469} Woman</button>'
         /* A different speaker again, and a native one for each language.
            Offered as what it is rather than as a gender, which is not
            something this page can know. */
