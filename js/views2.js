@@ -1099,10 +1099,8 @@
       /* Counted in 134,000 characters of this app's own Tamil: ங appears
          733 times and 712 of them carry the pulli; 79% of those are ங்க.
          The other eleven ங forms appear zero times. */
-      +   '<br><b>Faded cells are not used in Tamil.</b> ங occurs almost only '
-      +   'as ங்க — அங்கே, தங்கம் — so ஙா, ஙி, ஙெ and the rest appear in no '
-      +   'Tamil word at all. A voice asked for one invents something; pressing '
-      +   'those cells plays a real word with the letter in it instead.'
+      +   '<br><b>ங is never met on its own.</b> It lives in ங்க — அங்கே, தங்கம், '
+      +   'சிங்கம் — so that row gives a word in every cell, and says the word.'
       + '</div>'
       + '<div class="matrix"><table><thead><tr><th></th>';
     A.vowels.forEach(function (v) {
@@ -1113,18 +1111,20 @@
       h += '<tr><td class="rowhead ta">' + esc(row.mei)
          + '<span class="r">' + esc(row.r) + '</span></td>';
       row.cells.forEach(function (c) {
-        /* A combination Tamil does not use. Asking a Tamil voice for it
-           gets the nearest real thing instead — ஙொ came back as "ango",
-           which is அங்கு — so the cell plays a word where the letter
-           really occurs, and says that is what it is doing. */
-        h += '<td class="ta' + (c.unused ? ' unused' : '') + '" data-speak="'
-           + esc(c.unused ? (c.realWord || row.base) : c.ch) + '" data-lang="ta"'
-           + (c.unused ? ' title="' + esc(c.ch) + ' is not used in any Tamil word — '
-               + 'this plays ' + esc(c.realWord || '') + ', where ' + esc(row.base)
-               + ' really occurs."' : '')
+        /* ங is never met on its own — it lives in the cluster ங்க — and a
+           voice asked for ஙொ gave back "ango", which is அங்கு: the nearest
+           real thing it knew. So that row is not bare syllables. Each cell
+           carries a word with ங in it and says the word. */
+        h += '<td class="ta' + (c.word ? ' withword' : '') + '" data-speak="'
+           + esc(c.word || c.ch) + '" data-lang="ta"'
+           + (c.word ? ' title="' + esc(c.wordR) + ' — ' + esc(c.wordEn) + '"' : '')
            + '>' + esc(c.ch)
            + '<span class="say">' + esc(c.say) + '</span>'
-           + '<span class="r">' + esc(c.r) + '</span></td>';
+           + (c.word
+              ? '<span class="inword ta">' + esc(c.word) + '</span>'
+                + '<span class="r">' + esc(c.wordEn) + '</span>'
+              : '<span class="r">' + esc(c.r) + '</span>')
+           + '</td>';
       });
       h += '</tr>';
     });

@@ -140,26 +140,44 @@ TB.ALPHABET = {};
      it says the nearest real thing instead: ஙொ came back as "ango", which
      is அங்கு. The cell is marked, and pressing it plays a word where the
      letter really occurs. */
-  var NOT_USED = {
-    'ங': 'ாிீுூெேைொோௌ',
-    'ஞ': 'ிீுூேைொோௌ'
-  };
+  /* ங is the one letter that is never met on its own: it lives in the
+     cluster ங்க. So its row does not show bare syllables — every cell
+     carries a real word with ங in it, and says that word.
+
+     ஞ is NOT in this list. I had put it here from counting this app's own
+     Tamil and finding ஞி and ஞெ absent, which is the wrong evidence
+     entirely: what one app's content contains is not what the language
+     contains. */
+  var NG_WORDS = [
+    { w: 'அங்கே', r: 'angē', en: 'there' },
+    { w: 'தங்கம்', r: 'thangam', en: 'gold' },
+    { w: 'இங்கு', r: 'ingu', en: 'here' },
+    { w: 'எங்கே', r: 'engē', en: 'where' },
+    { w: 'பங்கு', r: 'pangu', en: 'a share' },
+    { w: 'சங்கு', r: 'sangu', en: 'conch' },
+    { w: 'தங்கை', r: 'thangai', en: 'younger sister' },
+    { w: 'சிங்கம்', r: 'singam', en: 'lion' },
+    { w: 'பொங்கல்', r: 'pongal', en: 'Pongal' },
+    { w: 'வங்கி', r: 'vangi', en: 'bank' },
+    { w: 'நுங்கு', r: 'nungu', en: 'palm fruit' },
+    { w: 'தூங்கு', r: 'thūngu', en: 'to sleep' }
+  ];
 
   var grid = consonants.map(function (c) {
     return {
       base: c.base, r: c.r, say: c.say, cls: c.cls,
       mei: c.base + PULLI,
-      cells: vowels.map(function (v) {
+      cells: vowels.map(function (v, vi) {
         /* say — a reading a learner can act on. r — the scholarly form,
            kept because every dictionary uses it. The table used to print
            only r, so the ங row read ṅa and the ச row read ca. */
-        var skip = NOT_USED[c.base] && v.sign && NOT_USED[c.base].indexOf(v.sign) >= 0;
+        var ngi = c.base === 'ங' ? NG_WORDS[vi] : null;
         return { ch: c.base + v.sign, r: c.r + v.r,
                  say: onset(c.say) + v.say, vowel: v.ch,
-                 /* not used in Tamil: say the letter's real word instead of
-                    asking a voice to invent a syllable */
-                 unused: !!skip,
-                 realWord: skip ? c.ex : '' };
+                 /* ங alone is a sound no Tamil word begins with and a voice
+                    cannot say; the word is where it is actually met. */
+                 word: ngi ? ngi.w : '', wordR: ngi ? ngi.r : '',
+                 wordEn: ngi ? ngi.en : '' };
       })
     };
   });

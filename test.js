@@ -2886,33 +2886,39 @@ section('DICTIONARY (offline)');
        hard g that is not there. */
     t('and says which ng \u0b99 is', /the ng of <i>singer<\/i>, not of <i>finger<\/i>/.test(v2));
 
-    /* \u0b99\u0bbe is not a Tamil syllable. Counted in 134,000 characters of this
-       app's own Tamil: \u0b99 appears 733 times and 712 of them carry the pulli;
-       79% of those are the cluster \u0b99\u0bcd\u0b95. The eleven \u0b99 + vowel forms appear
-       zero times outside the chart itself.
-
-       A voice trained on Tamil has never met them, so asked for one it
-       says the nearest real thing \u2014 which is why \u0b99\u0bca came back as "ango"
-       and \u0b99\u0bc6 as "ange": \u0b85\u0b99\u0bcd\u0b95\u0bc1 and \u0b85\u0b99\u0bcd\u0b95\u0bc7. */
+    /* \u0b99 is the one Tamil letter never met on its own: it lives in the
+       cluster \u0b99\u0bcd\u0b95. A voice asked for \u0b99\u0bca gave back "ango" \u2014 \u0b85\u0b99\u0bcd\u0b95\u0bc1, the
+       nearest real thing it knew \u2014 because the bare syllable is not
+       something Tamil contains for it to have learnt. So that row is not
+       bare syllables: every cell carries a word with \u0b99 in it. */
     (function () {
       var ng = TA.grid.filter(function (r) { return r.base === '\u0b99'; })[0];
-      t('the eleven \u0b99 forms Tamil never uses are marked',
-        ng.cells.filter(function (c) { return c.unused; }).length === 11,
-        ng.cells.filter(function (c) { return c.unused; }).length);
-      t('but bare \u0b99 is not, because \u0b99\u0bcd\u0b95 is everywhere', !ng.cells[0].unused);
-      t('and an unused cell plays a word where the letter really occurs',
-        ng.cells[1].realWord === '\u0b85\u0b99\u0bcd\u0b95\u0bc7');
-      var marked = 0;
-      TA.grid.forEach(function (r) { r.cells.forEach(function (c) { if (c.unused) marked++; }); });
-      t('twenty cells in all', marked === 20, marked);
-      /* \u0b9e\u0bbe is real \u2014 \u0b9e\u0bbe\u0baf\u0bbf\u0bb1\u0bc1, \u0b9e\u0bbe\u0ba9\u0bae\u0bcd \u2014 so it is not marked. */
+      t('every \u0b99 cell carries a real word',
+        ng.cells.filter(function (c) { return c.word; }).length === 12,
+        ng.cells.filter(function (c) { return c.word; }).length);
+      t('and every one of those words really contains \u0b99',
+        ng.cells.every(function (c) { return c.word.indexOf('\u0b99') >= 0; }));
+      t('they are twelve different words, not one repeated',
+        new Set(ng.cells.map(function (c) { return c.word; })).size === 12);
+      t('each with its reading and its meaning',
+        ng.cells.every(function (c) { return c.wordR && c.wordEn; }));
+      t('and the cell speaks the word, not the syllable',
+        /esc\(c\.word \|\| c\.ch\)/.test(v2));
+      t('the page says why', /\u0b99 is never met on its own/.test(v2));
+
+      /* \u0b9e is NOT one of these. I had marked \u0b9e\u0bbf and \u0b9e\u0bc6 from counting this
+         app's own Tamil and finding them absent \u2014 which is evidence about
+         the app's content, not about the language. The row is left alone. */
       var nya = TA.grid.filter(function (r) { return r.base === '\u0b9e'; })[0];
-      t('\u0b9e\u0bbe is left alone, because \u0b9e\u0bbe\u0baf\u0bbf\u0bb1\u0bc1 exists', !nya.cells[1].unused);
+      t('\u0b9e is left alone, because an app corpus is not the language',
+        nya.cells.every(function (c) { return !c.word && !c.unused; }));
+      /* And no other row is touched either. */
+      var touched = TA.grid.filter(function (r) {
+        return r.base !== '\u0b99' && r.cells.some(function (c) { return c.word || c.unused; });
+      });
+      t('and no row but \u0b99 is', touched.length === 0,
+        touched.map(function (r) { return r.base; }).join(' '));
     })();
-    t('the page says which cells those are and why',
-      /Faded cells are not used in Tamil/.test(v2));
-    t('and they speak the word, not the syllable',
-      /c\.unused \? \(c\.realWord \|\| row\.base\) : c\.ch/.test(v2));
 
     /* Hindi had k\u0101, k\u012b, k\u016b, and the same retroflex/dental collision. */
     t('every Hindi grid cell reads too', (function () {
