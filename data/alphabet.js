@@ -39,8 +39,14 @@ TB.ALPHABET = {};
       ex: 'ஒட்டகம்', exR: 'oṭṭagam', exEn: 'camel', exTa: 'ஒட்டகம்', exHi: 'ऊँट', pic: '🐪' },
     { ch: 'ஓ', r: 'ō',  say: 'oh',  sign: 'ோ', kind: 'long', en: 'o as in go',
       ex: 'ஓடு', exR: 'ōḍu', exEn: 'run', exTa: 'ஓடு', exHi: 'दौड़', pic: '🏃' },
-    { ch: 'ஔ', r: 'au', say: 'au',  sign: 'ௌ', kind: 'long', en: 'ow as in now',
-      ex: 'ஔவை', exR: 'auvai', exEn: 'Auvaiyar', exTa: 'ஔவையார்', exHi: 'औव्वैयार', pic: '👵' }
+    /* say  — how it composes in a syllable: கௌ kau, ஙௌ ngau.
+         alone — how the letter reads by itself: ow, as in now. */
+    { ch: 'ஔ', r: 'au', say: 'au', alone: 'ow', sign: 'ௌ', kind: 'long',
+      /* A glide: it starts on அ and lands on உ. The old note said only
+         "ow as in now", which gets the start right and leaves the finish
+         to guesswork — and the finish is the whole of it. */
+      en: 'a glide from அ to உ — the ow of now, ending on an oo. Rare at the start of a word; the sign is commoner, as in மௌனம்',
+      ex: 'ஔவையார்', exR: 'auvaiyār', exEn: 'Auvaiyar, the poet', exTa: 'ஔவையார்', exHi: 'औव्वैयार', pic: '👵' }
   ];
 
   /* say — how the letter reads when it stands at the head of a word, which

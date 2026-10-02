@@ -1009,7 +1009,10 @@
      of the dot. */
   function alphaSay(it) {
     if (!it.meiSay) {
-      return '<div class="alpha-say">' + esc(it.say || it.r || '') + '</div>'
+      /* A letter can read one way alone and compose another way inside a
+         syllable: ஔ is ow by itself and au in கௌ, ஙௌ. The card shows the
+         first; the grid keeps the second. */
+      return '<div class="alpha-say">' + esc(it.alone || it.say || it.r || '') + '</div>'
         /* A letter no voice can say alone is said in this form instead —
            the letter, with a vowel in front and its own vowel killed. */
         + (it.letterSay

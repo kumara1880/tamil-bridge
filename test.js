@@ -2842,6 +2842,32 @@ section('DICTIONARY (offline)');
 
 
 
+
+  /* ---------------- \u0b94 ---------------- */
+  (function () {
+    var TA = TB.ALPHABET.ta;
+    var au = TA.vowels.filter(function (v) { return v.ch === '\u0b94'; })[0];
+    var v2 = fs.readFileSync(R + 'js/views2.js', 'utf8');
+
+    /* The letter standing alone reads ow, as in now. Inside a syllable the
+       same vowel composes as au \u2014 \u0b95\u0bcc kau, \u0b99\u0bcc ngau, which was checked and
+       approved. One reading cannot serve both, so the card has its own. */
+    t('\u0b94 reads ow on its own', au.alone === 'ow');
+    t('and still composes as au in a syllable', au.say === 'au');
+    t('so \u0b99\u0bcc is still ngau', (function () {
+      var ng = TA.grid.filter(function (r) { return r.base === '\u0b99'; })[0];
+      return ng.cells[11].say === 'ngau';
+    })());
+    t('and \u0b95\u0bcc is still kau', (function () {
+      var k = TA.grid.filter(function (r) { return r.base === '\u0b95'; })[0];
+      return k.cells[11].say === 'kau';
+    })());
+    t('the card shows the one read alone', /it\.alone \|\| it\.say/.test(v2));
+    /* "ow as in now" got the start right and left the finish to guesswork,
+       and the finish is the whole of it: \u0b94 lands on \u0b89. */
+    t('and says where the sound ends', /ending on an oo/.test(au.en));
+    t('the example is written out, not clipped', au.ex === '\u0b94\u0bb5\u0bc8\u0baf\u0bbe\u0bb0\u0bcd');
+  })();
   /* ---------------- the Hindi letters ---------------- */
   section('HINDI LETTERS');
   (function () {
