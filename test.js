@@ -2893,18 +2893,34 @@ section('DICTIONARY (offline)');
        bare syllables: every cell carries a word with \u0b99 in it. */
     (function () {
       var ng = TA.grid.filter(function (r) { return r.base === '\u0b99'; })[0];
-      t('every \u0b99 cell carries a real word',
-        ng.cells.filter(function (c) { return c.word; }).length === 12,
+      /* \u0b99 never carries a vowel. It is \u0b99\u0bcd before \u0b95, and the vowel sits on
+         that \u0b95 \u2014 so the cell labelled \u0b99\u0bbf is really the cluster \u0b99\u0bcd\u0b95\u0bbf, and
+         its word has to contain THAT, not merely \u0b99. Every word in the row
+         used to be a plain \u0b99\u0bcd\u0b95 word, so it taught one sound twelve times
+         while the labels said twelve different ones. */
+      t('every \u0b99 cell names the cluster it is really about',
+        ng.cells.filter(function (c) { return c.cluster; }).length === 12);
+      t('and every word contains its own cell\u2019s cluster, not just \u0b99',
+        ng.cells.every(function (c) { return !c.word || c.word.indexOf(c.cluster) >= 0; }),
+        ng.cells.filter(function (c) { return c.word && c.word.indexOf(c.cluster) < 0; })
+          .map(function (c) { return c.cluster + '/' + c.word; }).join(' '));
+      t('ten of the twelve have an everyday word',
+        ng.cells.filter(function (c) { return c.word; }).length === 10,
         ng.cells.filter(function (c) { return c.word; }).length);
-      t('and every one of those words really contains \u0b99',
-        ng.cells.every(function (c) { return c.word.indexOf('\u0b99') >= 0; }));
-      t('they are twelve different words, not one repeated',
-        new Set(ng.cells.map(function (c) { return c.word; })).size === 12);
-      t('each with its reading and its meaning',
-        ng.cells.every(function (c) { return c.wordR && c.wordEn; }));
+      /* \u0b99\u0bcd\u0b95\u0bca and \u0b99\u0bcd\u0b95\u0bcc have none worth teaching a child, and say so rather
+         than carry something invented to fill the row. */
+      t('and the two that do not, say so',
+        ng.cells.filter(function (c) { return c.cluster && !c.word; })
+          .every(function (c) { return /no everyday word/.test(c.wordEn); }));
+      t('no word is repeated', (function () {
+        var w = ng.cells.map(function (c) { return c.word; }).filter(Boolean);
+        return new Set(w).size === w.length;
+      })());
+      t('each with its reading, its meaning and a picture',
+        ng.cells.filter(function (c) { return c.word; })
+          .every(function (c) { return c.wordR && c.wordEn && c.wordPic; }));
       t('and the cell speaks the word, not the syllable',
         /esc\(c\.word \|\| c\.ch\)/.test(v2));
-      t('the page says why', /\u0b99 is never met on its own/.test(v2));
 
       /* \u0b9e is NOT one of these. I had marked \u0b9e\u0bbf and \u0b9e\u0bc6 from counting this
          app's own Tamil and finding them absent \u2014 which is evidence about

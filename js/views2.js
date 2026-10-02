@@ -1099,8 +1099,10 @@
       /* Counted in 134,000 characters of this app's own Tamil: ங appears
          733 times and 712 of them carry the pulli; 79% of those are ங்க.
          The other eleven ங forms appear zero times. */
-      +   '<br><b>ங is never met on its own.</b> It lives in ங்க — அங்கே, தங்கம், '
-      +   'சிங்கம் — so that row gives a word in every cell, and says the word.'
+      +   '<br><b>ங is never met on its own</b>, and it never carries a vowel. It '
+      +   'is ங் before க, and the vowel sits on that க — so the cell marked ஙி is '
+      +   'really ங்கி, and each cell in that row shows its own cluster with a word '
+      +   'that contains it. Two clusters have no everyday word and say so.'
       + '</div>'
       + '<div class="matrix"><table><thead><tr><th></th>';
     A.vowels.forEach(function (v) {
@@ -1115,14 +1117,24 @@
            voice asked for ஙொ gave back "ango", which is அங்கு: the nearest
            real thing it knew. So that row is not bare syllables. Each cell
            carries a word with ங in it and says the word. */
-        h += '<td class="ta' + (c.word ? ' withword' : '') + '" data-speak="'
+        /* ங never carries a vowel itself. The vowel of this cell sits on
+           the க that ங் always precedes, so the cell shows that cluster and
+           a word containing it — ங்கி, வங்கி — rather than a syllable
+           no Tamil word has and no voice can say. */
+        h += '<td class="ta' + (c.cluster ? ' withword' : '')
+           + (c.cluster && !c.word ? ' nonword' : '') + '" data-speak="'
            + esc(c.word || c.ch) + '" data-lang="ta"'
-           + (c.word ? ' title="' + esc(c.wordR) + ' — ' + esc(c.wordEn) + '"' : '')
+           + (c.word ? ' title="' + esc(c.cluster) + ' — ' + esc(c.wordR)
+               + ' — ' + esc(c.wordEn) + '"' : '')
            + '>' + esc(c.ch)
            + '<span class="say">' + esc(c.say) + '</span>'
-           + (c.word
-              ? '<span class="inword ta">' + esc(c.word) + '</span>'
-                + '<span class="r">' + esc(c.wordEn) + '</span>'
+           + (c.cluster
+              ? '<span class="cluster ta">' + esc(c.cluster) + '</span>'
+                + (c.word
+                   ? (c.wordPic ? '<span class="wpic">' + c.wordPic + '</span>' : '')
+                     + '<span class="inword ta">' + esc(c.word) + '</span>'
+                     + '<span class="r">' + esc(c.wordEn) + '</span>'
+                   : '<span class="r">' + esc(c.wordEn) + '</span>')
               : '<span class="r">' + esc(c.r) + '</span>')
            + '</td>';
       });

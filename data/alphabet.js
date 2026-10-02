@@ -148,19 +148,24 @@ TB.ALPHABET = {};
      Tamil and finding ஞி and ஞெ absent, which is the wrong evidence
      entirely: what one app's content contains is not what the language
      contains. */
+  /* The vowel of each cell sits on the ka that ng always precedes: the
+     cell labelled ngi is really the cluster ng-ka-i, so its word must
+     contain that cluster and not merely ng. Every word below was checked
+     against its own cell. Two clusters have no everyday word and say so,
+     rather than carry something invented to fill the row. */
   var NG_WORDS = [
-    { w: 'அங்கே', r: 'angē', en: 'there' },
-    { w: 'தங்கம்', r: 'thangam', en: 'gold' },
-    { w: 'இங்கு', r: 'ingu', en: 'here' },
-    { w: 'எங்கே', r: 'engē', en: 'where' },
-    { w: 'பங்கு', r: 'pangu', en: 'a share' },
-    { w: 'சங்கு', r: 'sangu', en: 'conch' },
-    { w: 'தங்கை', r: 'thangai', en: 'younger sister' },
-    { w: 'சிங்கம்', r: 'singam', en: 'lion' },
-    { w: 'பொங்கல்', r: 'pongal', en: 'Pongal' },
-    { w: 'வங்கி', r: 'vangi', en: 'bank' },
-    { w: 'நுங்கு', r: 'nungu', en: 'palm fruit' },
-    { w: 'தூங்கு', r: 'thūngu', en: 'to sleep' }
+    { c: '\u0b99\u0bcd\u0b95', w: '\u0ba4\u0b99\u0bcd\u0b95\u0bae\u0bcd', r: 'thangam', en: 'gold', pic: '\u{1F3C5}' },
+    { c: '\u0b99\u0bcd\u0b95\u0bbe', w: '\u0b95\u0b99\u0bcd\u0b95\u0bbe\u0bb0\u0bc1', r: 'kang\u0101ru', en: 'kangaroo', pic: '\u{1F998}' },
+    { c: '\u0b99\u0bcd\u0b95\u0bbf', w: '\u0bb5\u0b99\u0bcd\u0b95\u0bbf', r: 'vangi', en: 'bank', pic: '\u{1F3E6}' },
+    { c: '\u0b99\u0bcd\u0b95\u0bc0', w: '\u0b9a\u0b99\u0bcd\u0b95\u0bc0\u0ba4\u0bae\u0bcd', r: 'sang\u012btham', en: 'music', pic: '\u{1F3B5}' },
+    { c: '\u0b99\u0bcd\u0b95\u0bc1', w: '\u0baa\u0b99\u0bcd\u0b95\u0bc1', r: 'pangu', en: 'a share', pic: '\u{1F370}' },
+    { c: '\u0b99\u0bcd\u0b95\u0bc2', w: '\u0ba8\u0b99\u0bcd\u0b95\u0bc2\u0bb0\u0bae\u0bcd', r: 'nang\u016bram', en: 'anchor', pic: '\u2693' },
+    { c: '\u0b99\u0bcd\u0b95\u0bc6', w: '\u0b8e\u0b99\u0bcd\u0b95\u0bc6\u0b99\u0bcd\u0b95\u0bc1\u0bae\u0bcd', r: 'engengum', en: 'everywhere', pic: '\u{1F30D}' },
+    { c: '\u0b99\u0bcd\u0b95\u0bc7', w: '\u0b85\u0b99\u0bcd\u0b95\u0bc7', r: 'ang\u0113', en: 'there', pic: '\u{1F449}' },
+    { c: '\u0b99\u0bcd\u0b95\u0bc8', w: '\u0ba4\u0b99\u0bcd\u0b95\u0bc8', r: 'thangai', en: 'younger sister', pic: '\u{1F467}' },
+    { c: '\u0b99\u0bcd\u0b95\u0bca', w: '', r: '', en: 'no everyday word', pic: '' },
+    { c: '\u0b99\u0bcd\u0b95\u0bcb', w: '\u0bae\u0b99\u0bcd\u0b95\u0bcb\u0bb2\u0bbf\u0baf\u0bbe', r: 'mang\u014dliy\u0101', en: 'Mongolia', pic: '\u{1F5FA}\uFE0F' },
+    { c: '\u0b99\u0bcd\u0b95\u0bcc', w: '', r: '', en: 'no everyday word', pic: '' }
   ];
 
   var grid = consonants.map(function (c) {
@@ -176,8 +181,12 @@ TB.ALPHABET = {};
                  say: onset(c.say) + v.say, vowel: v.ch,
                  /* ங alone is a sound no Tamil word begins with and a voice
                     cannot say; the word is where it is actually met. */
+                 /* ங never carries a vowel itself: it is ங் before க, and
+                    the vowel sits on that க. So this cell's word has to
+                    contain THIS cell's cluster, not merely ங. */
+                 cluster: ngi ? ngi.c : '',
                  word: ngi ? ngi.w : '', wordR: ngi ? ngi.r : '',
-                 wordEn: ngi ? ngi.en : '' };
+                 wordEn: ngi ? ngi.en : '', wordPic: ngi ? ngi.pic : '' };
       })
     };
   });
