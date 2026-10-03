@@ -93,9 +93,35 @@
              + bits.join('') + '</div>';
       }
 
+      /* Every cell of every tense, not only the verb at the top. The chart
+         showed मैं करता था and how to say it, and a reader could pronounce
+         the whole table without knowing what one line of it meant.
+
+         Tamil is only given for verbs whose parts are known — a guessed
+         conjugation is worse than none, the same rule the alphabet keeps. */
+      var rowWord = { en: '', ta: '' };
+
+      function setRowWord(word, srcLang) {
+        var q = null;
+        try { q = TB.Dict.quick(word, srcLang); } catch (e) { q = null; }
+        rowWord = { en: (q && q.en) || (srcLang === 'en' ? word : ''), ta: (q && q.ta) || '' };
+      }
+
+      function rowMeaning(tenseId, person) {
+        if (!TB.Gloss) return '';
+        var en = rowWord.en ? TB.Gloss.english(tenseId, person, rowWord.en) : '';
+        var ta = rowWord.ta ? TB.Gloss.tamil(tenseId, person, rowWord.ta) : '';
+        if (!en && !ta) return '';
+        return '<div class="conj-rowmean">'
+             + (en ? '<div class="crm-en">' + esc(en) + '</div>' : '')
+             + (ta ? '<div class="crm-ta ta">' + esc(ta) + '</div>' : '')
+             + '</div>';
+      }
+
       function renderHindi(verb) {
         var c = TB.Conjugate.hindi(verb, gender);
         if (!c) return '<div class="card"><div class="msg msg-warn">Type a Hindi verb, for example करना.</div></div>';
+        setRowWord(c.infinitive, 'hi');
 
         var h = '<div class="card">';
         h += '<div class="row"><div><div style="font-size:calc(30px * var(--fs,1));font-weight:700" class="hi">'
@@ -122,6 +148,7 @@
                + '<div class="conj-en">' + esc(r.en) + '</div>'
                + '<div class="conj-hi hi">' + esc(full) + speak(full, 'hi') + '</div>'
                + V.hiRead(full)
+               + rowMeaning(t.id, r.person)
                + '</div>';
           });
           h += '</div></div>';
@@ -144,6 +171,7 @@
         var c = TB.Conjugate.english(verb, 'I');
         if (!c) return '<div class="card"><div class="msg msg-warn">Type an English verb, for example "go".</div></div>';
         var f = c.forms;
+        setRowWord(f.base, 'en');
 
         var h = '<div class="card"><div class="row">'
           + '<div><div style="font-size:calc(30px * var(--fs,1));font-weight:700">' + esc(f.base) + speak(f.base, 'en') + '</div>'
@@ -167,10 +195,14 @@
         h += '<div class="card"><h3>All twelve tenses</h3>'
            + '<div class="card-sub">statement · negative · question</div>';
         c.tenses.forEach(function (t) {
+          /* The English is already a whole sentence here, so what is missing
+             is the Tamil — which is the reader's side of it. */
+          var ta = (TB.Gloss && rowWord.ta) ? TB.Gloss.tamil(t.id, '1s', rowWord.ta) : '';
           h += '<div style="padding:11px 0;border-top:1px solid var(--line-soft)">'
              + '<div class="row"><b>' + esc(t.en) + '</b>'
              + '<span class="tiny muted"> — ' + esc(t.note) + '</span></div>'
              + '<div class="conj-line">' + esc(t.affirmative) + speak(t.affirmative, 'en') + '</div>'
+             + (ta ? '<div class="conj-rowmean"><div class="crm-ta ta">' + esc(ta) + '</div></div>' : '')
              + '<div class="conj-line neg">' + esc(t.negative) + speak(t.negative, 'en') + '</div>'
              + '<div class="conj-line q">' + esc(t.question) + speak(t.question, 'en') + '</div>'
              + '</div>';

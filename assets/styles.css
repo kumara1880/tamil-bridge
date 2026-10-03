@@ -1998,6 +1998,17 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
    language and the word it names never come apart. */
 .conj-mean-bit { display: inline-flex; gap: 5px; align-items: baseline; white-space: nowrap; }
 
+/* What one cell of a tense table actually means. Sits under the form and
+   its pronunciation, quieter than either, because it is the answer to a
+   question the reader has already asked by looking at the cell. */
+.conj-rowmean {
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px dashed var(--line-soft);
+  font-size: calc(13.5px * var(--fs, 1)); line-height: 1.45;
+}
+.crm-en { color: var(--text-dim); }
+.crm-ta { color: var(--text); }
+
 /* Stop should be findable at a glance while a reading is running. */
 .btn-stop {
   border-color: var(--red);

@@ -33,6 +33,7 @@ vm.createContext(ctx);
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
  'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js',
+ 'js/gloss.js',
  'js/maths.js','js/abacus.js','js/maths2.js','js/writing.js','js/sentences.js','js/search.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
@@ -635,7 +636,7 @@ section('VIEWS LOAD');
    'data/wordpairs3.js','data/wordpairs4.js','data/modern.js','data/spoken.js',
    'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
    'js/reader.js','js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js',
-   'js/numbers.js','js/conjugate.js','js/maths.js','js/writing.js','js/sentences.js',
+   'js/numbers.js','js/conjugate.js','js/gloss.js','js/maths.js','js/writing.js','js/sentences.js',
    'js/sync.js','js/search.js']
     .forEach(function (f) {
       try { vm.runInContext(fs.readFileSync(R + f, 'utf8'), v, { filename: f }); } catch (e) {}
@@ -2255,6 +2256,86 @@ section('CONJUGATION');
     var kar = TB.Dict.quick('करना', 'hi');
     t('a Hindi verb has both', kar && kar.ta === 'செய்' && kar.en === 'do',
       kar && (kar.ta + '/' + kar.en));
+  })();
+
+  /* ---- what every cell of the chart means ----
+     The tables showed मैं करता था and how to say it and nothing else: a
+     reader could pronounce the whole chart without knowing what one line of
+     it meant. */
+  (function () {
+    var G = TB.Gloss;
+    t('there is a gloss for a conjugated form', !!G && typeof G.english === 'function');
+    if (!G) return;
+
+    /* English: the tense makes the frame, the person makes the agreement,
+       and an irregular verb keeps its own forms. */
+    [['present', '1s', 'do', 'I do'],
+     ['present', '3s', 'do', 'he does'],
+     ['past', '1s', 'go', 'I went'],
+     ['perfect', '3s', 'write', 'he has written'],
+     ['perfect', '1p', 'write', 'we have written'],
+     ['progressive', '2p', 'eat', 'you are eating'],
+     ['pastProgressive', '3p', 'eat', 'they were eating'],
+     ['pastHabitual', '1s', 'go', 'I used to go'],
+     ['future', '3p', 'see', 'they will see'],
+     ['subjunctive', '1s', 'do', 'I may do']]
+      .forEach(function (r) {
+        t('english ' + r[0] + ' ' + r[1] + ' ' + r[2],
+          G.english(r[0], r[1], r[2]) === r[3], G.english(r[0], r[1], r[2]));
+      });
+    t('a "to" in front of the verb is not repeated',
+      G.english('present', '1s', 'to be') === 'I be', G.english('present', '1s', 'to be'));
+
+    /* Tamil: the ending lands on the stem rather than following it, and the
+       three verb classes take different past markers. */
+    [['present', '1s', 'செய்', 'நான் செய்கிறேன்'],
+     ['past', '1s', 'செய்', 'நான் செய்தேன்'],
+     ['past', '1s', 'படி', 'நான் படித்தேன்'],
+     ['past', '1s', 'போ', 'நான் போனேன்'],
+     ['future', '1s', 'படி', 'நான் படிப்பேன்'],
+     ['present', '3p', 'போ', 'அவர்கள் போகிறார்கள்'],
+     ['present', '1p', 'செய்', 'நாங்கள் செய்கிறோம்'],
+     ['present', '2s', 'செய்', 'நீ செய்கிறாய்']]
+      .forEach(function (r) {
+        t('tamil ' + r[0] + ' ' + r[1] + ' ' + r[2],
+          G.tamil(r[0], r[1], r[2]) === r[3], G.tamil(r[0], r[1], r[2]));
+      });
+
+    /* The English chart's own tense names reach the same Tamil frames. */
+    t('the English chart ids map across',
+      G.tamil('past-simple', '1s', 'எழுது') === 'நான் எழுதினேன்',
+      G.tamil('past-simple', '1s', 'எழுது'));
+    t('and so do the ones Tamil does not split',
+      G.tamil('present-perfect-continuous', '1s', 'எழுது')
+        === G.tamil('present-continuous', '1s', 'எழுது'));
+
+    /* A verb whose parts are not known says nothing rather than guessing. */
+    t('an unknown verb gets no Tamil', G.tamil('past', '1s', 'பற') === '');
+    t('and it is possible to ask first', G.hasTamil('செய்') && !G.hasTamil('பற'));
+
+    /* Every listed verb must have all five parts, or a frame will produce
+       undefined and the cell will read "undefined". */
+    var bad = Object.keys(G.TA_VERBS).filter(function (k) {
+      var p = G.TA_VERBS[k];
+      return !Array.isArray(p) || p.length !== 5 || p.some(function (x) { return !x; });
+    });
+    t('every listed Tamil verb has all five parts', bad.length === 0, bad.join(', '));
+
+    /* And every tense must produce something for every one of them. */
+    var tenses = ['present', 'progressive', 'past', 'pastHabitual', 'pastProgressive',
+                  'perfect', 'future', 'subjunctive'];
+    var holes = [];
+    Object.keys(G.TA_VERBS).forEach(function (root) {
+      tenses.forEach(function (tn) {
+        ['1s', '2s', '2p', '3s', '1p', '2f', '3p'].forEach(function (pr) {
+          var got = G.tamil(tn, pr, root);
+          if (!got || /undefined|NaN/.test(got)) holes.push(root + ' ' + tn + ' ' + pr);
+        });
+      });
+    });
+    t('every verb conjugates in every tense and person ('
+      + (Object.keys(G.TA_VERBS).length * tenses.length * 7) + ')',
+      holes.length === 0, holes.slice(0, 4).join(' | '));
   })();
 })();
 
