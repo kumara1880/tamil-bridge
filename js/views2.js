@@ -1564,8 +1564,10 @@
 
       return '<div class="view">'
         + '<div class="card"><div class="row mb">'
+        /* The Download that used to sit here did the same thing as the one
+           in Settings, and a backup belongs with the rest of your data
+           rather than on a list of past searches. */
         +   '<input id="hSearch" type="text" placeholder="Search history" style="flex:1;min-width:180px;padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg-soft)">'
-        +   '<button class="btn btn-sm" id="hExport" type="button">⬇ Download</button>'
         +   '<button class="btn btn-sm" id="hClear" type="button">Clear all</button>'
         + '</div><div class="pill-row">' + types + '</div>'
         + '<div class="tiny muted mt">Total ' + d.history.length + ' records — stored on this device only.</div></div>'
@@ -1634,14 +1636,6 @@
           TB.App.render();
           TB.App.toast('History cleared', 'ok');
         });
-      });
-      root.querySelector('#hExport').addEventListener('click', function () {
-        var blob = new Blob([TB.Store.exportAll(TB.Auth.userId())], { type: 'application/json' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'tamil-bridge-' + new Date().toISOString().slice(0, 10) + '.json';
-        a.click();
-        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
       });
       draw();
     }
@@ -1838,12 +1832,9 @@
       checkStore(null);
 
       root.querySelector('#sExport').addEventListener('click', function () {
-        var blob = new Blob([TB.Store.exportAll(TB.Auth.userId())], { type: 'application/json' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'tamil-bridge-backup.json';
-        a.click();
-        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+        V.saveFile('tamil-bridge-backup-' + TB.Store.localDay() + '.json',
+                   TB.Store.exportAll(TB.Auth.userId()));
+        TB.App.toast('Backup downloaded.', 'ok');
       });
       root.querySelector('#sImportBtn').addEventListener('click', function () { root.querySelector('#sImport').click(); });
       root.querySelector('#sImport').addEventListener('change', function () {

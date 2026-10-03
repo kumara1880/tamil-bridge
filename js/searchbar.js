@@ -20,12 +20,22 @@ TB.SearchBar = (function () {
   function remember(q) {
     q = String(q || '').trim();
     if (q.length < 2) return;
+    save(recent().filter(function (x) { return x.toLowerCase() !== q.toLowerCase(); }), q);
+  }
+
+  function save(list, unshift) {
     try {
-      var list = recent().filter(function (x) { return x.toLowerCase() !== q.toLowerCase(); });
-      list.unshift(q);
+      if (unshift) list.unshift(unshift);
       localStorage.setItem(K_RECENT, JSON.stringify(list.slice(0, 6)));
     } catch (e) { /* a private window refuses; the search still works */ }
   }
+
+  /* Anything typed into a search box is kept and shown back, so there has to
+     be a way to take it out again — one at a time, or the lot. */
+  function forget(q) {
+    save(recent().filter(function (x) { return x !== q; }));
+  }
+  function forgetAll() { save([]); }
 
   /* ------------------------------------------------------------ rendering */
   var LABEL = {
@@ -58,12 +68,21 @@ TB.SearchBar = (function () {
       var r = recent();
       out.innerHTML =
         (r.length
-          ? '<div class="search-group">Recent</div>'
-            + r.map(function (x, i) {
-                return '<button class="search-row" data-again="' + esc(x) + '" type="button">'
-                  + '<span class="search-row-ic">\u{1F558}</span>'
-                  + '<span class="search-row-main"><span class="search-row-t">' + esc(x) + '</span></span>'
-                  + '</button>';
+          ? '<div class="search-group search-group-row">Recent'
+            + '<button class="search-forget-all" data-forget-all type="button">Clear</button></div>'
+            /* The row stays one button so the arrow keys still reach it; the
+               ✕ sits beside it rather than inside, because a button cannot
+               hold another button. */
+            + r.map(function (x) {
+                return '<div class="search-recent">'
+                  + '<button class="search-row" data-again="' + esc(x) + '" type="button">'
+                  +   '<span class="search-row-ic">\u{1F558}</span>'
+                  +   '<span class="search-row-main"><span class="search-row-t">' + esc(x) + '</span></span>'
+                  + '</button>'
+                  + '<button class="search-forget" data-forget="' + esc(x) + '" type="button" '
+                  +   'aria-label="Remove ' + esc(x) + ' from recent searches" '
+                  +   'title="Remove from recent searches">✕</button>'
+                  + '</div>';
               }).join('')
           : '')
         + '<div class="search-group">Jump to</div>'
@@ -191,6 +210,25 @@ TB.SearchBar = (function () {
     });
 
     out.addEventListener('click', function (e) {
+      /* Removing a past search must not also run it, so these come first
+         and stop there. */
+      var drop = e.target.closest('[data-forget]');
+      if (drop) {
+        e.preventDefault();
+        e.stopPropagation();
+        forget(drop.getAttribute('data-forget'));
+        input.focus();
+        run();
+        return;
+      }
+      if (e.target.closest('[data-forget-all]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        forgetAll();
+        input.focus();
+        run();
+        return;
+      }
       var again = e.target.closest('[data-again]');
       if (again) {
         e.preventDefault();

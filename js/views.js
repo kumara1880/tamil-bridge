@@ -790,6 +790,30 @@ TB.Views = (function () {
     }
   };
 
+  /* Hand the browser a file to save.
+
+     Both places that did this built an <a download>, never put it on the
+     page, and clicked it. A detached anchor is allowed to do nothing, and
+     that is what it did — the backup button looked broken because it was.
+     The anchor goes into the document, gets clicked, and comes straight
+     back out. */
+  function saveFile(name, text, type) {
+    var blob = new Blob([text], { type: type || 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1000);
+    return true;
+  }
+
   return {
     /* `speak` is also a view name (#/speak), and registering that view
        overwrites this key. `speakBtn` is the collision-proof alias that
@@ -798,7 +822,7 @@ TB.Views = (function () {
        object under its route name, and #/speak claims that key. A
        helper and a view cannot both be TB.Views.speak — the view won,
        silently, and the word popup died on a TypeError. */
-    esc: esc, speakBtn: speak, tappable: tappable, ago: ago,
+    esc: esc, speakBtn: speak, tappable: tappable, ago: ago, saveFile: saveFile,
     hiRead: hiRead, hiTamil: hiTamil, readAid: readAid, copy: copy, copyWithToast: copyWithToast,
     themeName: themeName, langLabel: langLabel, sayAllThree: sayAllThree,
     D: D, saveD: saveD,

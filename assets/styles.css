@@ -1084,6 +1084,26 @@ table.chart td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); v
 }
 .search-row.on, .search-row:hover { background: var(--bg-soft); }
 .search-row.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* A past search, with the way to take it off the list beside it. */
+.search-group-row { display: flex; align-items: baseline; justify-content: space-between; }
+.search-forget-all {
+  font: inherit; font-size: calc(11px * var(--fs, 1)); font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  background: none; border: 0; padding: 0 2px; cursor: pointer;
+  color: var(--text-dim); border-radius: 6px;
+}
+.search-forget-all:hover { color: var(--red); text-decoration: underline; }
+.search-recent { display: flex; align-items: center; }
+.search-recent .search-row { flex: 1; min-width: 0; }
+.search-forget {
+  flex: none; width: 30px; height: 30px; margin-right: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font: inherit; line-height: 1; background: none; border: 0;
+  border-radius: 8px; cursor: pointer; color: var(--text-dim);
+}
+.search-forget:hover { background: var(--bg-soft); color: var(--red); }
+.search-forget:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .search-row-ic { flex: none; width: 22px; font-size: calc(16px * var(--fs, 1)); text-align: center; }
 .search-row-main { min-width: 0; flex: 1; display: block; }
 .search-row-t { display: block; font-weight: 600; overflow-wrap: anywhere; }

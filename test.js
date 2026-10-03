@@ -1615,6 +1615,36 @@ section('SEARCH');
 
   t('the index covers the whole app', S.size() > 3000, S.size().toLocaleString('en-IN'));
 
+  /* Anything typed into a search box is kept and shown back, so there has to
+     be a way to take it out again. There was not one at all. */
+  (function () {
+    var sb = require('fs').readFileSync(__dirname + '/js/searchbar.js', 'utf8');
+    var css = require('fs').readFileSync(__dirname + '/assets/styles.css', 'utf8');
+    t('one past search can be removed', /function forget\(q\)/.test(sb) && /data-forget="/.test(sb));
+    t('and the whole list at once', /function forgetAll\(\)/.test(sb) && /data-forget-all/.test(sb));
+    t('removing one does not also run it',
+      /e\.stopPropagation\(\);\s*\n\s*forget\(/.test(sb));
+    t('the ✕ is not nested inside the row button',
+      /<\/button>'\s*\n\s*\+ '<button class="search-forget"/.test(sb));
+    t('and it can be reached by keyboard', /aria-label="Remove /.test(sb));
+    t('both are styled', /\.search-forget \{/.test(css) && /\.search-forget-all \{/.test(css));
+  })();
+
+  /* A download that never put its link on the page. A detached anchor is
+     allowed to do nothing, and that is what it did. */
+  (function () {
+    var v0 = require('fs').readFileSync(__dirname + '/js/views.js', 'utf8');
+    var v2 = require('fs').readFileSync(__dirname + '/js/views2.js', 'utf8');
+    t('saving a file is done in one place', /function saveFile\(name, text, type\)/.test(v0));
+    t('and the link goes into the page before it is clicked',
+      /document\.body\.appendChild\(a\);\s*\n\s*a\.click\(\);/.test(v0));
+    t('and comes back out afterwards', /removeChild\(a\)/.test(v0) && /revokeObjectURL/.test(v0));
+    t('the backup button uses it', /V\.saveFile\('tamil-bridge-backup/.test(v2));
+    t('and no detached anchor is left anywhere',
+      !/a\.download = /.test(v2), 'views2.js still builds its own anchor');
+    t('the duplicate download is gone from history', !/id="hExport"/.test(v2));
+  })();
+
   /* The question that started this: somebody types "synonym" and has to
      land on the synonyms page, not on a word that happens to contain it. */
   function first(q) { var r = S.query(q, 5); return r.length ? r[0] : null; }
