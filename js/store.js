@@ -48,6 +48,13 @@ TB.Store = (function () {
     }
   }
 
+  /* A number, or zero. Guards the places where a value arrives from a file
+     or from an older build and has to be arithmetic afterwards. */
+  function num(v) {
+    var n = typeof v === 'number' ? v : parseFloat(v);
+    return isFinite(n) ? n : 0;
+  }
+
   function blankData() {
     return {
       history: [],       /* newest first */
@@ -219,7 +226,11 @@ TB.Store = (function () {
       }
       if (inc.srs) Object.keys(inc.srs).forEach(function (k) { if (!d.srs[k]) d.srs[k] = inc.srs[k]; });
       if (inc.progress) Object.keys(inc.progress).forEach(function (k) { d.progress[k] = inc.progress[k]; });
-      if (inc.stats) d.stats.xp = Math.max(d.stats.xp || 0, inc.stats.xp || 0);
+      /* A backup file is whatever somebody hands you. "NaN" as the xp used
+         to reach Math.max unchecked, and NaN survives it — then JSON writes
+         it out as null, so a corrupt file could blank a real score. Anything
+         that is not a finite number counts as nothing. */
+      if (inc.stats) d.stats.xp = Math.max(num(d.stats.xp), num(inc.stats.xp));
       api.saveData(userId, d);
       return d;
     },

@@ -9,6 +9,29 @@
   var speakBtn = V.speakBtn, hiRead = V.hiRead, readAid = V.readAid;
   var themeName = V.themeName, langLabel = V.langLabel, D = V.D, saveD = V.saveD;
 
+  /* Has the reader scrolled by hand since a reading began?
+
+     One set of listeners for the life of the page. They used to be attached
+     inside the alphabet's mount(), which runs again on every visit, so they
+     piled up three at a time and were never taken off — and each closure
+     held that mount's whole scope, cells and DOM, from being collected. */
+  var scrollWatch = (function () {
+    var moved = false, armed = false;
+    function on() { moved = true; }
+    return {
+      arm: function () {
+        if (!armed) {
+          armed = true;
+          ['wheel', 'touchmove', 'keydown'].forEach(function (ev) {
+            window.addEventListener(ev, on, { passive: true });
+          });
+        }
+      },
+      reset: function () { moved = false; },
+      moved: function () { return moved; }
+    };
+  })();
+
   /* =============================================================== LEARN */
   V.learn = {
     title: 'Lessons', sub: 'Step by step, English & Hindi',
@@ -942,11 +965,15 @@
       /* The whole set, in order, with the letter lit as it is said \u2014 which
          is the only way to tell which one you are hearing. */
       /* Set the moment somebody scrolls by hand, cleared when a reading
-         starts. Only a real gesture counts; scrollIntoView is not one. */
-      var userScrolled = false;
-      ['wheel', 'touchmove', 'keydown'].forEach(function (ev) {
-        window.addEventListener(ev, function () { userScrolled = true; }, { passive: true });
-      });
+         starts. Only a real gesture counts; scrollIntoView is not one.
+
+         These three live on window, and mount() runs again on every visit to
+         the alphabet, so attaching them here added three more every time and
+         removed none — each one holding this whole mount alive, cells and
+         all. Ten visits meant thirty handlers firing on every scroll. They
+         are attached once now, outside any mount, and the flag lives with
+         them. */
+      scrollWatch.arm();
 
       function readThemAll() { readCells([].slice.call(root.querySelectorAll('[data-letter]'))); }
 
@@ -954,7 +981,7 @@
          somebody tapped to the end of the section it sits in. */
       function readCells(cells) {
         stopReading();
-        userScrolled = false;
+        scrollWatch.reset();
         if (!cells || !cells.length) return;
         var d = V.D();
         /* The chooser above says Letter + word, and this ignored it — so
@@ -992,7 +1019,7 @@
             /* Following along is useful; being dragged back is not. Once
                somebody has scrolled themselves — to reach Stop, usually —
                the page stops moving under them. */
-            if (!userScrolled) cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            if (!scrollWatch.moved()) cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
           }
         });
         running.then(function () {

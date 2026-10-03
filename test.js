@@ -3441,7 +3441,22 @@ section('DICTIONARY (offline)');
       /\.reading #aStop \{[\s\S]{0,120}position: fixed/.test(
         fs.readFileSync(R + 'assets/styles.css', 'utf8')));
     t('and the page stops dragging you back once you scroll',
-      /if \(!userScrolled\) cell\.scrollIntoView/.test(v2));
+      /if \(!scrollWatch\.moved\(\)\) cell\.scrollIntoView/.test(v2));
+    /* Those three listeners sit on window, and mount() runs again on every
+       visit to the alphabet. Attached inside mount they piled up three at a
+       time and were never removed — ten visits, thirty handlers on every
+       scroll, each holding that mount's cells and DOM alive. Measured in a
+       browser before this was changed. */
+    t('the scroll watch is attached once, not once per visit',
+      /var scrollWatch = \(function \(\) \{/.test(v2)
+      && /if \(!armed\) \{/.test(v2));
+    t('and it is declared outside any mount',
+      v2.indexOf('var scrollWatch =') < v2.indexOf('V.alphabet'),
+      'scrollWatch must be module-level');
+    t('nothing adds window listeners inside a view mount',
+      !/mount: function[\s\S]*?window\.addEventListener/.test(
+        v2.slice(v2.indexOf('V.alphabet'), v2.indexOf('V.phonics'))),
+      'a mount() attaches a window listener');
     /* The online voice: a different speaker, and a native one. Offered as
        what it is, because what it sounds like is not something this page
        can know. */
@@ -3652,6 +3667,32 @@ section('DICTIONARY (offline)');
     t('an account keeps its own settings', TB.Store.data(u.id).prefs.voiceSex === '');
     t('and its own history', TB.Store.data(u.id).history.length === 1
         && TB.Store.data(u.id).history[0].src === 'cat');
+
+    /* A backup file is whatever somebody hands you. "NaN" as the xp reached
+       Math.max unchecked and NaN survives it — JSON then writes it out as
+       null, so a corrupt file could blank a real score. */
+    (function () {
+      var bu = 'importer';
+      var d0 = TB.Store.data(bu);
+      d0.stats.xp = 500;
+      TB.Store.saveData(bu, d0);
+      TB.Store.importData(bu, JSON.stringify({ data: { history: [], srs: {}, progress: {}, stats: { xp: 'NaN' } } }));
+      t('a corrupt xp cannot blank a real score', TB.Store.data(bu).stats.xp === 500,
+        TB.Store.data(bu).stats.xp);
+      TB.Store.importData(bu, JSON.stringify({ data: { history: [], srs: {}, progress: {}, stats: { xp: 900 } } }));
+      t('and a higher one still wins', TB.Store.data(bu).stats.xp === 900);
+      TB.Store.importData(bu, JSON.stringify({ data: { history: [], srs: {}, progress: {}, stats: { xp: -5 } } }));
+      t('and a negative one does not', TB.Store.data(bu).stats.xp === 900);
+      var threw = false;
+      try { TB.Store.importData(bu, '{not json'); } catch (e) { threw = true; }
+      t('rubbish is refused', threw);
+      threw = false;
+      try { TB.Store.importData(bu, JSON.stringify({ version: 1 })); } catch (e) { threw = true; }
+      t('and so is a file with no data in it', threw);
+      TB.Store.importData(bu, JSON.stringify({ data: { history: 'oops', srs: 'oops', progress: {}, stats: {} } }));
+      t('a history that is not a list is ignored, not fatal',
+        Array.isArray(TB.Store.data(bu).history));
+    })();
 
     /* A missing id must never be read as the guest bucket here. */
     TB.Store.deleteUser('');
