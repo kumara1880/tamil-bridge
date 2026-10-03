@@ -53,6 +53,12 @@ let STORE = { kind: 'starting', durable: false, reason: '' };
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const ALLOWED = (process.env.ALLOWED_ORIGIN || '*').split(',').map(s => s.trim());
 const TOKEN_TTL = '180d';
+/* The same thousand the browser keeps, so a sync never returns less than it
+   was given. */
+const MAX_HISTORY = 1000;
+/* One cost factor, used everywhere a password is hashed. Signup used 12 and
+   a password reset used 10, so resetting quietly weakened the hash. */
+const BCRYPT_COST = 12;
 
 if (!process.env.JWT_SECRET) {
   console.warn('[warn] JWT_SECRET is not set — tokens will not survive a restart. Set it in Render.');
@@ -327,7 +333,20 @@ function rateLimit(max, windowMs) {
     if (now > rec.reset) { rec.n = 0; rec.reset = now + windowMs; }
     rec.n++;
     hits.set(key, rec);
-    if (hits.size > 5000) hits.clear();
+    /* Clearing the whole map when it filled up reset everybody's counter at
+       once, so enough traffic — from anywhere — handed an attacker a fresh
+       allowance. Only windows that have already expired are dropped, and a
+       live counter survives. */
+    if (hits.size > 5000) {
+      for (const [k, v] of hits) if (now > v.reset) hits.delete(k);
+      /* Still full of live windows: drop the oldest, never the current one. */
+      if (hits.size > 5000) {
+        const oldest = [...hits.entries()].sort((a, b) => a[1].reset - b[1].reset);
+        for (let i = 0; i < oldest.length / 2; i++) {
+          if (oldest[i][0] !== key) hits.delete(oldest[i][0]);
+        }
+      }
+    }
     if (rec.n > max) return res.status(429).json({ error: 'Too many attempts. Try again shortly.' });
     next();
   };
@@ -417,7 +436,7 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
       _id: crypto.randomUUID(),
       name: String(name).trim().slice(0, 80),
       email,
-      hash: await bcrypt.hash(String(password), 12),
+      hash: await bcrypt.hash(String(password), BCRYPT_COST),
       createdAt: Date.now()
     };
     try {
@@ -545,7 +564,7 @@ app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
       });
     }
     await users.updateOne({ _id: user._id }, {
-      $set: { hash: await bcrypt.hash(pw, 10), resetHash: null, resetAt: null }
+      $set: { hash: await bcrypt.hash(pw, BCRYPT_COST), resetHash: null, resetAt: null }
     });
     res.json({ token: sign(user), user: publicUser(user) });
   } catch (e) {
@@ -609,31 +628,53 @@ app.post('/api/account/delete', auth, rateLimit(6, 15 * 60 * 1000), async (req, 
   }
 });
 
+/* Express 4 does not catch a rejected promise from an async handler: it
+   becomes an unhandled rejection and the request simply never answers, so a
+   database that has gone away turns every one of these into a browser
+   waiting until it times out. Every async handler says something. */
 app.get('/api/auth/me', auth, async (req, res) => {
-  const user = await users.findOne({ _id: req.userId });
-  if (!user) return res.status(404).json({ error: 'Account not found.' });
-  res.json({ user: publicUser(user) });
+  try {
+    const user = await users.findOne({ _id: req.userId });
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+    res.json({ user: publicUser(user) });
+  } catch (e) {
+    console.error('me', e);
+    res.status(500).json({ error: 'Could not read the account.' });
+  }
 });
 
 app.get('/api/data', auth, async (req, res) => {
-  const doc = await blobs.findOne({ _id: req.userId });
-  res.json({ data: doc ? doc.data : null });
+  try {
+    const doc = await blobs.findOne({ _id: req.userId });
+    res.json({ data: doc ? doc.data : null });
+  } catch (e) {
+    console.error('get data', e);
+    res.status(500).json({ error: 'Could not read your data. Nothing was changed.' });
+  }
 });
 
 app.put('/api/data', auth, async (req, res) => {
-  const { history, srs, progress, stats } = req.body || {};
-  const data = {
-    history: Array.isArray(history) ? history.slice(0, 500) : [],
-    srs: srs && typeof srs === 'object' ? srs : {},
-    progress: progress && typeof progress === 'object' ? progress : {},
-    stats: stats && typeof stats === 'object' ? stats : {}
-  };
-  await blobs.updateOne(
-    { _id: req.userId },
-    { $set: { _id: req.userId, data, updatedAt: Date.now() } },
-    { upsert: true }
-  );
-  res.json({ ok: true, saved: data.history.length });
+  try {
+    const { history, srs, progress, stats } = req.body || {};
+    const data = {
+      /* The browser keeps a thousand, so keeping five hundred here meant a
+         sync quietly halved the history of anybody who had more than that —
+         and restoring on a new device handed it back short. */
+      history: Array.isArray(history) ? history.slice(0, MAX_HISTORY) : [],
+      srs: srs && typeof srs === 'object' ? srs : {},
+      progress: progress && typeof progress === 'object' ? progress : {},
+      stats: stats && typeof stats === 'object' ? stats : {}
+    };
+    await blobs.updateOne(
+      { _id: req.userId },
+      { $set: { _id: req.userId, data, updatedAt: Date.now() } },
+      { upsert: true }
+    );
+    res.json({ ok: true, saved: data.history.length });
+  } catch (e) {
+    console.error('put data', e);
+    res.status(500).json({ error: 'Could not save your data. Try again shortly.' });
+  }
 });
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found.' }));
