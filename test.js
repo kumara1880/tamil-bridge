@@ -2201,6 +2201,31 @@ section('CONJUGATION');
   t('English consonant doubling', TB.Conjugate.enForms('sit').ing === 'sitting');
   t('English -y to -ies', TB.Conjugate.enForms('study').third === 'studies');
   t('English has 12 tenses', e.tenses.length === 12);
+
+  /* A table of endings teaches nothing if the reader cannot say what the
+     word is. A Hindi verb is given in English and Tamil; an English verb in
+     Tamil, and not in Hindi — a third language nobody asked for. */
+  (function () {
+    var v6 = require('fs').readFileSync(__dirname + '/js/views6.js', 'utf8');
+    t('the conjugation says what the verb means', /function meaningLine/.test(v6));
+    t('English only when the verb is Hindi', /srcLang === 'hi' && q\.en/.test(v6));
+    t('Tamil whichever language the verb is', /if \(q\.ta\) bits\.push\(part\('தமிழ்'/.test(v6));
+    t('and no Hindi on the English card', !/q\.hi/.test(v6));
+    t('each meaning is labelled with its language',
+      /part\('English'/.test(v6) && /part\('தமிழ்'/.test(v6));
+    t('it is shown for both kinds of verb',
+      (v6.match(/meaningLine\(/g) || []).length >= 3);
+
+    /* The dictionary behind it has to answer for the word actually typed,
+       including a form that is not the base one. */
+    var w = TB.Dict.quick('write', 'en');
+    t('an English verb has a Tamil meaning', w && w.ta === 'எழுது', w && w.ta);
+    var went = TB.Dict.quick('went', 'en');
+    t('and so does a form that is not the base', went && went.ta === 'செல்', went && went.ta);
+    var kar = TB.Dict.quick('करना', 'hi');
+    t('a Hindi verb has both', kar && kar.ta === 'செய்' && kar.en === 'do',
+      kar && (kar.ta + '/' + kar.en));
+  })();
 })();
 
 /* ---------------- numbers ---------------- */

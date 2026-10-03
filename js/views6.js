@@ -66,20 +66,31 @@
         TB.App.refreshChips();
       }
 
-      /* What the verb actually means, in Tamil and in English, read straight
-         from the offline dictionary. A table of endings teaches nothing if
-         the reader cannot say what the word is. */
+      /* What the verb actually means, read straight from the offline
+         dictionary. A table of endings teaches nothing if the reader cannot
+         say what the word is.
+
+         A Hindi verb is given in English and in Tamil. An English verb is
+         given in Tamil — the reader's own language is the one that has to be
+         there, and the Hindi that used to sit on the English card was a
+         third language nobody had asked for.
+
+         Each is labelled, because செய் beside do is only obvious to
+         somebody who already knows which is which. */
       function meaningLine(word, srcLang) {
         var q = null;
         try { q = TB.Dict.quick(word, srcLang); } catch (e) { q = null; }
         if (!q) return '';
+        function part(label, value, cls) {
+          return '<span class="conj-mean-bit"><span class="tiny muted">' + label + '</span> '
+               + '<span class="' + cls + '">' + esc(value) + '</span></span>';
+        }
         var bits = [];
-        if (q.ta) bits.push('<span class="ta">' + esc(q.ta) + '</span>');
-        if (q.en && srcLang !== 'en') bits.push('<span>' + esc(q.en) + '</span>');
-        if (q.hi && srcLang !== 'hi') bits.push('<span class="hi">' + esc(q.hi) + '</span>');
+        if (srcLang === 'hi' && q.en) bits.push(part('English', q.en, 'en'));
+        if (q.ta) bits.push(part('தமிழ்', q.ta, 'ta'));
         if (!bits.length) return '';
         return '<div class="conj-meaning"><span class="tiny muted">means</span> '
-             + bits.join('<span class="tiny muted"> · </span>') + '</div>';
+             + bits.join('') + '</div>';
       }
 
       function renderHindi(verb) {
