@@ -3606,6 +3606,23 @@ section('DICTIONARY (offline)');
     var srv = fs.readFileSync(R + 'server/index.js', 'utf8');
     var html = fs.readFileSync(R + 'index.html', 'utf8');
 
+    /* A password-reset link used to take its host from the request's own
+       Origin header whenever APP_URL was unset and ALLOWED_ORIGIN was left
+       at its documented default of "*". Anyone could then ask for somebody
+       else's reset with an Origin of their choosing, and the victim would
+       receive a genuine email carrying a working token pointed at the
+       attacker's site. Clicking it handed over the account. */
+    t('a reset link is never built from the caller’s Origin',
+      !/headers\.origin/.test(srv), 'server still reads req.headers.origin');
+    t('and appUrl does not take the request at all',
+      /function appUrl\(\) \{/.test(srv));
+    t('without a configured destination nothing is sent',
+      /reason: 'no-app-url'/.test(srv) && /const base = appUrl\(\);/.test(srv));
+    t('and the link is built from that checked value',
+      /const link = base \+ '\/\?reset='/.test(srv));
+    t('health does not claim a reset is possible when it is not',
+      /canReset: MAIL_STATE\.ready && STORE\.durable && !!appUrl\(\)/.test(srv));
+
     /* Two elements shared the id swapBtn: the sign-in screen's button and
        Translate's swap arrows. getElementById returns whichever comes
        first, and duplicate ids are invalid besides. */

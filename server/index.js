@@ -193,10 +193,24 @@ if (!MAIL_READY && !HTTP_MAIL) {
   console.warn('[warn] No email provider is set \u2014 password reset by email is off.');
 }
 
-function appUrl(req) {
+/* Where a reset link points.
+
+   This used to fall through to the request's own Origin header, which the
+   sender chooses. With ALLOWED_ORIGIN left at its default of "*" — which is
+   the documented default — anybody could POST to /api/auth/forgot with
+   somebody else's address and an Origin of their own, and the victim would
+   receive a genuine Tamil Bridge email carrying a working token pointed at
+   the attacker's site. Clicking it handed over the account.
+
+   The destination is now configuration only. If neither APP_URL nor a
+   specific ALLOWED_ORIGIN is set there is nowhere safe to send people, so
+   nothing is sent and the endpoint says so. A reset that does not arrive is
+   a bad day; a reset that arrives pointing somewhere else is an account
+   gone. */
+function appUrl() {
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/+$/, '');
   if (ALLOWED[0] && ALLOWED[0] !== '*') return ALLOWED[0].replace(/\/+$/, '');
-  return (req.headers.origin || '').replace(/\/+$/, '');
+  return '';
 }
 
 /* --------------------------------------------------------------- storage */
@@ -393,7 +407,10 @@ app.get('/api/health', (_req, res) => {
     mail: MAIL_STATE.ready,
     mailVia: MAIL_STATE.how,
     mailReason: MAIL_STATE.reason,
-    canReset: MAIL_STATE.ready && STORE.durable,
+    /* A reset also needs somewhere safe to point the link. Saying it can be
+       done when it cannot sends people to a dead end. */
+    appUrl: !!appUrl(),
+    canReset: MAIL_STATE.ready && STORE.durable && !!appUrl(),
     time: new Date().toISOString()
   });
 });
@@ -514,6 +531,17 @@ app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000), async (req, res) => {
              + 'An account made with a phone number cannot be reset this way.'
       });
     }
+    /* Checked before anything is written or sent: without a configured
+       destination the link has nowhere safe to point. */
+    const base = appUrl();
+    if (!base) {
+      return res.status(503).json({
+        error: 'This server has not been told where the app lives, so a reset link '
+             + 'cannot be sent safely.',
+        detail: 'Set APP_URL (or a specific ALLOWED_ORIGIN) on the service.',
+        canReset: false, reason: 'no-app-url'
+      });
+    }
 
     const user = await users.findOne({ email });
     if (user) {
@@ -525,7 +553,7 @@ app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000), async (req, res) => {
         $set: { resetHash: hash, resetAt: Date.now() + 60 * 60 * 1000 }
       });
 
-      const link = appUrl(req) + '/?reset=' + raw;
+      const link = base + '/?reset=' + raw;
       await sendMail(
         email,
         'Reset your Tamil Bridge password',
