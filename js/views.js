@@ -790,6 +790,28 @@ TB.Views = (function () {
     }
   };
 
+  /* Has the reader scrolled by hand since a reading began?
+
+     One set of listeners for the life of the page, shared by every view that
+     reads a list aloud and follows along. Attached inside a mount() they
+     would pile up, three at a time, on every visit — and each closure would
+     hold that mount's whole scope from being collected. */
+  var scrollWatch = (function () {
+    var moved = false, armed = false;
+    function on() { moved = true; }
+    return {
+      arm: function () {
+        if (armed) return;
+        armed = true;
+        ['wheel', 'touchmove', 'keydown'].forEach(function (ev) {
+          window.addEventListener(ev, on, { passive: true });
+        });
+      },
+      reset: function () { moved = false; },
+      moved: function () { return moved; }
+    };
+  })();
+
   /* Hand the browser a file to save.
 
      Both places that did this built an <a download>, never put it on the
@@ -823,6 +845,7 @@ TB.Views = (function () {
        helper and a view cannot both be TB.Views.speak — the view won,
        silently, and the word popup died on a TypeError. */
     esc: esc, speakBtn: speak, tappable: tappable, ago: ago, saveFile: saveFile,
+    scrollWatch: scrollWatch,
     hiRead: hiRead, hiTamil: hiTamil, readAid: readAid, copy: copy, copyWithToast: copyWithToast,
     themeName: themeName, langLabel: langLabel, sayAllThree: sayAllThree,
     D: D, saveD: saveD,

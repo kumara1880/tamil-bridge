@@ -9,28 +9,9 @@
   var speakBtn = V.speakBtn, hiRead = V.hiRead, readAid = V.readAid;
   var themeName = V.themeName, langLabel = V.langLabel, D = V.D, saveD = V.saveD;
 
-  /* Has the reader scrolled by hand since a reading began?
-
-     One set of listeners for the life of the page. They used to be attached
-     inside the alphabet's mount(), which runs again on every visit, so they
-     piled up three at a time and were never taken off — and each closure
-     held that mount's whole scope, cells and DOM, from being collected. */
-  var scrollWatch = (function () {
-    var moved = false, armed = false;
-    function on() { moved = true; }
-    return {
-      arm: function () {
-        if (!armed) {
-          armed = true;
-          ['wheel', 'touchmove', 'keydown'].forEach(function (ev) {
-            window.addEventListener(ev, on, { passive: true });
-          });
-        }
-      },
-      reset: function () { moved = false; },
-      moved: function () { return moved; }
-    };
-  })();
+  /* Shared with every other view that reads a list aloud — one set of
+     listeners for the page, not one per mount. See views.js. */
+  var scrollWatch = V.scrollWatch;
 
   /* =============================================================== LEARN */
   V.learn = {

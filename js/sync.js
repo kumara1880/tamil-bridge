@@ -174,7 +174,11 @@ TB.Sync = (function () {
       return req('/api/data', {
         method: 'PUT',
         body: {
-          history: (data.history || []).slice(0, 500),
+          /* The same thousand that merge() keeps and the store holds. Pushing
+             five hundred meant the half a heavy user had above that never
+             left the device, and a new device restored a history that had
+             silently lost its older half. */
+          history: (data.history || []).slice(0, 1000),
           srs: data.srs || {},
           progress: data.progress || {},
           stats: data.stats || {}

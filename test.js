@@ -183,20 +183,21 @@ section('WRITING');
       fillText: function (t, x, y) { seen.push({ t: t, x: x, y: y }); }
     };
     W.drawGhost(ctx, '47', 'num', 600, 200, 1, '#000', true);
-    t('a two-digit number is repeated across the row', seen.length > 1, seen.length + ' copies');
-    t('every copy is the whole number, not one digit',
-      seen.every(function (o) { return o.t === '47'; }));
-    t('the copies are evenly spaced', (function () {
-      if (seen.length < 3) return true;
-      var g = seen[1].x - seen[0].x;
-      for (var i = 2; i < seen.length; i++) {
-        if (Math.abs((seen[i].x - seen[i - 1].x) - g) > 0.01) return false;
-      }
-      return true;
-    })());
-    t('and the group is centred on the sheet',
-      Math.abs(seen[0].x - (600 - (seen[seen.length - 1].x + 60))) < 1.5,
-      seen[0].x + ' / ' + (600 - (seen[seen.length - 1].x + 60)));
+    /* One to trace, in the middle. A row of five faint A's reads as a
+       handwriting drill for somebody who already forms the letter, not as
+       the one shape a child is copying. */
+    t('a practice token is drawn once, not repeated', seen.length === 1, seen.length + ' copies');
+    t('and it is the whole token, not one character of it', seen[0].t === '47');
+    t('and it sits in the middle of the sheet', (function () {
+      var left = seen[0].x;                 /* measureText gives width 60 for '47' */
+      var right = 600 - (seen[0].x + 60);
+      return Math.abs(left - right) < 1.5;
+    })(), 'x=' + seen[0].x + ' of 600');
+
+    seen = [];
+    W.drawGhost(ctx, 'A', 'en', 600, 200, 1, '#000', true);
+    t('a single letter is drawn once too', seen.length === 1, seen.length + ' copies');
+    t('and centred', Math.abs(seen[0].x - (600 - (seen[0].x + 30))) < 1.5, 'x=' + seen[0].x);
 
     seen = [];
     W.drawGhost(ctx, 'This is my name', 'en', 600, 400, 4, '#000', false);
@@ -273,10 +274,20 @@ section('WRITING');
        follows it */
     var end = src.indexOf('}, 200);', i);
     var handler = src.slice(i, end > 0 ? end + 8 : i + 400);
+    /* The listener is attached once for the page now, so the handler calls
+       whatever the mounted view handed it rather than closing over a paint
+       that would keep a dead view alive. */
     t('a resize repaints the sheet rather than rebuilding the page',
-      i > 0 && /paint\(/.test(handler) && !/redraw\(\)/.test(handler));
+      i > 0 && /repaintSheet\(\)/.test(handler) && !/redraw\(\)/.test(handler));
+    t('and the repaint it calls is the mounted view’s',
+      /repaintSheet = function \(\)/.test(src) && /paint\('t'/.test(src));
     t('and ignores a resize that did not change the width',
-      /innerWidth === lastW/.test(handler));
+      /innerWidth === lastWidth/.test(handler));
+    t('the sheet listener is attached once, not inside mount',
+      src.indexOf("window.addEventListener('resize'") < src.indexOf('V.write = {'));
+    t('and so is the one that ends a stroke off the sheet',
+      src.indexOf("window.addEventListener('mouseup'") < src.indexOf('V.write = {')
+      && /c\.__endInk = end;/.test(src));
     t('ink listeners are attached once, not on every repaint',
       /__wired/.test(src));
   })();
@@ -598,6 +609,12 @@ section('VIEWS LOAD');
   var v = {};
   v.window = v;
   v.console = { log: function () {}, warn: function () {}, error: function () {} };
+  /* A file may attach a page-lifetime listener as it loads — that is the fix
+     for the handlers that used to pile up inside mount(). The harness has to
+     behave like a window, or the correct shape is the one that fails here. */
+  v.addEventListener = function () {};
+  v.removeEventListener = function () {};
+  v.innerWidth = 1024; v.innerHeight = 768;
   v.navigator = { onLine: false, language: 'en' };
   v.location = { hash: '#/home', search: '', pathname: '/' };
   v.setTimeout = setTimeout; v.clearTimeout = clearTimeout;
@@ -2990,6 +3007,22 @@ section('DICTIONARY (offline)');
   (function () {
     var v11 = fs.readFileSync(R + 'js/views11.js', 'utf8');
 
+    /* The chart reads aloud the way the alphabet does: the page, or on from
+       whichever number was tapped, and a Stop while it runs. */
+    t('the chart can read its page', /id="cReadAll"/.test(v11));
+    t('and read on from the number tapped',
+      /id="cReadFrom"/.test(v11) && /Read on from /.test(v11));
+    t('and be stopped', /id="cStop"/.test(v11) && /function stopReading\(\)/.test(v11));
+    t('a tap records where to carry on from',
+      /lastTapped = n;/.test(v11) && /markFrom\(\);/.test(v11));
+    t('changing the page stops the reading and re-checks that mark',
+      /stopReading\(\);\s*\n\s*markFrom\(\);/.test(v11));
+    t('each number is read as the figure and then its three names',
+      /\[String\(n\), 'en'\], \[en, 'en'\], \[ta, 'ta'\], \[hi, 'hi'\]/.test(v11));
+    t('the chosen single voice is honoured too',
+      /voice === 'en' \? en : voice === 'hi' \? hi : ta, voice/.test(v11));
+    t('and the cell being read is lit', /cell\.classList\.add\('saying'\)/.test(v11));
+
     /* Six fixed ranges and nothing else: no way to ask for 101 to 2,000,
        and no way to look up one number. */
     t('there is a thousand-long chart', /data-r="1-1000"/.test(v11));
@@ -3447,16 +3480,25 @@ section('DICTIONARY (offline)');
        time and were never removed — ten visits, thirty handlers on every
        scroll, each holding that mount's cells and DOM alive. Measured in a
        browser before this was changed. */
-    t('the scroll watch is attached once, not once per visit',
-      /var scrollWatch = \(function \(\) \{/.test(v2)
-      && /if \(!armed\) \{/.test(v2));
-    t('and it is declared outside any mount',
-      v2.indexOf('var scrollWatch =') < v2.indexOf('V.alphabet'),
-      'scrollWatch must be module-level');
-    t('nothing adds window listeners inside a view mount',
-      !/mount: function[\s\S]*?window\.addEventListener/.test(
-        v2.slice(v2.indexOf('V.alphabet'), v2.indexOf('V.phonics'))),
-      'a mount() attaches a window listener');
+    (function () {
+      var v0 = fs.readFileSync(R + 'js/views.js', 'utf8');
+      var v11 = fs.readFileSync(R + 'js/views11.js', 'utf8');
+      t('the scroll watch is attached once, not once per visit',
+        /var scrollWatch = \(function \(\) \{/.test(v0) && /if \(armed\) return;/.test(v0));
+      t('and it is shared, not rebuilt per file',
+        /scrollWatch: scrollWatch/.test(v0)
+        && /var scrollWatch = V\.scrollWatch/.test(v2)
+        && /var scrollWatch = V\.scrollWatch/.test(v11));
+      /* The whole point: a window listener inside a mount() accumulates,
+         because mount() runs again on every visit to that view. */
+      ['js/views.js', 'js/views2.js', 'js/views3.js', 'js/views11.js'].forEach(function (f) {
+        var src = fs.readFileSync(R + f, 'utf8');
+        var inMounts = (src.match(/mount: function[\s\S]*?(?=\n  \};|\n  V\.)/g) || []).join('\n');
+        t('no window listener is attached inside a mount in ' + f,
+          !/window\.addEventListener/.test(inMounts),
+          (inMounts.match(/window\.addEventListener\([^)]*/g) || []).join(' | '));
+      });
+    })();
     /* The online voice: a different speaker, and a native one. Offered as
        what it is, because what it sounds like is not something this page
        can know. */

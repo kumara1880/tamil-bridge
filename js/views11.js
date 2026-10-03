@@ -8,6 +8,8 @@
   var V = TB.Views;
   var esc = V.esc, speak = V.speakBtn, readAid = V.readAid, D = V.D, saveD = V.saveD;
   var M2 = TB.Maths2;
+  /* Shared with the alphabet — one set of window listeners for the page. */
+  var scrollWatch = V.scrollWatch;
 
   /* ------------------------------------------------ vertically & crosswise */
   V.crosswise = {
@@ -295,6 +297,16 @@
         +     '<button class="pill" data-v="hi" type="button">\u0939\u093f\u0902\u0926\u0940</button>'
         +   '</div>'
         + '</div>'
+        /* The same three the alphabet has: the whole page read aloud, the
+           page read on from whichever number was tapped, and a Stop that is
+           always within reach. */
+        + '<div class="row mt"><span class="tiny muted">Read:</span>'
+        +   '<div class="pill-row">'
+        +     '<button class="btn btn-sm" id="cReadAll" type="button">\u25b6 Read this page</button>'
+        +     '<button class="btn btn-sm" id="cReadFrom" type="button" hidden></button>'
+        +     '<button class="btn btn-sm btn-stop" id="cStop" type="button" hidden>\u23f9 Stop</button>'
+        +   '</div>'
+        + '</div>'
         + '<div class="tiny muted mt">Tap any number to hear it read in English, \u0ba4\u0bae\u0bbf\u0bb4\u0bcd '
         +   'and \u0939\u093f\u0902\u0926\u0940, one after another. The name is underneath in all three, '
         +   'with the pronunciation below that.</div></div>'
@@ -401,6 +413,11 @@
           var cell = body.querySelector('.num-cell.found');
           if (cell) cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
+        /* The page under a reading has just been replaced, so whatever was
+           being read is gone; and "read on from" only makes sense while the
+           number it names is still on the page. */
+        stopReading();
+        markFrom();
       }
 
       root.querySelector('#cVoice').addEventListener('click', function (e) {
@@ -496,6 +513,81 @@
         TB.Speech.speak(text, voice, { rate: 0.78 });
       }
 
+      /* ------------------------------------------------- reading the page */
+      /* A run of numbers, each in whichever languages the chooser is set to,
+         with the cell lit as it is said. The Stop appears while it runs. */
+      var running = null;
+      var lastTapped = null;
+
+      function stopBtns(on) {
+        var s = root.querySelector('#cStop');
+        if (s) s.hidden = !on;
+      }
+
+      function clearLit() {
+        body.querySelectorAll('.num-cell.saying').forEach(function (x) {
+          x.classList.remove('saying');
+        });
+      }
+
+      function stopReading() {
+        if (running && running.cancel) running.cancel();
+        running = null;
+        TB.Speech.stop();
+        clearLit();
+        stopBtns(false);
+      }
+
+      function markFrom() {
+        var b = root.querySelector('#cReadFrom');
+        if (!b) return;
+        var onPage = lastTapped != null && numbersFor().indexOf(lastTapped) >= 0;
+        b.hidden = !onPage;
+        if (onPage) b.textContent = '▶ Read on from ' + lastTapped.toLocaleString('en-IN');
+      }
+
+      function readNumbers(list) {
+        stopReading();
+        if (!list || !list.length) return;
+        var steps = [], owner = [];
+        list.forEach(function (n) {
+          var en = TB.Numbers.enIndian(n), ta = TB.Numbers.ta(n), hi = TB.Numbers.hi(n);
+          var want = voice === 'all'
+            ? [[String(n), 'en'], [en, 'en'], [ta, 'ta'], [hi, 'hi']]
+            : [[String(n), 'en'], [voice === 'en' ? en : voice === 'hi' ? hi : ta, voice]];
+          want.forEach(function (p, i) {
+            if (!p[0]) return;
+            steps.push({ text: p[0], lang: p[1], rate: 0.78, pause: i === want.length - 1 ? 520 : 200 });
+            owner.push(n);
+          });
+        });
+        if (!steps.length) return;
+        stopBtns(true);
+        running = TB.Speech.sequence(steps, {
+          onStep: function (step, i) {
+            clearLit();
+            var cell = body.querySelector('.num-cell[data-n="' + owner[i] + '"]');
+            if (!cell) return;
+            cell.classList.add('saying');
+            if (!scrollWatch.moved()) cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
+        });
+        running.then(function () { clearLit(); stopBtns(false); running = null; });
+      }
+
+      scrollWatch.arm();
+      root.querySelector('#cReadAll').addEventListener('click', function () {
+        scrollWatch.reset();
+        readNumbers(numbersFor());
+      });
+      root.querySelector('#cReadFrom').addEventListener('click', function () {
+        scrollWatch.reset();
+        var all = numbersFor();
+        var i = all.indexOf(lastTapped);
+        readNumbers(i < 0 ? all : all.slice(i));
+      });
+      root.querySelector('#cStop').addEventListener('click', stopReading);
+
       /* The card under the chart. Written once, because a number can be
          arrived at by tapping it or by asking for it by name. */
       function showOne(n, speakIt) {
@@ -544,10 +636,14 @@
         });
         cell.classList.add('on');
         found = null;
+        /* Where a reading would pick up from, if asked. */
+        lastTapped = n;
+        markFrom();
         showOne(n, true);
       });
 
       draw();
+      markFrom();
     }
   };
 }());

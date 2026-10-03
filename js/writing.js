@@ -73,10 +73,13 @@ TB.Writing = (function () {
 
   /* The faint model.
 
-     One character repeated is spread across the sheet with equal gaps and
-     the group centred — the case that used to bunch three letters against
-     the left edge and leave a third of the paper empty. Anything longer is
-     wrapped onto the rows and each line is centred. */
+     One letter to trace, in the middle of the sheet, as large as the sheet
+     allows. It used to be repeated across the row — five faint A's — which
+     reads as a handwriting drill for somebody who already forms the letter,
+     not as the one shape a child is learning to copy.
+
+     Anything longer than a practice token is a word or a sentence: wrapped
+     onto the rows, each line centred. */
   function drawGhost(ctx, text, script, w, h, n, colour, repeat) {
     var line = rows(w, h, n);
     var family = FAMILY[script] || FAMILY.en;
@@ -114,25 +117,13 @@ TB.Writing = (function () {
       var unit = Math.max(cw, inkL + inkR);
       if (!(unit > 0)) return { rows: line };
 
-      /* how many fit with a comfortable gap, then spread the leftover space
-         evenly so the row reads as deliberate rather than truncated */
-      var space = w - SIDE * 2;
-      var want = unit * 1.85;
-      var count = Math.max(1, Math.floor((space + (want - unit)) / want));
-      var gap = count > 1 ? (space - count * unit) / (count - 1) : 0;
-
-      /* Start where the ink starts, not where the pen starts. */
-      var x = SIDE + inkL;
+      /* Centred on the ink, not on the advance: a typeface is free to paint
+         outside the width it reports, and the Indic ones do, so centring on
+         the advance alone leaves the glyph visibly off to one side. */
+      var x = (w - unit) / 2 + inkL;
       var y = baselineFor(f, line[0]);
-      var drawn = 0;
-      for (var i = 0; i < count; i++) {
-        /* Nothing is painted past the edge, whatever the metrics claim. */
-        if (x + inkR > w - SIDE + 0.5) break;
-        ctx.fillText(ch, x, y);
-        drawn++;
-        x += unit + gap;
-      }
-      return { rows: line, size: f.size, count: drawn, centred: true };
+      ctx.fillText(ch, x, y);
+      return { rows: line, size: f.size, count: 1, centred: true };
     }
 
     /* A word or a sentence: one size for the run, wrapped onto the rows. */

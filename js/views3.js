@@ -14,6 +14,37 @@
   var esc = V.esc, speak = V.speakBtn, D = V.D, saveD = V.saveD;
   var W = TB.Writing;
 
+  /* Two window listeners, attached once for the life of the page.
+
+     Both of these used to live inside mount(), which runs again on every
+     visit to this view: the resize handler piled up one per visit, and the
+     mouseup one piled up per canvas, each holding a dead canvas and its
+     drawing context alive. They are out here now, and they find their work
+     rather than closing over it.
+
+     mouseup has to be on window, not the canvas: a stroke that ends with the
+     pointer off the sheet still has to stop drawing. */
+  window.addEventListener('mouseup', function () {
+    var pads = document.querySelectorAll('canvas.write-ink');
+    for (var i = 0; i < pads.length; i++) {
+      if (pads[i].__endInk) pads[i].__endInk();
+    }
+  });
+
+  /* A phone opening its keyboard fires a resize. Rebuilding the view there
+     would destroy the input mid-word, so only the sheet is repainted, and
+     only when the width actually changed. */
+  var repaintSheet = null;        /* the mounted view's repaint, or null */
+  var resizeTimer = null, lastWidth = window.innerWidth;
+  window.addEventListener('resize', function () {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (repaintSheet) repaintSheet();
+    }, 200);
+  });
+
   V.write = {
     title: 'Writing', sub: 'Trace the letters, write your own name, then spell',
     html: function () {
@@ -121,7 +152,9 @@
 
         c.addEventListener('mousedown', start);
         c.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', end);
+        /* The one window mouseup above calls this; nothing is attached per
+           canvas, so a replaced sheet is collected with its context. */
+        c.__endInk = end;
         c.addEventListener('touchstart', start, { passive: false });
         c.addEventListener('touchmove', move, { passive: false });
         c.addEventListener('touchend', end);
@@ -170,7 +203,7 @@
           +     '<button class="btn btn-sm" id="wPrev" type="button">← Back</button>'
           +     '<button class="btn btn-primary btn-sm" id="wNext" type="button">Done, next →</button>'
           +   '</div>'
-          +   '<div class="tiny muted center mt">Trace over the faint letters with your finger, stylus or mouse.</div>'
+          +   '<div class="tiny muted center mt">Trace over the faint letter with your finger, stylus or mouse.</div>'
           + '</div>';
 
         paint('t', L.ch, L.script, true);
@@ -417,19 +450,12 @@
         redraw();
       });
 
-      /* A phone opening its keyboard fires a resize. Rebuilding the view
-         there would destroy the input mid-word, so only the sheet is
-         repainted and only when the width actually changed. */
-      var rt = null, lastW = window.innerWidth;
-      window.addEventListener('resize', function () {
-        if (window.innerWidth === lastW) return;
-        lastW = window.innerWidth;
-        clearTimeout(rt);
-        rt = setTimeout(function () {
-          if (mode === 'trace' && list[idx]) paint('t', list[idx].ch, list[idx].script, true);
-          else if (mode === 'own') paint('o', ownText.trim(), ownScript, false);
-        }, 200);
-      });
+      /* Hand the one resize listener this mount's repaint. Assigning it
+         releases the previous view's. */
+      repaintSheet = function () {
+        if (mode === 'trace' && list[idx]) paint('t', list[idx].ch, list[idx].script, true);
+        else if (mode === 'own') paint('o', ownText.trim(), ownScript, false);
+      };
 
       redraw();
     }
