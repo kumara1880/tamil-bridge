@@ -135,7 +135,7 @@ TB.Sync = (function () {
        which case the caller answers with the browser's own tutor. */
     tutor: function (body) {
       if (!base) return Promise.reject(new Error('no-backend'));
-      return req('/api/tutor', { method: 'POST', body: body }, 50000).then(function (j) {
+      return req('/api/tutor', { method: 'POST', body: body }, 70000).then(function (j) {
         if (!j || !j.tutor) throw new Error('unreadable');
         return j.tutor;
       });

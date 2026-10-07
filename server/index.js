@@ -779,7 +779,8 @@ const GEMINI_MODEL_ENV = (process.env.GEMINI_MODEL || '').trim();
 const GEMINI_FALLBACK = 'gemini-3.8-flash';
 /* `problem` is a short category, safe to show on /api/health — never the
    key and never Google's own message, which goes to the log. */
-let TUTOR_STATE = { ready: !!GEMINI_KEY, model: GEMINI_MODEL_ENV || GEMINI_FALLBACK, problem: GEMINI_KEY ? 'starting' : 'no-key' };
+let TUTOR_STATE = { ready: !!GEMINI_KEY, model: GEMINI_MODEL_ENV || GEMINI_FALLBACK,
+                    models: [GEMINI_MODEL_ENV || GEMINI_FALLBACK], problem: GEMINI_KEY ? 'starting' : 'no-key' };
 
 function tutorProblem(status, body) {
   const b = String(body || '');
@@ -828,28 +829,34 @@ async function chooseModel() {
     if (!j.nextPageToken) break;
     page = j.nextPageToken;
   }
-  if (GEMINI_MODEL_ENV && names.includes(GEMINI_MODEL_ENV)) return GEMINI_MODEL_ENV;
-  const best = names.map(n => [n, rankModel(n)]).filter(x => x[1] >= 0).sort((a, b) => b[1] - a[1])[0];
-  return best ? best[0] : '';
+  /* best first, and a few behind it: a brand-new model on the free tier is
+     often overloaded, and the next one along is better than no answer */
+  const ranked = names.map(n => [n, rankModel(n)]).filter(x => x[1] >= 0)
+    .sort((a, b) => b[1] - a[1]).map(x => x[0]);
+  if (GEMINI_MODEL_ENV && names.includes(GEMINI_MODEL_ENV)) {
+    return [GEMINI_MODEL_ENV].concat(ranked.filter(n => n !== GEMINI_MODEL_ENV)).slice(0, 4);
+  }
+  return ranked.slice(0, 4);
 }
 
 async function setupTutor() {
   if (!GEMINI_KEY) return;
   try {
-    const m = await chooseModel();
-    if (!m) {
-      TUTOR_STATE = { ready: false, model: '', problem: 'no-model' };
+    const list = await chooseModel();
+    if (!list.length) {
+      TUTOR_STATE = { ready: false, model: '', models: [], problem: 'no-model' };
       console.warn('[tutor] this key can use no suitable Gemini model');
       return;
     }
-    TUTOR_STATE = { ready: true, model: m, problem: '' };
-    console.log('[tutor] using ' + m);
+    TUTOR_STATE = { ready: true, model: list[0], models: list, problem: '' };
+    console.log('[tutor] using ' + list.join(', then '));
   } catch (e) {
     const p = e.status ? tutorProblem(e.status, e.body) : 'network';
     console.warn('[tutor] could not list models (' + p + '): ' + String(e.body || e.message).slice(0, 300));
     /* a passing problem keeps the tutor on with a sensible model; a key
        problem turns it off until it is fixed */
-    TUTOR_STATE = { ready: TUTOR_FATAL.indexOf(p) < 0, model: TUTOR_STATE.model || GEMINI_FALLBACK, problem: p };
+    const m = TUTOR_STATE.model || GEMINI_FALLBACK;
+    TUTOR_STATE = { ready: TUTOR_FATAL.indexOf(p) < 0, model: m, models: [m], problem: p };
   }
 }
 
@@ -925,47 +932,88 @@ async function askGemini(learn, level, history, retried) {
     if (last && last.role === role) last.parts[0].text += '\n' + clip(m.text, 600);
     else contents.push({ role, parts: [{ text: clip(m.text, 600) }] });
   });
+  function payload(model, light) {
+    const gen = { responseMimeType: 'application/json', maxOutputTokens: 8192 };
+    /* Gemini 3 and later think before answering, and left at its default a
+       reply took over half a minute. A tutor's turn needs little thought;
+       asked for less, it answers in a few seconds. Older models do not know
+       the setting, so it goes only to models that do. */
+    if (light && /^gemini-([3-9]|\d\d)/.test(model)) gen.thinkingConfig = { thinkingLevel: 'low' };
+    return JSON.stringify({
+      systemInstruction: { parts: [{ text: tutorSystem(learn, level) }] },
+      contents,
+      /* Room for thinking as well as the answer — a cut-off reply is
+         unreadable JSON. No temperature: Gemini 3 models are meant to run at
+         their default, and lower settings can make them repeat themselves. */
+      generationConfig: gen
+    });
+  }
+
+  /* The best model first, then the next ones along: a model that is
+     overloaded, slow or out of free quota hands over to the next, and the
+     one that answers is used first from then on. */
+  const models = (TUTOR_STATE.models && TUTOR_STATE.models.length
+    ? TUTOR_STATE.models : [TUTOR_STATE.model || GEMINI_FALLBACK]).slice(0, 3);
+  let last = { status: 0, problem: 'unreachable' };
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    let r = await callGemini(model, payload(model, true));
+    let p = r.ok ? '' : (r.status ? tutorProblem(r.status, r.body) : (r.timeout ? 'timeout' : 'network'));
+    /* a model that does not take the thinking setting: same model, without it */
+    if (p === 'bad-request' && /thinking/i.test(r.body)) {
+      r = await callGemini(model, payload(model, false));
+      p = r.ok ? '' : (r.status ? tutorProblem(r.status, r.body) : (r.timeout ? 'timeout' : 'network'));
+    }
+    if (r.ok) {
+      let j; try { j = JSON.parse(r.body); } catch (e) { j = null; }
+      const text = j && j.candidates && j.candidates[0] && j.candidates[0].content
+        && j.candidates[0].content.parts && j.candidates[0].content.parts.map(x => x.text || '').join('');
+      const out = shapeTutor(parseTutor(text));
+      if (out) {
+        if (i > 0) {
+          TUTOR_STATE.models = [model].concat(models.filter(m => m !== model));
+          TUTOR_STATE.model = model;
+          console.log('[tutor] now using ' + model);
+        }
+        TUTOR_STATE.problem = '';
+        return out;
+      }
+      p = 'unreadable';
+    }
+    /* Reported to the operator in the log; the caller only learns that the
+       tutor is unavailable, never Google's raw message. */
+    console.warn('[tutor] ' + model + ': ' + (r.status || '-') + ' (' + p + ') ' + String(r.body || '').slice(0, 300));
+    TUTOR_STATE.problem = p;
+    last = { status: r.status, problem: p };
+    if (TUTOR_FATAL.indexOf(p) >= 0) { TUTOR_STATE.ready = false; break; }
+    /* the model has gone: choose again from what is there, and start over */
+    if (p === 'model-missing' && !retried) {
+      await setupTutor();
+      if (TUTOR_STATE.ready) return askGemini(learn, level, history, true);
+      break;
+    }
+  }
+  if (last.problem === 'unreadable') return null;
+  const e = new Error(last.status === 429 ? 'busy' : 'unavailable');
+  e.status = last.status;
+  throw e;
+}
+
+/* One request to one model. Never throws: a timeout or a dropped
+   connection comes back as a result like any other. */
+async function callGemini(model, body) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 35000);
+  const timer = setTimeout(() => ctl.abort(), 20000);
   try {
-    const r = await fetch(GEMINI_BASE + '/models/'
-      + encodeURIComponent(TUTOR_STATE.model || GEMINI_FALLBACK) + ':generateContent', {
+    const r = await fetch(GEMINI_BASE + '/models/' + encodeURIComponent(model) + ':generateContent', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: tutorSystem(learn, level) }] },
-        contents,
-        /* Room for the model to think as well as answer — its thinking
-           counts against this, and a cut-off reply is unreadable JSON. No
-           temperature: Gemini 3 models are meant to run at their default,
-           and lower settings can make them repeat themselves. */
-        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 }
-      }),
+      body,
       signal: ctl.signal
     });
-    const body = await r.text();
-    if (!r.ok) {
-      /* Reported to the operator in the logs; the caller only learns that
-         the tutor is unavailable, never Google's raw message. */
-      const p = tutorProblem(r.status, body);
-      console.warn('[tutor] Gemini ' + r.status + ' (' + p + ') on ' + TUTOR_STATE.model + ': ' + body.slice(0, 300));
-      TUTOR_STATE.problem = p;
-      if (TUTOR_FATAL.indexOf(p) >= 0) TUTOR_STATE.ready = false;
-      /* the model has gone: choose again from what is there, and try once more */
-      if (p === 'model-missing' && !retried) {
-        clearTimeout(timer);
-        await setupTutor();
-        if (TUTOR_STATE.ready) return askGemini(learn, level, history, true);
-      }
-      const e = new Error(r.status === 429 ? 'busy' : 'unavailable');
-      e.status = r.status;
-      throw e;
-    }
-    if (TUTOR_STATE.problem && TUTOR_STATE.problem !== 'starting') TUTOR_STATE.problem = '';
-    let j; try { j = JSON.parse(body); } catch (e) { j = null; }
-    const text = j && j.candidates && j.candidates[0] && j.candidates[0].content
-      && j.candidates[0].content.parts && j.candidates[0].content.parts.map(p => p.text || '').join('');
-    return shapeTutor(parseTutor(text));
+    return { ok: r.ok, status: r.status, body: await r.text() };
+  } catch (e) {
+    return { ok: false, status: 0, body: '', timeout: !!(e && e.name === 'AbortError') };
   } finally {
     clearTimeout(timer);
   }
