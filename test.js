@@ -4208,7 +4208,8 @@ section('DICTIONARY (offline)');
       /* the same code at a thousandth of the time */
       .replace('const TUTOR_HEDGE_MS = 7000;', 'const TUTOR_HEDGE_MS = 40;')
       .replace('const TUTOR_CAP_MS = 30000;', 'const TUTOR_CAP_MS = 150;')
-      .replace('const TUTOR_TOTAL_MS = 35000;', 'const TUTOR_TOTAL_MS = 220;');
+      .replace('const TUTOR_TOTAL_MS = 35000;', 'const TUTOR_TOTAL_MS = 220;')
+      .replace('callGemini(m, ping, 45000)', 'callGemini(m, ping, 120)');
     const noop = function () {};
     const appStub = { set: noop, disable: noop, use: noop, get: noop, post: noop, put: noop, delete: noop, listen: noop };
     const expressStub = function () { return appStub; };
@@ -4254,12 +4255,27 @@ section('DICTIONARY (offline)');
     vm.createContext(sandbox);
     try {
       vm.runInContext(srcAll, sandbox, { filename: 'server/index.js' });
-      await new Promise(function (r) { setTimeout(r, 30); });          /* setupTutor lists the models */
+      await new Promise(function (r) { setTimeout(r, 80); });          /* listing, then the warm-up */
       const run = function (code) { return vm.runInContext(code, sandbox); };
       const hist = '[{ role: "user", text: "hello" }]';
       const ask = function () { return run('askGemini("en", 1, ' + hist + ', false, true)'); };
-      t('the models are ranked newest Flash first', run('TUTOR_STATE.models.join()') === 'gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash',
-        run('TUTOR_STATE.models.join()'));
+      const ORDER = 'TUTOR_STATE.models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"]';
+      t('at start every top model is warmed up and timed',
+        run('TUTOR_STATE.warm && Object.keys(TUTOR_STATE.warm).length') === 3
+        && run('Object.values(TUTOR_STATE.warm).every(function (v) { return typeof v === "number"; })'), run('JSON.stringify(TUTOR_STATE.warm)'));
+      t('the models are listed newest Flash first', run('TUTOR_STATE.models.slice().sort().reverse().join()') === 'gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash');
+
+      /* a model that stalls at start goes to the back before anybody asks */
+      run(ORDER);
+      behaviour['gemini-3.8-flash'] = { ms: 10000, status: 200 };
+      behaviour['gemini-3.6-flash'] = { ms: 5, status: 200 };
+      behaviour['gemini-3.5-flash'] = { ms: 15, status: 200 };
+      await run('warmTutor()');
+      t('the warm-up puts the quickest first and a stalled model last',
+        run('TUTOR_STATE.models.join()') === 'gemini-3.6-flash,gemini-3.5-flash,gemini-3.8-flash'
+        && run('TUTOR_STATE.warm["gemini-3.8-flash"]') === 'timeout', run('TUTOR_STATE.models.join()'));
+      t('a message waits a moment for the model list at start', /if \(TUTOR_LISTED\) await Promise\.race\(\[TUTOR_LISTED/.test(srcAll));
+      run(ORDER);
 
       /* the two newest stall, the oldest answers at once */
       behaviour['gemini-3.8-flash'] = { ms: 10000, status: 200 };

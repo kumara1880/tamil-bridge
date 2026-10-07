@@ -444,6 +444,8 @@ app.get('/api/health', (_req, res) => {
     tutorProblem: TUTOR_STATE.problem,
     /* how long the last answer took, so slowness can be seen without logs */
     tutorMs: TUTOR_STATE.ms || 0,
+    /* each top model's start-up answer time, or why it had none */
+    tutorWarm: TUTOR_STATE.warm || null,
     canReset: MAIL_STATE.ready && STORE.durable && !!appUrl(),
     time: new Date().toISOString()
   });
@@ -841,6 +843,37 @@ async function chooseModel() {
   return ranked.slice(0, 4);
 }
 
+/* Settles once the models have been listed at start. */
+let TUTOR_LISTED = null;
+
+/* Wake the models up before a learner needs them. Measured live, the first
+   message after the server started stalled until its time limit while the
+   very next one was answered in four seconds. So at start each of the top
+   models is sent something tiny — while the learner is still opening the
+   page — and they are put in the order they answered: quickest first, any
+   that stalled or failed last. Three small requests per start, well inside
+   the free quota. The timings are on /api/health as tutorWarm. */
+async function warmTutor() {
+  if (!TUTOR_STATE.ready || !GEMINI_KEY) return;
+  const list = TUTOR_STATE.models.slice(0, 3);
+  const warm = {};
+  const ping = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }],
+    generationConfig: { maxOutputTokens: 256 }
+  });
+  await Promise.all(list.map(async m => {
+    const t0 = Date.now();
+    const r = await callGemini(m, ping, 45000);
+    warm[m] = r.ok ? Date.now() - t0 : (r.timeout ? 'timeout' : String(r.status || 'failed'));
+  }));
+  TUTOR_STATE.warm = warm;
+  const rank = m => (typeof warm[m] === 'number' ? warm[m] : Infinity);
+  const order = list.slice().sort((a, b) => rank(a) - rank(b));
+  TUTOR_STATE.models = order.concat(TUTOR_STATE.models.filter(m => order.indexOf(m) < 0));
+  TUTOR_STATE.model = TUTOR_STATE.models[0];
+  console.log('[tutor] warm-up ' + JSON.stringify(warm) + ' -> ' + TUTOR_STATE.models.join(', '));
+}
+
 async function setupTutor() {
   if (!GEMINI_KEY) return;
   try {
@@ -1023,6 +1056,10 @@ async function askGemini(learn, level, history, retried, voice) {
      then a third; whichever answers first is used and the others are
      called off. A model that fails outright hands over at once. The winner
      goes first next time. */
+  /* A message that arrives while the server is still listing models at
+     start waits a moment for the list. It used to race with only the one
+     model named as a fallback — which was the one that stalled. */
+  if (TUTOR_LISTED) await Promise.race([TUTOR_LISTED, new Promise(r => setTimeout(r, 5000))]);
   const models = (TUTOR_STATE.models && TUTOR_STATE.models.length
     ? TUTOR_STATE.models : [TUTOR_STATE.model || GEMINI_FALLBACK]).slice(0, 3);
 
@@ -1169,7 +1206,10 @@ app.use((_req, res) => res.status(404).json({ error: 'Not found.' }));
 /* Find out whether mail really works, without holding up the boot. */
 checkMail().catch(() => {});
 /* and which model the tutor can use */
-setupTutor().catch(() => {});
+/* Listing first (a message arriving meanwhile waits a moment for it); then
+   the warm-up, which no message waits for. */
+TUTOR_LISTED = setupTutor().catch(() => {});
+TUTOR_LISTED.then(warmTutor).catch(() => {});
 
 connect()
   .then(kind => {
