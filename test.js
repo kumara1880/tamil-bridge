@@ -2027,6 +2027,36 @@ section('PHOTO TEXT');
     Math.min(TB.OCR.plausibility(tamil), TB.OCR.plausibility(hindi))
       > Math.max(TB.OCR.plausibility(wrongOnTamil), TB.OCR.plausibility(junk)));
 
+  /* A screenshot with English above and Tamil below, read with the English
+     pack, scored 66 — over the line — because two clean English lines
+     carried one line of rubble, and the Tamil was lost. Measured in a
+     browser: the same picture now reads both, at 95. */
+  (function () {
+    var src = fs.readFileSync(__dirname + '/js/ocr.js', 'utf8');
+    t('one rubble line blocks early acceptance',
+      /best\.score >= TRUST && !hasRubble\(best\)/.test(src));
+    t('and a two-script pass is tried when it happens',
+      /pack: top \+ '\+' \+ second, how: 'mixed'/.test(src));
+    t('a dark picture is tried inverted', /kind: prepared\.dark \? 'invert' : 'binary'/.test(src));
+    t('and a dim one in hard black and white', /function otsu\(p\)/.test(src));
+    t('automatic mode always reaches all three common scripts',
+      /Math\.max\(3, queue\.length\)/.test(src));
+    t('a deliberate single try gets no extra passes', /var rescue = !opts\.maxTries;/.test(src));
+  })();
+  t('a mixed reading knows its main language',
+    TB.OCR.dominantLang('Good morning\nகாலை வணக்கம்\nHow are you').lang === 'en'
+    && TB.OCR.dominantLang('Good morning\nகாலை வணக்கம்\nHow are you').mixed === true);
+  t('and a single-script one is not called mixed',
+    TB.OCR.dominantLang('காலை வணக்கம் நண்பரே').mixed === false
+    && TB.OCR.dominantLang('காலை வணக்கம் நண்பரே').lang === 'ta');
+  t('two packs are named as both',
+    TB.OCR.packLabel('eng+tam') === 'English + Tamil', TB.OCR.packLabel('eng+tam'));
+  t('and translate from the first', TB.OCR.packToLang('tam+eng') === 'ta');
+  t('a picture with no type is still tried',
+    TB.OCR.looksLikeImage({ type: '', name: 'IMG_2041' }) === true);
+  t('a typed picture is accepted', TB.OCR.looksLikeImage({ type: 'image/jpeg', name: 'a.jpg' }));
+  t('a text file is not', TB.OCR.looksLikeImage({ type: 'text/plain', name: 'a.txt' }) === false);
+
   t('a good read scores above the trust line',
     TB.OCR.plausibility(good) >= TB.OCR.TRUST, TB.OCR.plausibility(good));
   t('nonsense scores below it',

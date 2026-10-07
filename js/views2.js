@@ -13,6 +13,23 @@
      listeners for the page, not one per mount. See views.js. */
   var scrollWatch = V.scrollWatch;
 
+  /* Pasting a screenshot into the photo page. One listener for the page's
+     lifetime; the mounted photo view hands it its own handler, and leaving
+     the page clears it, so a paste anywhere else does nothing. */
+  var photoPaste = null;
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('paste', function (e) {
+      if (!photoPaste || !/^#\/photo/.test(location.hash || '')) return;
+      var items = (e.clipboardData && e.clipboardData.items) || [];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file' && /^image\//.test(items[i].type)) {
+          var f = items[i].getAsFile();
+          if (f) { e.preventDefault(); photoPaste(f); return; }
+        }
+      }
+    });
+  }
+
   /* =============================================================== LEARN */
   V.learn = {
     title: 'Lessons', sub: 'Step by step, English & Hindi',
@@ -364,8 +381,19 @@
         if (e.dataTransfer.files && e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]);
       });
       [file, cam].forEach(function (inp) {
-        inp.addEventListener('change', function () { if (inp.files[0]) handle(inp.files[0]); });
+        inp.addEventListener('change', function () {
+          var f = inp.files[0];
+          /* Cleared straight away, or choosing the same picture again fires
+             no change at all and looks like the button stopped working. */
+          inp.value = '';
+          if (f) handle(f);
+        });
       });
+
+      /* A screenshot is usually on the clipboard, not in a file. Ctrl+V (or
+         long-press → Paste) reads it directly. One listener for the page,
+         pointed at whichever photo view is mounted. */
+      photoPaste = handle;
 
       /* Changing the target language re-translates what was already read.
          Reading the picture again would be slow and would change nothing. */
@@ -374,7 +402,11 @@
       });
 
       function handle(f, forcePack) {
-        if (!/^image\//.test(f.type)) { TB.App.toast('Images only.', 'err'); return; }
+        /* Some galleries hand over a picture with no type at all. Refusing
+           those as "not an image" was one of the ways a perfectly good
+           photo got no answer. Anything plausible is tried; the decoder
+           says plainly if it truly cannot open it. */
+        if (!TB.OCR.looksLikeImage(f)) { TB.App.toast('Please choose a picture.', 'err'); return; }
         lastFile = f;
         var chosen = forcePack || root.querySelector('#ocrLang').value;
         var packs = chosen === 'auto' ? [] : [chosen];
@@ -615,7 +647,7 @@
         var lines = res.units || res.lines.map(function (l) { return l.text; });
         var name = TB.Translate.langName(target);
 
-        if (target === srcLang) {
+        if (target === srcLang && !res.mixed) {
           card.innerHTML = '<div class="card"><div class="tiny muted">The picture is already in '
             + esc(name) + '. Pick another language above to see the meaning.</div></div>';
           return;
@@ -625,7 +657,24 @@
           + '<div class="card-sub">Line by line, so a verse keeps its shape</div></div></div>'
           + '<div id="ocrTr"><span class="spin"></span> Translating into ' + esc(name) + '…</div></div>';
 
-        TB.Translate.lines(lines, srcLang, target).then(function (tr) {
+        /* A picture with two scripts in it — a Tamil line under an English
+           one — is translated a line at a time, each from its own language.
+           Sent together under one source language, the other half came back
+           as the same words or as nonsense. A line already in the target
+           language is shown as it is. */
+        var job = res.mixed
+          ? Promise.all(lines.map(function (l) {
+              var s = String(l || '');
+              if (!s.trim()) return Promise.resolve('');
+              var from = TB.OCR.dominantLang(s).lang;
+              if (from === target) return Promise.resolve(s);
+              return TB.Translate.translate(s, from, target)
+                .then(function (r) { return r.text; })
+                .catch(function () { return ''; });
+            }))
+          : TB.Translate.lines(lines, srcLang, target);
+
+        job.then(function (tr) {
           var rows = tr.map(function (t, i) {
             if (!String(lines[i]).trim()) return '<div style="height:10px"></div>';
             return '<div class="tr-pair reader-line" data-read="tr" data-line="' + i + '">'
