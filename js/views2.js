@@ -366,7 +366,7 @@
       var drop = root.querySelector('#drop');
       var file = root.querySelector('#file'), cam = root.querySelector('#cam');
       var out = root.querySelector('#ocrOut');
-      var lastFile = null, lastRes = null;
+      var lastFile = null, lastRes = null, trGen = 0, readGen = 0;
 
       drop.addEventListener('click', function () { file.click(); });
       root.querySelector('#pickBtn').addEventListener('click', function () { file.click(); });
@@ -417,10 +417,16 @@
         out.innerHTML = '';
         TB.Speech.stop();
 
+        /* A second picture chosen while the first is still being read: the
+           first one's answer is dropped when it arrives, or it would replace
+           the second's. */
+        var mine = ++readGen;
         TB.OCR.read(f, packs, function (label, pct) {
+          if (mine !== readGen) return;
           root.querySelector('#ocrBar').style.width = pct + '%';
           root.querySelector('#ocrStat').textContent = label + ' ' + pct + '%';
         }).then(function (res) {
+          if (mine !== readGen || !out.isConnected) return;
           prog.style.display = 'none';
           if (!res.text) {
             out.innerHTML = '<div class="card"><div class="msg msg-warn">No text was found. '
@@ -430,6 +436,7 @@
           lastRes = res;
           render(res, target);
         }).catch(function (e) {
+          if (mine !== readGen || !out.isConnected) return;
           prog.style.display = 'none';
           out.innerHTML = '<div class="card"><div class="msg msg-err">' + esc(e.message) + '</div></div>';
         });
@@ -643,6 +650,10 @@
       function translateInto(res, target) {
         var card = out.querySelector('#ocrTrCard');
         if (!card) return;
+        /* Only the latest request may draw. Changing the language while a
+           translation was still coming let the older one land last and
+           cover the newer one. */
+        var mine = ++trGen;
         var srcLang = res.lang;
         var lines = res.units || res.lines.map(function (l) { return l.text; });
         var name = TB.Translate.langName(target);
@@ -662,19 +673,12 @@
            Sent together under one source language, the other half came back
            as the same words or as nonsense. A line already in the target
            language is shown as it is. */
-        var job = res.mixed
-          ? Promise.all(lines.map(function (l) {
-              var s = String(l || '');
-              if (!s.trim()) return Promise.resolve('');
-              var from = TB.OCR.dominantLang(s).lang;
-              if (from === target) return Promise.resolve(s);
-              return TB.Translate.translate(s, from, target)
-                .then(function (r) { return r.text; })
-                .catch(function () { return ''; });
-            }))
-          : TB.Translate.lines(lines, srcLang, target);
+        var job = TB.Translate.lines(lines, res.mixed
+          ? function (s) { return TB.OCR.dominantLang(s).lang; }
+          : srcLang, target);
 
         job.then(function (tr) {
+          if (mine !== trGen || !card.isConnected) return;
           var rows = tr.map(function (t, i) {
             if (!String(lines[i]).trim()) return '<div style="height:10px"></div>';
             return '<div class="tr-pair reader-line" data-read="tr" data-line="' + i + '">'

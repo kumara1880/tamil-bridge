@@ -202,6 +202,25 @@ TB.Translate = (function () {
     });
   }
 
+  /* Letters and digits only, lower case: "Yes, Yes, Yes!" and "yes yes yes"
+     are the same words, "Yes yes" is not. */
+  function sameWords(a, b) {
+    function k(s) { return String(s || '').toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim(); }
+    return k(a) === k(b);
+  }
+
+  /* MyMemory is a memory of translations people have submitted, with a
+     machine translation alongside. Its headline answer is whichever scored
+     best, and a near match scores well: "Yes, Yes, Yes!" came back as
+     "எத்தனை நாட்கள் பயணம்" ("how many days of travel") because somebody once
+     stored that against "Yes yes yes", a 94% match. A wrong meaning shown
+     with confidence teaches the wrong thing.
+
+     The bad entry was for the same words with different punctuation, so
+     "the same words" is not enough. Its machine translation comes first —
+     that is at least a translation of what was asked. A remembered one is
+     used only when it is a full match, and never one scraped from the open
+     web. Nothing else is trusted. */
   function viaMyMemory(text, from, to) {
     if (from === 'auto') from = detectScript(text) || 'en';
     var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text)
@@ -210,10 +229,30 @@ TB.Translate = (function () {
       if (!r.ok) throw new Error('mymemory ' + r.status);
       return r.json();
     }), 8000).then(function (j) {
-      var t = j && j.responseData && j.responseData.translatedText;
-      if (!t || /^(MYMEMORY WARNING|INVALID)/i.test(t)) throw new Error('mymemory empty');
+      var t = pickMemory(j, text);
+      if (!t) throw new Error('mymemory unsure');
       return { text: t, detected: from, senses: [], provider: 'MyMemory' };
     });
+  }
+
+  function pickMemory(j, text) {
+    var bad = /^(MYMEMORY WARNING|INVALID|QUERY LENGTH)/i;
+    var ms = (j && Array.isArray(j.matches) ? j.matches : []).filter(function (m) {
+      return m && m.translation && !bad.test(m.translation);
+    });
+    var mt = ms.filter(function (m) { return /^MT/i.test(m['created-by'] || ''); })[0];
+    if (mt) return String(mt.translation).trim();
+    var exact = ms.filter(function (m) {
+      return +m.match >= 1 && sameWords(m.segment, text)
+        && !/public web/i.test(m['created-by'] || '');
+    })[0];
+    if (exact) return String(exact.translation).trim();
+    /* No list of matches to judge by: the headline answer only if it says
+       it is a full match. */
+    var head = j && j.responseData;
+    if (head && head.translatedText && !bad.test(head.translatedText) && +head.match >= 1
+        && !ms.length) return String(head.translatedText).trim();
+    return '';
   }
 
   var LIBRE = ['https://translate.disroot.org', 'https://libretranslate.de', 'https://translate.terraprint.co'];
@@ -297,7 +336,15 @@ TB.Translate = (function () {
          network provider refine longer text. */
       var off = viaOffline(text, from, to);
 
+      /* Google is asked twice before anything else. A busy moment or a
+         burst of lines from one photo can get one request refused, and the
+         fallbacks are a step down in quality — so a short pause and a second
+         try is worth it. */
       return viaGoogle(text, from, to)
+        .catch(function () {
+          return new Promise(function (r) { setTimeout(r, 700); })
+            .then(function () { return viaGoogle(text, from, to); });
+        })
         .catch(function () { return viaMyMemory(text, from, to); })
         .catch(function () { return viaLibre(text, from, to); })
         .then(store)
@@ -320,7 +367,11 @@ TB.Translate = (function () {
       var idx = [];
       text.forEach(function (l, i) { if (l.trim()) idx.push(i); });
       if (!idx.length) return Promise.resolve(text.map(function () { return ''; }));
-      if (from === to && from !== 'auto') return Promise.resolve(text.slice());
+      /* `from` may be a function giving each line its own language — a
+         picture with a Tamil line under an English one. A line already in
+         the target language comes back as it is. */
+      var fromOf = typeof from === 'function' ? from : function () { return from; };
+      if (typeof from !== 'function' && from === to && from !== 'auto') return Promise.resolve(text.slice());
 
       /* Each line is translated on its own.
 
@@ -342,7 +393,9 @@ TB.Translate = (function () {
       function worker() {
         if (next >= idx.length) return Promise.resolve();
         var i = idx[next++];
-        return api.translate(text[i], from, to)
+        var src = fromOf(text[i]);
+        if (src === to) { out[i] = text[i]; return worker(); }
+        return api.translate(text[i], src, to)
           .then(function (r) { out[i] = (r && r.text) || ''; })
           .catch(function () { out[i] = ''; })
           .then(worker);
@@ -362,6 +415,7 @@ TB.Translate = (function () {
     },
 
     offlineLookup: viaOffline,
+    pickMemory: pickMemory,
     clearCache: function () { cache.clear(); }
   };
 

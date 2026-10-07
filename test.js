@@ -4166,11 +4166,45 @@ section('DICTIONARY (offline)');
       const mixed = await T.lines(['a', 'bad', 'c'], 'ta', 'en');
       t('one failed line leaves the others in place',
         mixed[0] === 'ok:a' && mixed[1] === '' && mixed[2] === 'ok:c', JSON.stringify(mixed));
+
+      /* each line from its own language; one already in the target is kept */
+      const seen = [];
+      T.translate = function (text, from) { seen.push(from); return Promise.resolve({ text: from + ':' + text }); };
+      const two = await T.lines(['Yes', 'ஆம்', 'हाँ'], function (s) { return TB.OCR.dominantLang(s).lang; }, 'ta');
+      t('a mixed picture translates each line from its own language',
+        two[0] === 'en:Yes' && two[1] === 'ஆம்' && two[2] === 'hi:हाँ' && seen.join() === 'en,hi', JSON.stringify(two));
     } catch (e) {
       fail++; console.log('  FAIL  photo meaning threw: ' + e.message);
     } finally {
       T.translate = real;
     }
+
+    /* MyMemory, the fallback when Google does not answer: its headline answer
+       for "Yes, Yes, Yes!" was a near match somebody once stored wrongly. */
+    const mm = {
+      responseData: { translatedText: 'எத்தனை நாட்கள் பயணம்', match: 0.94 },
+      matches: [
+        { segment: 'Yes yes yes', translation: 'எத்தனை நாட்கள் பயணம்', match: 0.94, 'created-by': 'Public Web' },
+        { segment: 'Yes, Yes, Yes!', translation: 'ஆம், ஆம், ஆம்!', match: 0.85, 'created-by': 'MT!' }
+      ]
+    };
+    t('a wrong near match from the fallback is never shown', T.pickMemory(mm, 'Yes, Yes, Yes!') === 'ஆம், ஆம், ஆம்!',
+      T.pickMemory(mm, 'Yes, Yes, Yes!'));
+    t('nor a "Public Web" entry even for the same words',
+      T.pickMemory({ responseData: mm.responseData, matches: [mm.matches[0]] }, 'Yes yes yes') === '');
+    t('a full match from a real memory is used',
+      T.pickMemory({ matches: [{ segment: 'Good morning', translation: 'காலை வணக்கம்', match: 1, 'created-by': 'MateCat' }] }, 'Good morning') === 'காலை வணக்கம்');
+    t('a quota warning is never shown as a translation',
+      T.pickMemory({ responseData: { translatedText: 'MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS', match: 1 }, matches: [] }, 'x') === '');
+    const trSrc = require('fs').readFileSync(__dirname + '/js/translate.js', 'utf8');
+    t('Google is tried twice before any fallback',
+      /return viaGoogle\(text, from, to\);\s*\}\);?\s*\}\)\s*\.catch\(function \(\) \{ return viaMyMemory/.test(trSrc)
+      || /then\(function \(\) \{ return viaGoogle\(text, from, to\); \}\);\s*\}\)\s*\.catch\(function \(\) \{ return viaMyMemory/.test(trSrc));
+    const v2src = require('fs').readFileSync(__dirname + '/js/views2.js', 'utf8');
+    t('only the latest translation of a photo may draw', /if \(mine !== trGen \|\| !card\.isConnected\) return;/.test(v2src));
+    t('only the latest picture read may draw', /if \(mine !== readGen \|\| !out\.isConnected\) return;/.test(v2src));
+    t('a mixed picture goes through the same paced, aligned path',
+      /TB\.Translate\.lines\(lines, res\.mixed/.test(v2src) && !/Promise\.all\(lines\.map/.test(v2src));
   }
 
   console.log('\n' + '='.repeat(46));
