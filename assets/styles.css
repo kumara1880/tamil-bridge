@@ -2015,3 +2015,36 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
   color: var(--red);
   font-weight: 600;
 }
+
+/* ------------------------------------------------------- talk & learn */
+.tk-scene { text-align: left; cursor: pointer; font: inherit; color: inherit; width: 100%; }
+.tk-scene:hover { border-color: var(--accent); }
+.tk-scene h3 { margin: 4px 0 2px; }
+.tk-chat { display: flex; flex-direction: column; gap: 10px; }
+.tk-chat:empty { display: none; }
+.tk-bubble {
+  max-width: 88%; padding: 10px 13px; border-radius: 14px;
+  border: 1px solid var(--line-soft); background: var(--bg-soft);
+}
+.tk-bubble.tk-A { align-self: flex-start; border-top-left-radius: 4px; }
+.tk-bubble.tk-B { align-self: flex-end; border-top-right-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-soft)); }
+.tk-who { font-size: calc(11px * var(--fs, 1)); font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 2px; }
+.tk-line { font-size: calc(19px * var(--fs, 1)); font-weight: 650; line-height: 1.45; }
+.tk-mean { font-size: calc(14px * var(--fs, 1)); margin-top: 3px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.tk-your { border-color: var(--accent); }
+.tk-target { margin: 6px 0 2px; font-size: calc(22px * var(--fs, 1)); }
+.tk-hidden { filter: blur(7px); cursor: pointer; user-select: none; }
+.tk-actions { gap: 8px; flex-wrap: wrap; }
+.tk-result { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-soft); }
+.tk-result.tk-great, .tk-result.tk-good { border-color: var(--green); }
+.tk-result.tk-ok { border-color: var(--amber, #d4a017); }
+.tk-result.tk-retry { border-color: var(--red); }
+.tk-word { display: inline-block; padding: 1px 6px; border-radius: 6px; margin: 2px 1px; }
+.tk-word.ok { background: color-mix(in srgb, var(--green) 18%, transparent); }
+.tk-word.miss { background: color-mix(in srgb, var(--red) 18%, transparent); text-decoration: underline wavy var(--red); }
+.tk-fix { padding: 6px 0; }
+.tk-weak { padding: 6px 0; border-top: 1px dashed var(--line-soft); }
+.tk-hide { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+@media (max-width: 560px) { .tk-bubble { max-width: 100%; } }

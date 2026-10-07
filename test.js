@@ -33,7 +33,7 @@ vm.createContext(ctx);
  'js/store.js','js/auth.js','js/speech.js','js/translit.js','js/vocabx.js','js/translate.js',
  'js/reader.js',
  'js/tutor.js','js/check.js','js/ocr.js','js/dict.js','js/srs.js','js/numbers.js','js/conjugate.js',
- 'js/gloss.js',
+ 'js/gloss.js', 'data/talk.js', 'js/converse.js',
  'js/maths.js','js/abacus.js','js/maths2.js','js/writing.js','js/sentences.js','js/search.js']
   .forEach(f => vm.runInContext(fs.readFileSync(R + f, 'utf8'), ctx, { filename: f }));
 
@@ -2253,6 +2253,126 @@ section('VOICES');
 })();
 
 /* ---------------- conjugation ---------------- */
+section('TALK & LEARN');
+(function () {
+  var C = TB.Converse;
+  t('the tutor is loaded', !!C && typeof C.judge === 'function');
+  if (!C) return;
+
+  /* The curriculum runs from beginner to native, with something at every
+     level — before this there was nothing above level 3. */
+  var all = C.all();
+  t('there are conversations at every level, one to six',
+    [1, 2, 3, 4, 5, 6].every(function (n) { return C.byLevel(n).length > 0; }),
+    [1, 2, 3, 4, 5, 6].map(function (n) { return n + ':' + C.byLevel(n).length; }).join(' '));
+  t('and the levels are named in Tamil too',
+    C.LEVELS().length === 6 && C.LEVELS().every(function (L) { return L.ta && L.en && L.hi; }));
+
+  /* Every line is in all three languages, or a turn shows a blank. */
+  var holes = [];
+  all.forEach(function (d) {
+    d.lines.forEach(function (l, i) {
+      ['en', 'hi', 'ta'].forEach(function (k) { if (!l[k] || !String(l[k]).trim()) holes.push(d.id + '#' + i + ':' + k); });
+      if (l.who !== 'A' && l.who !== 'B') holes.push(d.id + '#' + i + ':who');
+    });
+  });
+  t('every line is in English, Hindi and Tamil', holes.length === 0, holes.slice(0, 5).join(' '));
+
+  /* Each script really is the script it claims to be. */
+  var wrongScript = [];
+  (TB.TALK || []).forEach(function (d) {
+    d.lines.forEach(function (l, i) {
+      if (!/[ऀ-ॿ]/.test(l.hi)) wrongScript.push(d.id + '#' + i + ' hi');
+      if (!/[஀-௿]/.test(l.ta)) wrongScript.push(d.id + '#' + i + ' ta');
+      if (/[ऀ-ॿ஀-௿]/.test(l.en)) wrongScript.push(d.id + '#' + i + ' en');
+    });
+  });
+  t('and each is written in its own script', wrongScript.length === 0, wrongScript.slice(0, 5).join(' '));
+
+  /* The learner speaks the B lines, so every conversation has to give them
+     something to say, and the partner opens it. */
+  t('every conversation gives the learner turns',
+    all.every(function (d) { return d.lines.some(function (l) { return l.who === 'B'; }); }));
+  t('and the partner speaks first',
+    (TB.TALK || []).every(function (d) { return d.lines[0].who === 'A'; }));
+  var ids = all.map(function (d) { return d.id; });
+  t('no two conversations share an id', ids.length === new Set(ids).size);
+
+  /* A tip is in both languages it promises. */
+  var tipless = [];
+  all.forEach(function (d) { d.lines.forEach(function (l, i) {
+    if (l.tip && (!l.tip.en || !l.tip.ta || !/[஀-௿]/.test(l.tip.ta))) tipless.push(d.id + '#' + i);
+  }); });
+  t('every tip is in English and Tamil', tipless.length === 0, tipless.join(' '));
+
+  /* Judging. A right answer passes, a wrong one does not, and a woman saying
+     the feminine Hindi form has not made a mistake. */
+  var refund = C.find('wrong-order');
+  var line = refund.lines.filter(function (l) { return l.who === 'B'; })[1];
+  var fem = line.alt.hi[0];
+  t('a correct reply passes', C.judge(line, 'en', { text: line.en, alternatives: [] }).pass);
+  t('a wrong one does not', !C.judge(line, 'en', { text: 'the weather is nice today', alternatives: [] }).pass);
+  t('the feminine Hindi form is accepted',
+    C.judge(line, 'hi', { text: fem, alternatives: [] }).score >= 95,
+    C.judge(line, 'hi', { text: fem, alternatives: [] }).score);
+  t('every alternative is for a learner line',
+    all.every(function (d) { return d.lines.every(function (l) { return !l.alt || l.who === 'B'; }); }));
+  t('the feedback is in Tamil', /[஀-௿]/.test(C.feedback(40).ta) && /[஀-௿]/.test(C.feedback(95).ta));
+
+  /* "Any situation you want": the closest conversations come first. */
+  function top(q) { var m = C.match(q, 3); return m.length ? m[0].d.id : ''; }
+  t('"job interview" finds the interview', top('job interview') === 'interview', top('job interview'));
+  t('"renting a house" finds renting', top('renting a house') === 'renting', top('renting a house'));
+  t('a Tamil request works', top('வாடகை வீடு') === 'renting', top('வாடகை வீடு'));
+  t('a Hindi request works', top('डॉक्टर बुखार') !== '' , top('डॉक्टर बुखार'));
+  t('nonsense finds nothing', C.match('qwzx', 3).length === 0);
+
+  /* Free talk answers what was said, not something random. */
+  t('a sentence about food is answered about food',
+    /dish|cook/i.test(C.followUp('I ate biryani for lunch', 0).en));
+  t('about family, about family',
+    /family/i.test(C.followUp('My mother and father live in Madurai', 0).en));
+  t('and anything else still gets an answer', !!C.followUp('xyz', 0).en);
+  t('every answer is in all three languages',
+    [0, 1, 2, 3].every(function (n) { var q = C.followUp('qq', n); return q.en && q.hi && q.ta; }));
+  /* The checker behind free talk. "Yesterday I eat" is the commonest tense
+     mistake a Tamil speaker makes in English, and it was not caught — while
+     "yesterday" was told it might need "a / an / the". */
+  (function () {
+    function fix(s) { return TB.Check.check(s, 'en'); }
+    t('a past time puts the verb in the past',
+      fix('yesterday i eat biryani with my friend').corrected === 'Yesterday I ate biryani with my friend.',
+      fix('yesterday i eat biryani with my friend').corrected);
+    t('and replaces an agreement -s rather than stacking on it',
+      fix('Last week she go to Chennai').corrected === 'Last week she went to Chennai.',
+      fix('Last week she go to Chennai').corrected);
+    t('a habit stays in the present', fix('I eat rice every day').corrected === 'I eat rice every day.');
+    t('a verb already in the past is left alone', fix('Yesterday I ate biryani.').issues.length === 0);
+    t('and "will" keeps the future', fix('Tomorrow I will eat biryani').corrected === 'Tomorrow I will eat biryani.');
+    t('"yesterday" is never told to take an article',
+      !fix('yesterday i eat biryani').issues.some(function (x) { return x.type === 'article-missing' && /yesterday/i.test(x.from); }));
+  })();
+
+  t('the script of what was said is recognised',
+    C.scriptOf('வணக்கம்') === 'ta' && C.scriptOf('नमस्ते') === 'hi' && C.scriptOf('hello') === 'en');
+
+  /* The view: a page, on the router, in the sidebar, on Home, in search. */
+  var html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+  var app = fs.readFileSync(__dirname + '/js/app.js', 'utf8');
+  var v13 = fs.readFileSync(__dirname + '/js/views13.js', 'utf8');
+  t('the page is routed', /talk: 'talk'/.test(app));
+  t('and in the sidebar', /href="#\/talk"/.test(html));
+  t('its files are loaded in order',
+    html.indexOf('data/talk.js') > html.indexOf('data/spoken.js')
+    && html.indexOf('js/converse.js') > html.indexOf('data/talk.js')
+    && html.indexOf('js/views13.js') > html.indexOf('js/converse.js'));
+  t('a device that cannot listen can still take part', /I said it/.test(v13) && /recognitionSupported/.test(v13));
+  t('every caption shows how to read the line', /readAid\(line\[lang\], lang, true\)/.test(v13));
+  t('Hindi lines carry their English meaning too', /lang === 'hi' && line\.en/.test(v13));
+  t('nothing is written into the page after leaving it', /function alive\(my\)/.test(v13) && !/my !== gen/.test(v13));
+  t('no window listener is attached by the tutor', !/window\.addEventListener/.test(v13));
+})();
+
 section('CONJUGATION');
 (function () {
   var kar = TB.Conjugate.hindi('करना', 'm');

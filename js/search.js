@@ -136,6 +136,8 @@ TB.Search = (function () {
       keys: 'conjugate conjugation verb forms endings' },
     { t: 'Photo Translate', href: '#/photo', ic: '\u{1F4F7}',
       keys: 'photo picture image camera scan ocr read text board sign rhyme' },
+    { t: 'Talk & learn', href: '#/talk', ic: '\u{1F5E3}\uFE0F',
+      keys: 'talk conversation tutor ai chat speak practice dialogue roleplay native fluent free talk interview situation' },
     { t: 'Pronunciation', href: '#/speak', ic: '\u{1F3A4}',
       keys: 'pronounce pronunciation speak say accent microphone score voice' },
     { t: 'Writing', href: '#/write', ic: '✏',

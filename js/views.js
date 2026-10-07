@@ -138,6 +138,7 @@ TB.Views = (function () {
       ['#/conjugate', '\u{1F500}', 'Conjugation', 'Any verb, any tense']
     ] },
     { name: 'Practise', items: [
+      ['#/talk', '\u{1F5E3}️', 'Talk & learn', 'Speak with a tutor, beginner to native'],
       ['#/practice', '\u{1F3AF}', 'Review', 'What is due today'],
       ['#/write', '\u270F\uFE0F', 'Writing', 'A\u2013Z, a\u2013z, 0\u2013100'],
       ['#/speak', '\u{1F3A4}', 'Pronunciation', 'Get a score'],

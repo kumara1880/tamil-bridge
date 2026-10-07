@@ -146,7 +146,7 @@ TB.App = (function () {
   var ROUTES = {
     home: 'home', learn: 'learn', phrases: 'phrases', practice: 'practice', translate: 'translate',
     meaning: 'meaning', numbers: 'numbers', maths: 'maths', abacus: 'abacus', crosswise: 'crosswise', sums: 'sums', chart: 'chart', count: 'count', english: 'english', tutor: 'tutor', conjugate: 'conjugate', photo: 'photo',
-    speak: 'speak', write: 'write', modern: 'modern',
+    speak: 'speak', talk: 'talk', write: 'write', modern: 'modern',
     alphabet: 'alphabet', phonics: 'phonics', vocab: 'vocab',
     history: 'history', settings: 'settings'
   };

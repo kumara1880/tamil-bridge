@@ -441,15 +441,61 @@ TB.Check = (function () {
       }
     }
 
+    /* A finished time, and a verb that has not moved into the past.
+
+       "Yesterday I eat biryani" is the commonest tense mistake a Tamil
+       speaker makes in English, because the Tamil verb already carries the
+       time and the English learner forgets to change it. With "yesterday",
+       "last week", "ago" or "in 2019" in the sentence, a bare present verb
+       on the subject is put into the past. Left alone where "did", "will"
+       or a modal already carries the time. */
+    var PAST_MARK = /\b(yesterday|ago|last|earlier|formerly|once)\b|\bin (19|20)\d\d\b/i;
+    var plain = a.tokens.join(' ');
+    var timeSet = tags.some(function (x) {
+      return ['will', 'shall', 'did', 'does', 'do', 'can', 'could', 'would', 'should',
+              'may', 'might', 'must', 'am', 'is', 'are', 'was', 'were', 'has', 'have', 'had'].indexOf(x.w) >= 0;
+    });
+    if (PAST_MARK.test(plain) && !timeSet && TB.Conjugate && TB.Conjugate.enForms) {
+      var mv0 = svo && svo.verb && svo.verb[0];
+      var mvIdx = mv0 ? tags.indexOf(mv0) : -1;
+      if (mv0 && mv0.pos === 'verb' && mvIdx >= 0 && !/(ed|ing)$/.test(mv0.w)
+          && !TB.IRREG_REV[mv0.w] && mv0.form !== 'past') {
+        var bare = mv0.w.replace(/ies$/, 'y').replace(/([^s])es$/, '$1').replace(/([^s])s$/, '$1');
+        var baseV = (TB.LEX.en[mv0.w] || known(mv0.w)) ? mv0.w : bare;
+        var pf = TB.Conjugate.enForms(baseV);
+        if (pf && pf.past && pf.past !== mv0.w && (TB.LEX.en[baseV] || known(baseV))) {
+          /* A past verb takes no agreement "-s": the tense fix replaces
+             whatever the agreement rule just did to the same word. */
+          issues = issues.filter(function (x) { return !(x.index === mvIdx && x.type === 'agreement'); });
+          push(mvIdx, 'tense',
+            'The time is already over ("' + (plain.match(PAST_MARK) || [''])[0] + '"), so the verb goes into the past: '
+            + mv0.w + ' → ' + pf.past + '. Tamil shows the time on the verb too — '
+            + 'சாப்பிடுகிறேன் is now, சாப்பிட்டேன் is past.',
+            mv0.w, pf.past);
+          fixed[mvIdx] = pf.past;
+        }
+      }
+    }
+
     /* missing article before a singular countable noun */
     var hasDet = false;
+    /* Time words, days, months and the like never take "a" or "the" in front
+       of them as they are used here. Suggesting "a yesterday" is worse than
+       saying nothing. */
+    var NO_ARTICLE = ['people', 'water', 'money', 'time', 'work', 'food', 'music', 'rice', 'milk',
+      'english', 'hindi', 'tamil', 'school', 'home', 'bed', 'india', 'yesterday', 'today',
+      'tomorrow', 'tonight', 'now', 'lunch', 'dinner', 'breakfast', 'office', 'church',
+      'temple', 'college', 'class', 'biryani', 'tea', 'coffee', 'monday', 'tuesday',
+      'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'january', 'february',
+      'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november',
+      'december', 'morning', 'evening', 'night', 'weekend', 'everyone', 'everything',
+      'someone', 'something', 'nothing', 'nobody', 'anything'];
     for (i = 0; i < tags.length; i++) {
       var tg = tags[i];
       if (tg.pos === 'det' || tg.pos === 'num') { hasDet = true; continue; }
       if (tg.pos === 'prep' || tg.pos === 'punct' || tg.pos === 'conj') { hasDet = false; continue; }
       if (tg.pos === 'noun' && !hasDet && !tg.proper && !tg.guessed && !/s$/.test(tg.w) &&
-          ['people', 'water', 'money', 'time', 'work', 'food', 'music', 'rice', 'milk',
-           'english', 'hindi', 'tamil', 'school', 'home', 'bed', 'india'].indexOf(tg.w) < 0) {
+          NO_ARTICLE.indexOf(tg.w) < 0) {
         var prev = tags[i - 1];
         if (!prev || (prev.pos !== 'adj' && prev.pos !== 'noun' && prev.pos !== 'det')) {
           issues.push({
