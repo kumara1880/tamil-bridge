@@ -2055,3 +2055,8 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 .tk-item { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line-soft); }
 .tk-chips { gap: 6px; }
 .tk-chip { font-size: calc(13px * var(--fs, 1)); }
+
+/* Hindi readings added by captions.js where a page had none. */
+.cap-more { margin-top: 2px; font-size: calc(12px * var(--fs, 1)); }
+.cap-more > summary { cursor: pointer; color: var(--teal); width: fit-content; }
+.cap-more > .hi-read { margin-top: 2px; }

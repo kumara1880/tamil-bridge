@@ -195,6 +195,8 @@ TB.App = (function () {
     root.innerHTML = v.html(r.param);
     try { v.mount(root, r.param); } catch (e) { console.error('mount', r.view, e); }
     if (TB.Depth) TB.Depth.reveal(root);
+    /* Hindi anywhere on the page says how to read it */
+    if (TB.Captions) { try { TB.Captions.apply(root); TB.Captions.watch(root); } catch (e) { console.error('captions', e); } }
     refreshChips();
     window.scrollTo(0, 0);
     document.getElementById('side').classList.remove('open');

@@ -863,7 +863,26 @@ async function setupTutor() {
 const TUTOR_LANG = { en: 'English', hi: 'Hindi' };
 const TUTOR_LEVEL = ['', 'A1 beginner', 'A2 elementary', 'B1 intermediate', 'B2 upper intermediate', 'C1 advanced', 'C2 near-native'];
 
-function tutorSystem(learn, level) {
+/* How a teacher talks to each level, from a first day to near-native. */
+function levelWay(level, L) {
+  return [
+    '',
+    `Level A1, a complete beginner: explain everything in simple Tamil. Teach ONE short, very common ${L}`
+      + ' phrase at a time (3-6 words), present tense, everyday words. Praise every attempt.',
+    `Level A2: explain mostly in Tamil. Short everyday ${L} sentences; bring in past and future gently,`
+      + ' and reuse what they already know.',
+    `Level B1: Tamil for new grammar, ${L} for the rest. Everyday situations — travel, work, shopping,`
+      + ' feelings. Ask them to say more than one sentence.',
+    `Level B2: talk mostly in ${L}; Tamil only for a tricky point. Bring in phrasal verbs, linking words`
+      + ' and the small natural words native speakers use.',
+    `Level C1: talk in ${L}. Idioms, nuance, formal and informal register, pronunciation and stress tips.`
+      + ' Tamil only if they ask.',
+    `Level C2: talk like a native friend in ${L}. Point out anything that is correct but not what a native`
+      + ' would say, and offer the natural version. Idioms, culture, humour. Tamil only if they ask.'
+  ][level] || '';
+}
+
+function tutorSystem(learn, level, voice) {
   const L = TUTOR_LANG[learn] || 'English';
   return [
     `You are a warm, patient, native-speaker ${L} teacher. Your student is a Tamil speaker learning ${L}`
@@ -871,6 +890,16 @@ function tutorSystem(learn, level) {
       + ` you understand what the student actually means, answer that, and keep them speaking.`,
     'The student may write in Tamil, English or Hindi, and may ask anything: to be taught, for words,'
       + ' how to say something, what something means, a grammar question, or simply chat.',
+    levelWay(level, L),
+    '- Build on this conversation: reuse what the student has already learnt in it, and when they do'
+      + ' well, make the next step a little harder — the aim is to take them all the way to speaking like a native.',
+    voice
+      ? '- This is a SPOKEN conversation, read aloud by a voice. Keep reply_ta and reply_target to one or two'
+        + ' short sentences that sound natural when heard. No lists, symbols, brackets or quotation marks.'
+      : '',
+    learn === 'hi'
+      ? '- Teach everyday spoken Hindi (Hindustani), not heavily Sanskritised Hindi, and use the respectful आप.'
+      : '',
     'How to answer:',
     '- Answer what was asked. If they ask you to teach, say yes warmly and start teaching at once.',
     `- Explain in natural, correct, everyday Tamil (not word-for-word translation), and give ${L} examples.`,
@@ -892,10 +921,12 @@ function tutorSystem(learn, level) {
     'Reply with JSON only, matching exactly:',
     '{"reply_ta": string — what you say to the student, in Tamil (1-3 sentences),'
       + ` "reply_target": string — the same message in ${L}, short,`
+      + (learn === 'hi' ? ' "reply_en": string — the same message in English,' : '')
       + ` "teach": [{"target": string (${L}), "ta": string (Tamil meaning), "en": string (English meaning)}] — 0 to 4 things to practise,`
       + ' "correction": {"original": string, "corrected": string, "why_ta": string} or null,'
-      + ` "next": {"target": string — a short line the student says next, in ${L}, "ta": string — its Tamil meaning} or null}`
-  ].join('\n');
+      + ` "next": {"target": string — a short line the student says next, in ${L}, "ta": string — its Tamil meaning,`
+      + ' "en": string — its English meaning} or null}'
+  ].filter(Boolean).join('\n');
 }
 
 function clip(s, n) { return String(s == null ? '' : s).slice(0, n); }
@@ -916,16 +947,18 @@ function shapeTutor(j) {
   const out = {
     reply_ta: clip(j.reply_ta, 1200),
     reply_target: clip(j.reply_target, 800),
+    reply_en: clip(j.reply_en, 800),
     teach: Array.isArray(j.teach) ? j.teach.slice(0, 4).map(item).filter(x => x && x.target) : [],
     correction: j.correction && typeof j.correction === 'object' && j.correction.corrected
       ? { original: clip(j.correction.original, 400), corrected: clip(j.correction.corrected, 400), why_ta: clip(j.correction.why_ta, 600) }
       : null,
-    next: j.next && typeof j.next === 'object' && j.next.target ? { target: clip(j.next.target, 300), ta: clip(j.next.ta, 300) } : null
+    next: j.next && typeof j.next === 'object' && j.next.target
+      ? { target: clip(j.next.target, 300), ta: clip(j.next.ta, 300), en: clip(j.next.en, 300) } : null
   };
   return out.reply_ta || out.reply_target || out.teach.length ? out : null;
 }
 
-async function askGemini(learn, level, history, retried) {
+async function askGemini(learn, level, history, retried, voice) {
   /* Turns must start with the student and alternate; two in a row from the
      same side are joined into one. */
   const contents = [];
@@ -944,7 +977,7 @@ async function askGemini(learn, level, history, retried) {
        the setting, so it goes only to models that do. */
     if (light && /^gemini-([3-9]|\d\d)/.test(model)) gen.thinkingConfig = { thinkingLevel: 'low' };
     return JSON.stringify({
-      systemInstruction: { parts: [{ text: tutorSystem(learn, level) }] },
+      systemInstruction: { parts: [{ text: tutorSystem(learn, level, voice) }] },
       contents,
       /* Room for thinking as well as the answer — a cut-off reply is
          unreadable JSON. No temperature: Gemini 3 models are meant to run at
@@ -993,7 +1026,7 @@ async function askGemini(learn, level, history, retried) {
     /* the model has gone: choose again from what is there, and start over */
     if (p === 'model-missing' && !retried) {
       await setupTutor();
-      if (TUTOR_STATE.ready) return askGemini(learn, level, history, true);
+      if (TUTOR_STATE.ready) return askGemini(learn, level, history, true, voice);
       break;
     }
   }
@@ -1038,7 +1071,7 @@ app.post('/api/tutor', rateLimit(40, 15 * 60 * 1000, 'tutor'), async (req, res) 
     if (!history.length || history[history.length - 1].role !== 'user') {
       return res.status(400).json({ error: 'Nothing to answer.' });
     }
-    const out = await askGemini(learn, level, history);
+    const out = await askGemini(learn, level, history, false, b.voice === true);
     if (!out) return res.status(502).json({ error: 'The AI tutor gave an answer that could not be read.', reason: 'unreadable' });
     res.json({ ok: true, tutor: out });
   } catch (e) {

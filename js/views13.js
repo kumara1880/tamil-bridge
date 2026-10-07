@@ -81,9 +81,21 @@
         for (var k in (extra || {})) o[k] = extra[k];
         return o;
       }
+      /* Everything the tutor says is counted, so a voice conversation knows
+         when the tutor has finished and it is the learner's turn to speak —
+         opening the microphone while the tutor is still talking would hear
+         the tutor. */
+      var speaking = 0, lastSpoke = 0;
+      function track(p) {
+        speaking++;
+        return Promise.resolve(p).catch(function () { return false; }).then(function (v) {
+          speaking = Math.max(0, speaking - 1);
+          lastSpoke = Date.now();
+          return v;
+        });
+      }
       function say(text, lang, slow) {
-        return TB.Speech.speak(text, lang, sayOpts(slow ? { rate: 0.62 } : null))
-          .catch(function () { return false; });
+        return track(TB.Speech.speak(text, lang, sayOpts(slow ? { rate: 0.62 } : null)));
       }
       function saveLevel() { var d = D(); d.prefs.talkLevel = level; d.prefs.talkLang = learn; saveD(d); }
 
@@ -99,7 +111,8 @@
         return h;
       }
 
-      function stopAll() { gen++; busy = false; TB.Speech.stop(); }
+      function stopAll() { gen++; busy = false; live = false; liveGen++; TB.Speech.stop(); }
+      var live = false, liveGen = 0, liveMiss = 0;   /* the voice conversation */
 
       /* Still on the page? A voice or a microphone can finish after the
          reader has gone somewhere else; nothing should then be written into
@@ -334,6 +347,19 @@
       /* ======================================================= free talk */
       function free() {
         body.innerHTML = '<div class="card">'
+          /* the same six levels as the conversations, beginner to
+             native-like: the tutor teaches to the one chosen */
+          + '<div class="row mb"><span class="tiny muted">My level:</span>'
+          + '<div class="pill-row" id="frLevels">'
+          + (TB.TALK_LEVELS || []).map(function (L) {
+              return '<button class="pill' + (L.n === level ? ' on' : '') + '" data-level="' + L.n + '" type="button" title="'
+                + esc(L.en) + '">' + esc(L.cefr) + ' · <span class="ta tiny">' + esc(L.ta) + '</span></button>';
+            }).join('')
+          + '</div></div>'
+          + (canHear
+              ? '<div class="row mb"><button class="btn btn-primary" id="frLive" type="button">\u{1F399}️ Start a voice conversation</button>'
+                + '<span id="frLiveStat" class="small muted" aria-live="polite"></span></div>'
+              : '')
           + '<div class="row"><span class="tiny muted">I will speak in:</span>'
           + '<div class="pill-row" id="frSpeak">'
           +   '<button class="pill' + (freeSpeak === 'ta' ? ' on' : '') + '" data-sp="ta" type="button">தமிழ்</button>'
@@ -389,7 +415,7 @@
       }
 
       function askAi(b, my) {
-        return TB.Sync.tutor({ learn: learn, level: level, history: talkLog.slice(-10) }).then(function (r) {
+        return TB.Sync.tutor({ learn: learn, level: level, voice: !!live, history: talkLog.slice(-10) }).then(function (r) {
           if (alive(my)) showAi(b, r, my);
         }, function (e) {
           if (/not switched on/i.test((e && e.message) || '')) aiState = false;
@@ -399,14 +425,21 @@
 
       function showAi(b, r, my) {
         var teach = (r.teach || []).map(function (x) { return asItem(x.target, x.ta, x.en); });
-        var nxt = r.next && r.next.target ? asItem(r.next.target, r.next.ta, '') : null;
+        var nxt = r.next && r.next.target ? asItem(r.next.target, r.next.ta, r.next.en) : null;
         var fix = r.correction && r.correction.corrected ? r.correction : null;
 
+        /* Every line in the language being learnt carries its captions: how
+           to read it in English letters and in Tamil letters, and — for Hindi
+           — what it means in English as well as in Tamil. */
         var html = '<div class="tk-who">Tutor</div>' + tutorText(r.reply_ta || '', r.reply_target || '');
         if (r.reply_target) html += readAid(r.reply_target, learn, true);
+        if (learn === 'hi' && r.reply_en) {
+          html += '<div class="tk-mean"><span class="tiny muted">English</span> <span>' + esc(r.reply_en) + '</span></div>';
+        }
         if (fix) {
           html += '<div class="mt">' + tutorText('சரியான வடிவம்:', learn === 'hi' ? 'सही रूप:' : 'The right way to say it:')
             + '<div class="' + learn + ' tk-line">' + esc(fix.corrected) + speakBtn(fix.corrected, learn) + '</div>'
+            + readAid(fix.corrected, learn, true)
             + (fix.why_ta ? '<div class="ta tiny">• ' + esc(fix.why_ta) + '</div>' : '') + '</div>';
         }
         html += teach.map(itemHtml).join('');
@@ -425,12 +458,19 @@
           .concat(teach.map(function (x) { return x[learn]; }))
           .concat(nxt ? [nxt[learn]] : []).filter(Boolean).join('\n') });
 
+        /* What is said aloud. In a voice conversation a beginner hears the
+           explanation in Tamil — an English sentence they cannot follow
+           teaches nothing — and then the line to say, slowly. From the
+           intermediate levels up the tutor talks in the language being
+           learnt, as a teacher of it would. */
         var spoken = [];
-        if (fix) spoken.push(fix.corrected);
-        if (r.reply_target) spoken.push(r.reply_target);
-        if (nxt) spoken.push(nxt[learn]);
-        spoken.reduce(function (p, line) {
-          return p.then(function () { if (alive(my)) return say(line, learn); });
+        var tamilVoice = live && level <= 2 && r.reply_ta;
+        if (tamilVoice) spoken.push([r.reply_ta, 'ta']);
+        if (fix) spoken.push([fix.corrected, learn]);
+        if (r.reply_target && !tamilVoice) spoken.push([r.reply_target, learn]);
+        if (nxt) spoken.push([nxt[learn], learn, live && level <= 3]);
+        spoken.reduce(function (p, s) {
+          return p.then(function () { if (alive(my)) return say(s[0], s[1], s[2]); });
         }, Promise.resolve());
       }
 
@@ -656,7 +696,7 @@
             + list.map(itemHtml).join('')
             + tutorText('இப்போது ஒவ்வொன்றாகப் பயிற்சி செய்யலாம்.', '')
             + chips(['next', 'More words', 'Words about animals']);
-          TB.Speech.sequence(list.map(function (w) { return { text: w[learn], lang: learn, rate: 0.75, pause: 500 }; }), sayOpts());
+          track(TB.Speech.sequence(list.map(function (w) { return { text: w[learn], lang: learn, rate: 0.75, pause: 500 }; }), sayOpts()));
           return;
         }
 
@@ -754,6 +794,114 @@
                          'I could not reach the translator just now. Please try again in a moment.');
       }
 
+      /* ------------------------------------------- the voice conversation
+
+         Hands-free, the way a lesson with a teacher goes: the tutor speaks,
+         and when it has finished the microphone opens by itself; the learner
+         answers aloud; the tutor understands, corrects and answers aloud; and
+         round again — until "stop", or the End button. */
+      function liveStatus(t) {
+        var s = root.querySelector('#frLiveStat');
+        if (s) s.textContent = t;
+      }
+
+      function liveSet(on) {
+        live = on; liveGen++; liveMiss = 0;
+        var btn = root.querySelector('#frLive');
+        if (btn) {
+          btn.textContent = on ? '⏹ End the voice conversation' : '\u{1F399}️ Start a voice conversation';
+          btn.classList.toggle('btn-primary', !on);
+          btn.classList.toggle('btn-live', on);
+        }
+        if (!on) { liveStatus(''); TB.Speech.stop(); }
+      }
+
+      function speakIn(lang) {
+        freeSpeak = lang;
+        root.querySelectorAll('#frSpeak .pill').forEach(function (x) {
+          x.classList.toggle('on', x.getAttribute('data-sp') === lang);
+        });
+      }
+
+      function liveToggle() {
+        if (live) { liveSet(false); liveStatus('Voice conversation ended.'); return; }
+        liveSet(true);
+        var my = liveGen;
+        /* Answers are practice, so they are heard in the language being
+           learnt. The தமிழ் button is there for when the words will not come. */
+        speakIn(learn);
+        /* A first conversation is opened by the tutor; one already going
+           simply carries on with the learner's turn. */
+        if (!freeTurns) respond(learn === 'hi' ? 'हिंदी में बात करें' : 'Let us talk in English');
+        afterTurn(my);
+      }
+
+      /* Wait for the tutor to finish — the answer drawn and every word of it
+         spoken — then open the microphone. */
+      function afterTurn(my) {
+        var t0 = Date.now();
+        (function wait() {
+          if (!live || my !== liveGen || !body.isConnected) return;
+          var chat = root.querySelector('#frChat');
+          var thinking = !!(chat && chat.querySelector('.spin'));
+          var talking = speaking > 0 || Date.now() - lastSpoke < 700;
+          if ((thinking || talking) && Date.now() - t0 < 90000) {
+            liveStatus(thinking ? '\u{1F4AD} Thinking…' : '\u{1F50A} Tutor is speaking…');
+            setTimeout(wait, 250);
+            return;
+          }
+          liveListen(my);
+        })();
+      }
+
+      var STOP_WORDS = /^(stop|end|quit|finish|that'?s all|நிறுத்து|நிறுத்துங்கள்|போதும்|बंद करो|बस|रुको)[\s.!]*$/i;
+
+      function liveListen(my) {
+        if (!live || my !== liveGen) return;
+        if (busy) { setTimeout(function () { afterTurn(my); }, 500); return; }
+        busy = true;
+        liveStatus('\u{1F3A4} Your turn — speak in ' + LANG_NAME[freeSpeak] + '…');
+        TB.Speech.listen(freeSpeak, {
+          maxMs: 12000,
+          onInterim: function (t) { if (live && my === liveGen) liveStatus('\u{1F3A4} ' + t); }
+        }).then(function (h) {
+          busy = false;
+          if (!live || my !== liveGen || !body.isConnected) return;
+          var said = String(h.text || '').trim();
+          if (!said) return missed(my);
+          liveMiss = 0;
+          if (STOP_WORDS.test(said)) { liveSet(false); liveStatus('Voice conversation ended.'); return; }
+          respond(said);
+          afterTurn(my);
+        }, function (e) {
+          busy = false;
+          if (!live || my !== liveGen) return;
+          /* silence is a missed turn, not the end of the conversation */
+          if (/no speech/i.test(e.message || '')) return missed(my);
+          liveSet(false);
+          liveStatus(e.message);
+        });
+      }
+
+      function missed(my) {
+        liveMiss++;
+        if (liveMiss >= 3) {
+          liveSet(false);
+          liveStatus('I could not hear you, so I have paused. Tap Start when you are ready.');
+          return;
+        }
+        /* the second time, offer Tamil: often the words are the problem,
+           not the microphone */
+        if (liveMiss === 2 && freeSpeak !== 'ta') {
+          liveStatus('Not sure what to say? Tap தமிழ் and say it in Tamil — I will teach you.');
+          say(learn === 'hi' ? 'कोई बात नहीं। आप तमिल में भी बोल सकते हैं।' : 'No problem. You can say it in Tamil too.', learn)
+            .then(function () { if (live && my === liveGen) liveListen(my); });
+          return;
+        }
+        liveStatus('I didn’t catch that — please say it again.');
+        liveListen(my);
+      }
+
       function listenFree() {
         if (busy) return;
         var stat = root.querySelector('#frStat');
@@ -832,8 +980,16 @@
       body.addEventListener('click', function (e) {
         var t;
         if ((t = e.target.closest('[data-level]'))) {
-          level = +t.getAttribute('data-level'); saveLevel(); scenes(); return;
+          level = +t.getAttribute('data-level'); saveLevel();
+          /* in free talk the level only changes how the tutor teaches; the
+             conversation carries on */
+          if (tab === 'free') {
+            root.querySelectorAll('#frLevels .pill').forEach(function (x) { x.classList.toggle('on', x === t); });
+            return;
+          }
+          scenes(); return;
         }
+        if (e.target.closest('#frLive')) { liveToggle(); return; }
         if (e.target.closest('#tkFind')) { findScenes(); return; }
         if ((t = e.target.closest('[data-scene]'))) { start(t.getAttribute('data-scene')); return; }
         if ((t = e.target.closest('[data-next]'))) { start(t.getAttribute('data-next')); return; }

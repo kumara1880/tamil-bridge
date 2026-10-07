@@ -4160,6 +4160,39 @@ section('DICTIONARY (offline)');
       /tutorText\(r\.reply_ta \|\| '', r\.reply_target \|\| ''\)/.test(v13t) && /esc\(fix\.corrected\)/.test(v13t) && /esc\(fix\.why_ta\)/.test(v13t));
   }
 
+  /* ------------------------------------------- voice conversation, captions */
+  console.log('\nVOICE CONVERSATION AND HINDI CAPTIONS');
+  {
+    const v13 = require('fs').readFileSync(__dirname + '/js/views13.js', 'utf8');
+    t('free talk has a hands-free voice conversation', /id="frLive"/.test(v13) && /function liveToggle\(\)/.test(v13));
+    t('the microphone opens only once the tutor has finished speaking',
+      /var talking = speaking > 0 \|\| Date\.now\(\) - lastSpoke < 700;/.test(v13) && /liveListen\(my\);\s*\}\)\(\);/.test(v13));
+    t('everything the tutor says is counted', /function say\(text, lang, slow\) \{\s*return track\(/.test(v13) && /track\(TB\.Speech\.sequence/.test(v13));
+    t('silence is a missed turn, "stop" ends it, three misses pause it',
+      /no speech/.test(v13) && /STOP_WORDS\.test\(said\)/.test(v13) && /liveMiss >= 3/.test(v13));
+    t('a beginner hears the explanation in Tamil, then the line slowly',
+      /var tamilVoice = live && level <= 2 && r\.reply_ta;/.test(v13) && /live && level <= 3\]/.test(v13));
+    t('free talk picks a level from beginner to native-like', /id="frLevels"/.test(v13) && /if \(tab === 'free'\)/.test(v13));
+    t('the AI is told when it is a spoken conversation', /voice: !!live/.test(v13));
+    t('Hindi from the AI carries its English meaning and a reading under corrections',
+      /learn === 'hi' && r\.reply_en/.test(v13) && /readAid\(fix\.corrected, learn, true\)/.test(v13));
+    t('leaving the page ends a voice conversation', /function stopAll\(\) \{ gen\+\+; busy = false; live = false; liveGen\+\+;/.test(v13));
+
+    const srv = require('fs').readFileSync(__dirname + '/server/index.js', 'utf8');
+    t('the AI teaches to the level, beginner to native-like', /function levelWay\(level, L\)/.test(srv) && /Level C2/.test(srv) && /levelWay\(level, L\),/.test(srv));
+    t('spoken replies are kept short and speakable', /This is a SPOKEN conversation/.test(srv) && /b\.voice === true/.test(srv));
+    t('Hindi replies come with English too', /"reply_en": string/.test(srv) && /reply_en: clip\(j\.reply_en, 800\)/.test(srv));
+
+    const cap = require('fs').readFileSync(__dirname + '/js/captions.js', 'utf8');
+    const app = require('fs').readFileSync(__dirname + '/js/app.js', 'utf8');
+    const html = require('fs').readFileSync(__dirname + '/index.html', 'utf8');
+    t('every page gets Hindi readings where it had none',
+      /TB\.Captions\.apply\(root\); TB\.Captions\.watch\(root\);/.test(app) && /js\/captions\.js\?v=/.test(html));
+    t('controls and the language\'s own name are left alone', /button, label/.test(cap) && /NAME_ONLY/.test(cap));
+    t('a reading that cannot be made is left off', /return r && r\.can && \(r\.roman \|\| r\.tamil\) \? r : null;/.test(cap));
+    t('its own captions do not set the watcher off again', /n\.classList\.contains\('cap-auto'\)/.test(cap));
+  }
+
   /* ------------------------------------------- accounts on the server */
   console.log('\nSERVER SESSIONS AND LEAKS');
   {
