@@ -339,9 +339,13 @@ function auth(req, res, next) {
 /* Very small in-process rate limit — enough to stop casual abuse of a free
    instance without adding a dependency or any cost. */
 const hits = new Map();
-function rateLimit(max, windowMs) {
+/* Keyed by a name given to each route, not by req.path. Express matches
+   '/api/auth/signin', '/api/auth/signin/' and '/API/auth/signin' to the same
+   route, but each is a different req.path - so every spelling got a fresh
+   allowance and the limit could be walked around. */
+function rateLimit(max, windowMs, name) {
   return (req, res, next) => {
-    const key = (req.ip || 'x') + ':' + req.path;
+    const key = (req.ip || 'x') + ':' + String(name || (req.route && req.route.path) || req.path).toLowerCase();
     const now = Date.now();
     const rec = hits.get(key) || { n: 0, reset: now + windowMs };
     if (now > rec.reset) { rec.n = 0; rec.reset = now + windowMs; }
@@ -410,12 +414,13 @@ app.get('/api/health', (_req, res) => {
     /* A reset also needs somewhere safe to point the link. Saying it can be
        done when it cannot sends people to a dead end. */
     appUrl: !!appUrl(),
+    tutor: TUTOR_STATE.ready,
     canReset: MAIL_STATE.ready && STORE.durable && !!appUrl(),
     time: new Date().toISOString()
   });
 });
 
-app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000, 'signup'), async (req, res) => {
   try {
     const { name, identifier, password } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name is required.' });
@@ -475,7 +480,7 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
   }
 });
 
-app.post('/api/auth/signin', rateLimit(20, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/auth/signin', rateLimit(20, 15 * 60 * 1000, 'signin'), async (req, res) => {
   try {
     const { identifier, password } = req.body || {};
     /* Accounts are an email address and nothing else. A number cannot be
@@ -507,7 +512,7 @@ app.post('/api/auth/signin', rateLimit(20, 15 * 60 * 1000), async (req, res) => 
    stranger which addresses have accounts is a gift to whoever is guessing.
    It does say whether the server is able to send mail at all, because that
    is about the server and not about the person. */
-app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000, 'forgot'), async (req, res) => {
   try {
     const { identifier } = req.body || {};
     const email = isEmail(identifier) ? String(identifier).trim().toLowerCase() : null;
@@ -575,7 +580,7 @@ app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000), async (req, res) => {
   }
 });
 
-app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000, 'reset'), async (req, res) => {
   try {
     const { token, password } = req.body || {};
     const pw = String(password || '');
@@ -605,7 +610,7 @@ app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
    account recoverable: without an address there is nowhere to send a reset
    link, and forgetting the password means losing everything. The password
    is required, because an email address is how an account is taken back. */
-app.post('/api/account/email', auth, rateLimit(10, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/account/email', auth, rateLimit(10, 15 * 60 * 1000, 'email'), async (req, res) => {
   try {
     const user = await users.findOne({ _id: req.userId });
     if (!user) return res.status(404).json({ error: 'Account not found.' });
@@ -634,7 +639,7 @@ app.post('/api/account/email', auth, rateLimit(10, 15 * 60 * 1000), async (req, 
 /* Deleting is the one thing that cannot be undone, so it asks for the
    password again. A token alone is not enough: a phone left unlocked on a
    table should not be able to destroy somebody's work. */
-app.post('/api/account/delete', auth, rateLimit(6, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/account/delete', auth, rateLimit(6, 15 * 60 * 1000, 'delete'), async (req, res) => {
   try {
     const user = await users.findOne({ _id: req.userId });
     if (!user) return res.status(404).json({ error: 'Account not found.' });
@@ -702,6 +707,153 @@ app.put('/api/data', auth, async (req, res) => {
   } catch (e) {
     console.error('put data', e);
     res.status(500).json({ error: 'Could not save your data. Try again shortly.' });
+  }
+});
+
+/* ---------------------------------------------------------------- tutor
+
+   The conversation tutor's thinking half. The browser's own tutor follows
+   lessons and recognises requests, but it cannot understand an arbitrary
+   sentence and answer it the way a person would. A language model can.
+
+   Off unless GEMINI_API_KEY is set on the service. Google's free tier needs
+   no card and costs nothing within its daily quota, which keeps the site
+   free for everyone using it. The key lives in the service's environment —
+   never in the code, never in the repository, never in the browser.
+
+   When it is off, or the quota is spent, or Google does not answer, the
+   endpoint says so and the browser falls back to its own tutor. Nothing
+   breaks. */
+const GEMINI_KEY = (process.env.GEMINI_API_KEY || '').trim();
+const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
+let TUTOR_STATE = { ready: !!GEMINI_KEY, reason: GEMINI_KEY ? '' : 'GEMINI_API_KEY is not set.' };
+
+const TUTOR_LANG = { en: 'English', hi: 'Hindi' };
+const TUTOR_LEVEL = ['', 'A1 beginner', 'A2 elementary', 'B1 intermediate', 'B2 upper intermediate', 'C1 advanced', 'C2 near-native'];
+
+function tutorSystem(learn, level) {
+  const L = TUTOR_LANG[learn] || 'English';
+  return [
+    `You are a warm, patient, native-speaker ${L} teacher. Your student is a Tamil speaker learning ${L}`
+      + ` at about ${TUTOR_LEVEL[level] || 'beginner'} level. You teach the way a good human teacher talks:`
+      + ` you understand what the student actually means, answer that, and keep them speaking.`,
+    'The student may write in Tamil, English or Hindi, and may ask anything: to be taught, for words,'
+      + ' how to say something, what something means, a grammar question, or simply chat.',
+    'How to answer:',
+    '- Answer what was asked. If they ask you to teach, say yes warmly and start teaching at once.',
+    `- Explain in natural, correct, everyday Tamil (not word-for-word translation), and give ${L} examples.`,
+    `- Keep each ${L} line short and natural — the way a native speaker really says it.`,
+    '- If the student wrote a sentence in the language they are learning and it has a mistake, correct it'
+      + ' gently and say why in one short Tamil sentence. Never "correct" something that is right.',
+    '- End with one short question or prompt that keeps them talking, unless they said goodbye.',
+    learn === 'hi' ? '- Write Hindi in Devanagari only.' : '- Write English in plain, modern English.',
+    '- Tamil must be correct standard Tamil in Tamil script. If unsure of a Tamil word, use a simpler one.',
+    'Reply with JSON only, matching exactly:',
+    '{"reply_ta": string — what you say to the student, in Tamil (1-3 sentences),'
+      + ` "reply_target": string — the same message in ${L}, short,`
+      + ` "teach": [{"target": string (${L}), "ta": string (Tamil meaning), "en": string (English meaning)}] — 0 to 4 things to practise,`
+      + ' "correction": {"original": string, "corrected": string, "why_ta": string} or null,'
+      + ` "next": {"target": string (${L}), "ta": string} or null}`
+  ].join('\n');
+}
+
+function clip(s, n) { return String(s == null ? '' : s).slice(0, n); }
+
+/* Pull the first JSON object out of a reply, tolerating a stray code fence. */
+function parseTutor(text) {
+  const t = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { return null; }
+}
+
+/* Keep only what the browser will render, of the types it expects. */
+function shapeTutor(j) {
+  if (!j || typeof j !== 'object') return null;
+  const item = x => x && typeof x === 'object'
+    ? { target: clip(x.target, 300), ta: clip(x.ta, 300), en: clip(x.en, 300) } : null;
+  const out = {
+    reply_ta: clip(j.reply_ta, 1200),
+    reply_target: clip(j.reply_target, 800),
+    teach: Array.isArray(j.teach) ? j.teach.slice(0, 4).map(item).filter(x => x && x.target) : [],
+    correction: j.correction && typeof j.correction === 'object' && j.correction.corrected
+      ? { original: clip(j.correction.original, 400), corrected: clip(j.correction.corrected, 400), why_ta: clip(j.correction.why_ta, 600) }
+      : null,
+    next: j.next && typeof j.next === 'object' && j.next.target ? { target: clip(j.next.target, 300), ta: clip(j.next.ta, 300) } : null
+  };
+  return out.reply_ta || out.reply_target || out.teach.length ? out : null;
+}
+
+async function askGemini(learn, level, history) {
+  /* Turns must start with the student and alternate; two in a row from the
+     same side are joined into one. */
+  const contents = [];
+  history.forEach(m => {
+    const role = m.role === 'tutor' ? 'model' : 'user';
+    if (!contents.length && role !== 'user') return;
+    const last = contents[contents.length - 1];
+    if (last && last.role === role) last.parts[0].text += '\n' + clip(m.text, 600);
+    else contents.push({ role, parts: [{ text: clip(m.text, 600) }] });
+  });
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 25000);
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'
+      + encodeURIComponent(GEMINI_MODEL) + ':generateContent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: tutorSystem(learn, level) }] },
+        contents,
+        /* room for the model to think as well as answer — its thinking
+           counts against this, and a cut-off reply is unreadable JSON */
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4096 }
+      }),
+      signal: ctl.signal
+    });
+    const body = await r.text();
+    if (!r.ok) {
+      /* Reported to the operator in the logs; the caller only learns that
+         the tutor is unavailable, never Google's raw message. */
+      console.warn('[tutor] Gemini ' + r.status + ': ' + body.slice(0, 300));
+      const e = new Error(r.status === 429 ? 'busy' : 'unavailable');
+      e.status = r.status;
+      throw e;
+    }
+    let j; try { j = JSON.parse(body); } catch (e) { j = null; }
+    const text = j && j.candidates && j.candidates[0] && j.candidates[0].content
+      && j.candidates[0].content.parts && j.candidates[0].content.parts.map(p => p.text || '').join('');
+    return shapeTutor(parseTutor(text));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+app.post('/api/tutor', rateLimit(40, 15 * 60 * 1000, 'tutor'), async (req, res) => {
+  if (!TUTOR_STATE.ready) return res.status(503).json({ error: 'The AI tutor is not switched on.', reason: 'off' });
+  try {
+    const b = req.body || {};
+    const learn = b.learn === 'hi' ? 'hi' : 'en';
+    const level = Math.max(1, Math.min(6, parseInt(b.level, 10) || 1));
+    /* the last few turns only — enough to follow the conversation, little
+       enough to stay well inside the free quota */
+    const history = (Array.isArray(b.history) ? b.history : [])
+      .filter(m => m && typeof m.text === 'string' && m.text.trim())
+      .slice(-10)
+      .map(m => ({ role: m.role === 'tutor' ? 'tutor' : 'user', text: m.text }));
+    if (!history.length || history[history.length - 1].role !== 'user') {
+      return res.status(400).json({ error: 'Nothing to answer.' });
+    }
+    const out = await askGemini(learn, level, history);
+    if (!out) return res.status(502).json({ error: 'The AI tutor gave an answer that could not be read.', reason: 'unreadable' });
+    res.json({ ok: true, tutor: out });
+  } catch (e) {
+    const busy = e && e.status === 429;
+    res.status(busy ? 429 : 502).json({
+      error: busy ? 'The AI tutor is busy right now. Please try again in a minute.'
+                  : 'The AI tutor could not be reached just now.',
+      reason: busy ? 'quota' : 'unreachable'
+    });
   }
 });
 

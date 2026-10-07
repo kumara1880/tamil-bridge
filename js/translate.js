@@ -322,33 +322,34 @@ TB.Translate = (function () {
       if (!idx.length) return Promise.resolve(text.map(function () { return ''; }));
       if (from === to && from !== 'auto') return Promise.resolve(text.slice());
 
-      /* A line on its own is short and ambiguous; a numbered list gives the
-         service the surrounding context while still coming back separable. */
-      var MARK = '\n';
-      var joined = idx.map(function (i) { return text[i]; }).join(MARK);
+      /* Each line is translated on its own.
 
-      function fanOut() {
-        return Promise.all(idx.map(function (i) {
-          return api.translate(text[i], from, to)
-            .then(function (r) { return r.text; })
-            .catch(function () { return ''; });
-        })).then(function (parts) {
-          var out = text.map(function () { return ''; });
-          idx.forEach(function (i, k) { out[i] = parts[k]; });
-          return out;
-        });
+         They used to go as one block, joined with newlines, and be split
+         apart again, trusted whenever the number of lines matched. But a
+         translation service is free to merge two short lines and split a long
+         one — the count still matches, and every translation after that
+         point slides onto the wrong line. A photo showed "Yes, Yes, Yes!"
+         beside "எத்தனை நாட்கள் பயணம்" ("how many days of travel"), a line
+         from further down. A meaning shown beside the wrong sentence teaches
+         something false, which is worse than teaching nothing.
+
+         One line per request cannot be misaligned. The reader has already
+         joined the lines of a paragraph into whole sentences, so each one
+         still carries its own context. A few at a time, so a long page does
+         not fire forty requests at once. */
+      var out = text.map(function () { return ''; });
+      var next = 0;
+      function worker() {
+        if (next >= idx.length) return Promise.resolve();
+        var i = idx[next++];
+        return api.translate(text[i], from, to)
+          .then(function (r) { out[i] = (r && r.text) || ''; })
+          .catch(function () { out[i] = ''; })
+          .then(worker);
       }
-
-      return api.translate(joined, from, to).then(function (r) {
-        var parts = String(r.text || '').split(/\r?\n/).map(function (x) { return x.trim(); })
-                      .filter(function (x) { return x; });
-        /* Only trust the one-shot result if it came back with the same number
-           of lines; otherwise ask line by line. */
-        if (parts.length !== idx.length) return fanOut();
-        var out = text.map(function () { return ''; });
-        idx.forEach(function (i, k) { out[i] = parts[k]; });
-        return out;
-      }).catch(fanOut);
+      var lanes = [];
+      for (var w = 0; w < Math.min(4, idx.length); w++) lanes.push(worker());
+      return Promise.all(lanes).then(function () { return out; });
     },
 
     /* Translate into several targets at once (used by the meaning card). */

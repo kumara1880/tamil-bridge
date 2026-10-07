@@ -3208,8 +3208,8 @@ section('DICTIONARY (offline)');
       /lastTapped = n;/.test(v11) && /markFrom\(\);/.test(v11));
     t('changing the page stops the reading and re-checks that mark',
       /stopReading\(\);\s*\n\s*markFrom\(\);/.test(v11));
-    t('each number is read as the figure and then its three names',
-      /\[String\(n\), 'en'\], \[en, 'en'\], \[ta, 'ta'\], \[hi, 'hi'\]/.test(v11));
+    t('each number is read once in each of its three names',
+      /\? \[\[en, 'en'\], \[ta, 'ta'\], \[hi, 'hi'\]\]/.test(v11));
     t('the chosen single voice is honoured too',
       /voice === 'en' \? en : voice === 'hi' \? hi : ta, voice/.test(v11));
     t('and the cell being read is lit', /cell\.classList\.add\('saying'\)/.test(v11));
@@ -4062,6 +4062,115 @@ section('DICTIONARY (offline)');
       TB.Store.data(su).stats.daysUsed);
   } catch (e) {
     fail++; console.log('  FAIL  accounts threw: ' + e.message);
+  }
+
+  /* ------------------------------------------------------- the AI tutor */
+  console.log('\nAI TUTOR');
+  {
+    const srv = require('fs').readFileSync(__dirname + '/server/index.js', 'utf8');
+    const grab = function (name) {
+      const a = srv.indexOf('function ' + name + '(');
+      let depth = 0, i = srv.indexOf('{', a);
+      for (; i < srv.length; i++) {
+        if (srv[i] === '{') depth++;
+        else if (srv[i] === '}' && --depth === 0) break;
+      }
+      return srv.slice(a, i + 1);
+    };
+    const box = {};
+    vm.runInNewContext(grab('clip') + grab('parseTutor') + grab('shapeTutor')
+      + ';this.parseTutor=parseTutor;this.shapeTutor=shapeTutor;', box);
+
+    const fenced = '```json\n{"reply_ta":"சரி","reply_target":"Sure","teach":[],"correction":null,"next":null}\n```';
+    t('a reply wrapped in a code fence is still read', box.parseTutor(fenced) && box.parseTutor(fenced).reply_target === 'Sure');
+    t('a reply that is not JSON is refused, not guessed at', box.parseTutor('I think you mean…') === null);
+    const shaped = box.shapeTutor({
+      reply_ta: 'நிச்சயமாக!', reply_target: 'Of course!', extra: 'dropped',
+      teach: [1, 2, 3, 4, 5].map(function (n) { return { target: 'w' + n, ta: 't' + n, en: 'e' + n, x: 1 }; }),
+      correction: { original: 'I goed', corrected: 'I went', why_ta: 'go-வின் இறந்தகாலம் went' },
+      next: { target: 'Where did you go?', ta: 'எங்கே போனீர்கள்?' }
+    });
+    t('only the fields the page draws are passed on', shaped && !('extra' in shaped) && !('x' in shaped.teach[0]));
+    t('at most four things to practise', shaped.teach.length === 4);
+    t('a correction and a next line come through', shaped.correction.corrected === 'I went' && shaped.next.target === 'Where did you go?');
+    t('an empty answer is no answer', box.shapeTutor({ reply_ta: '', reply_target: '', teach: [] }) === null);
+    t('a correction without a corrected form is dropped',
+      box.shapeTutor({ reply_ta: 'x', correction: { original: 'a' } }).correction === null);
+    t('the key comes from the environment only', /process\.env\.GEMINI_API_KEY/.test(srv) && !/AIza[0-9A-Za-z_-]{20,}/.test(srv));
+    t('turns sent to the model start with the student and alternate',
+      /if \(!contents\.length && role !== 'user'\) return;/.test(srv) && /last\.role === role/.test(srv));
+    t('the health check says whether the tutor is on', /tutor: TUTOR_STATE\.ready/.test(srv));
+    t('the tutor has its own rate limit', /rateLimit\(40, 15 \* 60 \* 1000, 'tutor'\)/.test(srv));
+
+    const sync = require('fs').readFileSync(__dirname + '/js/sync.js', 'utf8');
+    t('the browser asks the tutor through the sync client', /req\('\/api\/tutor', \{ method: 'POST', body: body \}/.test(sync));
+
+    const v13t = require('fs').readFileSync(__dirname + '/js/views13.js', 'utf8');
+    t('free talk asks the AI only when it is on', /if \(aiState && !here && TB\.Sync && TB\.Sync\.tutor\)/.test(v13t));
+    t('and answers by itself if the AI fails', /askAi\(b, my\)\.catch\(function \(\) \{ if \(alive\(my\)\) answerHere\(text, it, b, my\); \}\)/.test(v13t));
+    t('a tutor that is switched off is not asked again', /not switched on/.test(v13t) && /aiState = false/.test(v13t));
+    t('the conversation so far goes with each message', /history: talkLog\.slice\(-10\)/.test(v13t));
+    t('every AI line is escaped before it is shown',
+      /tutorText\(r\.reply_ta \|\| '', r\.reply_target \|\| ''\)/.test(v13t) && /esc\(fix\.corrected\)/.test(v13t) && /esc\(fix\.why_ta\)/.test(v13t));
+  }
+
+  /* ------------------------------------------------ chart reads each once */
+  {
+    const v11 = require('fs').readFileSync(__dirname + '/js/views11.js', 'utf8');
+    t('the number chart says each number once, not digits then name',
+      /function readNumbers/.test(v11) && !/\[String\(n\), 'en'\]/.test(v11));
+  }
+
+  /* ------------------------------------------- photo meaning, line by line */
+  console.log('\nPHOTO MEANING STAYS ON ITS OWN LINE');
+  {
+    const T = TB.Translate;
+    const real = T.translate;
+    const asked = [];
+    let inFlight = 0, most = 0;
+    /* A service that, given several lines at once, merges the first two and
+       splits the last: the count still matches and everything slides. */
+    T.translate = function (text, from, to) {
+      asked.push(text);
+      inFlight++; most = Math.max(most, inFlight);
+      return new Promise(function (r) {
+        setTimeout(function () {
+          inFlight--;
+          if (/\n/.test(text)) {
+            r({ text: 'Yes, Yes, Yes!\nHow many\ndays of travel' });
+          } else {
+            r({ text: 'EN(' + text + ')' });
+          }
+        }, 2);
+      });
+    };
+    try {
+      const src = ['ஆம் ஆம் ஆம்!', 'நீங்கள் எங்கே போகிறீர்கள்?', '', 'எத்தனை நாட்கள் பயணம்'];
+      const got = await T.lines(src, 'ta', 'en');
+      t('every meaning sits beside its own line',
+        got[0] === 'EN(' + src[0] + ')' && got[1] === 'EN(' + src[1] + ')'
+          && got[3] === 'EN(' + src[3] + ')', JSON.stringify(got));
+      t('a blank line stays blank', got[2] === '');
+      t('no block of joined lines is ever sent', !asked.some(function (a) { return /\n/.test(a); }));
+
+      const many = [];
+      for (let i = 0; i < 20; i++) many.push('வரி ' + i);
+      inFlight = 0; most = 0;
+      const all = await T.lines(many, 'ta', 'en');
+      t('a long page still pairs every line', all.every(function (x, i) { return x === 'EN(' + many[i] + ')'; }));
+      t('and asks a few at a time, not all at once', most > 1 && most <= 4, most);
+
+      T.translate = function (text) {
+        return text === 'bad' ? Promise.reject(new Error('down')) : Promise.resolve({ text: 'ok:' + text });
+      };
+      const mixed = await T.lines(['a', 'bad', 'c'], 'ta', 'en');
+      t('one failed line leaves the others in place',
+        mixed[0] === 'ok:a' && mixed[1] === '' && mixed[2] === 'ok:c', JSON.stringify(mixed));
+    } catch (e) {
+      fail++; console.log('  FAIL  photo meaning threw: ' + e.message);
+    } finally {
+      T.translate = real;
+    }
   }
 
   console.log('\n' + '='.repeat(46));

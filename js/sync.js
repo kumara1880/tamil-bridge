@@ -118,6 +118,17 @@ TB.Sync = (function () {
       return req('/api/health', {}, 75000).catch(function () { return null; });
     },
 
+    /* One turn of the AI conversation tutor. Resolves with the tutor's reply
+       ({ reply_ta, reply_target, teach, correction, next }) or rejects, in
+       which case the caller answers with the browser's own tutor. */
+    tutor: function (body) {
+      if (!base) return Promise.reject(new Error('no-backend'));
+      return req('/api/tutor', { method: 'POST', body: body }, 40000).then(function (j) {
+        if (!j || !j.tutor) throw new Error('unreadable');
+        return j.tutor;
+      });
+    },
+
     ping: function () {
       return api.health().then(function (h) { return !!(h && h.ok); });
     },

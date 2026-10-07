@@ -19,6 +19,10 @@
   var esc = V.esc, speakBtn = V.speakBtn, readAid = V.readAid, D = V.D, saveD = V.saveD;
   var C = TB.Converse;
 
+  /* Whether the server's AI tutor is switched on: null until asked, then
+     true or false for the rest of the page's life. */
+  var aiState = null;
+
   var LANG_NAME = { en: 'English', hi: 'हिंदी', ta: 'தமிழ்' };
   /* Said inside a Tamil sentence, a language is named in Tamil. */
   var IN_TAMIL = { en: 'ஆங்கிலத்தில்', hi: 'இந்தியில்' };
@@ -336,7 +340,8 @@
           +   '<button class="pill' + (freeSpeak === learn ? ' on' : '') + '" data-sp="' + learn + '" type="button">' + LANG_NAME[learn] + '</button>'
           + '</div></div>'
           + '<div class="tiny muted mt">Say anything. In Tamil, and you learn how to say it in '
-          +   LANG_NAME[learn] + '. In ' + LANG_NAME[learn] + ', and it is checked, explained in Tamil, and answered.</div>'
+          +   LANG_NAME[learn] + '. In ' + LANG_NAME[learn] + ', and it is checked, explained in Tamil, and answered.'
+          +   ' <span id="frMode">' + modeText() + '</span></div>'
           + '</div>'
           + '<div class="card tk-chat" id="frChat">'
           +   '<div class="tk-bubble tk-A"><div class="tk-who">Tutor</div>'
@@ -350,6 +355,83 @@
           +   (canHear ? '<button class="btn btn-sm" id="frMic" type="button">\u{1F3A4}</button>' : '')
           +   '<button class="btn btn-primary btn-sm" id="frSend" type="button">Send</button>'
           + '</div><div id="frStat" class="tiny muted mt"></div></div>';
+        checkAi();
+      }
+
+      /* ---------------------------------------------- the AI tutor
+
+         When the server has a language model switched on, free talk is
+         answered by it: it understands whatever was said, in Tamil, English
+         or Hindi, answers it as a teacher would, corrects mistakes and keeps
+         the conversation going. The last few turns go with each message so it
+         can follow along. If it is off, busy or unreachable, the browser's own
+         tutor answers instead, so a message is never left unanswered. */
+      var talkLog = [];
+
+      function modeText() {
+        return aiState ? '<b>AI tutor on.</b>' : '';
+      }
+
+      function checkAi() {
+        if (aiState !== null || !TB.Sync || !TB.Sync.health) return;
+        var my = gen;
+        TB.Sync.health().then(function (h) {
+          if (aiState === null) aiState = !!(h && h.tutor);
+          var m = alive(my) && root.querySelector('#frMode');
+          if (m) m.innerHTML = modeText();
+        });
+      }
+
+      function asItem(target, ta, en) {
+        var o = { ta: ta || '', en: en || '' };
+        o[learn] = target;
+        return o;
+      }
+
+      function askAi(b, my) {
+        return TB.Sync.tutor({ learn: learn, level: level, history: talkLog.slice(-10) }).then(function (r) {
+          if (alive(my)) showAi(b, r, my);
+        }, function (e) {
+          if (/not switched on/i.test((e && e.message) || '')) aiState = false;
+          throw e;
+        });
+      }
+
+      function showAi(b, r, my) {
+        var teach = (r.teach || []).map(function (x) { return asItem(x.target, x.ta, x.en); });
+        var nxt = r.next && r.next.target ? asItem(r.next.target, r.next.ta, '') : null;
+        var fix = r.correction && r.correction.corrected ? r.correction : null;
+
+        var html = '<div class="tk-who">Tutor</div>' + tutorText(r.reply_ta || '', r.reply_target || '');
+        if (r.reply_target) html += readAid(r.reply_target, learn, true);
+        if (fix) {
+          html += '<div class="mt">' + tutorText('சரியான வடிவம்:', learn === 'hi' ? 'सही रूप:' : 'The right way to say it:')
+            + '<div class="' + learn + ' tk-line">' + esc(fix.corrected) + speakBtn(fix.corrected, learn) + '</div>'
+            + (fix.why_ta ? '<div class="ta tiny">• ' + esc(fix.why_ta) + '</div>' : '') + '</div>';
+        }
+        html += teach.map(itemHtml).join('');
+        if (nxt) {
+          html += '<div class="mt">' + tutorText('இப்போது நீங்கள் சொல்லுங்கள்:', learn === 'hi' ? 'अब आप बोलिए:' : 'Now you say:')
+            + itemHtml(nxt) + '</div>';
+        }
+        /* the line to say back: what to say next, else the first thing
+           taught, else the corrected sentence */
+        var practise = nxt || teach[0] || (fix ? asItem(fix.corrected, '', '') : null);
+        if (practise) { b.__line = practise; lastItem = practise; html += practiceRow(false); }
+        queue = []; qi = 0;
+        b.innerHTML = html;
+
+        talkLog.push({ role: 'tutor', text: [r.reply_target, r.reply_ta]
+          .concat(teach.map(function (x) { return x[learn]; }))
+          .concat(nxt ? [nxt[learn]] : []).filter(Boolean).join('\n') });
+
+        var spoken = [];
+        if (fix) spoken.push(fix.corrected);
+        if (r.reply_target) spoken.push(r.reply_target);
+        if (nxt) spoken.push(nxt[learn]);
+        spoken.reduce(function (p, line) {
+          return p.then(function () { if (alive(my)) return say(line, learn); });
+        }, Promise.resolve());
       }
 
       function frBubble(html, who) {
@@ -488,6 +570,21 @@
         var dd = D(); dd.stats.xp = (dd.stats.xp || 0) + 1; saveD(dd);
         TB.App.refreshChips();
 
+        talkLog.push({ role: 'user', text: text });
+        /* "next" through a lesson already on screen, and "again", are
+           answered here at once; everything else goes to the AI tutor when
+           it is on. */
+        var here = (it.kind === 'next' && queue.length) || (it.kind === 'repeat' && lastItem);
+        if (aiState && !here && TB.Sync && TB.Sync.tutor) {
+          if (it.kind === 'teach' || it.kind === 'words' || it.kind === 'howsay') switchTo(it.lang);
+          askAi(b, my).catch(function () { if (alive(my)) answerHere(text, it, b, my); });
+          return;
+        }
+        answerHere(text, it, b, my);
+      }
+
+      /* The browser's own tutor. */
+      function answerHere(text, it, b, my) {
         if (it.kind === 'next') { nextItem(b); return; }
 
         if (it.kind === 'repeat') {

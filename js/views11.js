@@ -554,9 +554,12 @@
         var steps = [], owner = [];
         list.forEach(function (n) {
           var en = TB.Numbers.enIndian(n), ta = TB.Numbers.ta(n), hi = TB.Numbers.hi(n);
+          /* Each number is said once, by its name. The digits were read out
+             first, and in English the digits and the name are the same
+             words — "twenty-one, twenty-one". */
           var want = voice === 'all'
-            ? [[String(n), 'en'], [en, 'en'], [ta, 'ta'], [hi, 'hi']]
-            : [[String(n), 'en'], [voice === 'en' ? en : voice === 'hi' ? hi : ta, voice]];
+            ? [[en, 'en'], [ta, 'ta'], [hi, 'hi']]
+            : [[voice === 'en' ? en : voice === 'hi' ? hi : ta, voice]];
           want.forEach(function (p, i) {
             if (!p[0]) return;
             steps.push({ text: p[0], lang: p[1], rate: 0.78, pause: i === want.length - 1 ? 520 : 200 });
