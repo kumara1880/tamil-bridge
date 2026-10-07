@@ -3903,6 +3903,46 @@ section('DICTIONARY (offline)');
         Array.isArray(TB.Store.data(bu).history));
     })();
 
+    /* The store, hardened. */
+    (function () {
+      ctx.localStorage.setItem('tb.data.prim', '5');
+      var dp = TB.Store.data('prim');
+      t('a stored number is treated as no data, not a crash', Array.isArray(dp.history) && !!dp.prefs);
+      ctx.localStorage.setItem('tb.data.bent', JSON.stringify({ history: 'x', prefs: [1], stats: 3 }));
+      var db = TB.Store.data('bent');
+      t('parts of the wrong shape are put back', Array.isArray(db.history) && !Array.isArray(db.prefs) && typeof db.stats === 'object');
+
+      /* a restored backup brings settings and stats back, not just xp */
+      var ru = 'restorer';
+      TB.Store.importData(ru, JSON.stringify({ data: {
+        history: [{ ts: 1, src: 'a' }, { ts: 2, src: 'b' }],
+        prefs: { voiceSex: 'f', textSize: 'large', theme: 'dark', themeChosen: true, bogus: 1 },
+        stats: { xp: 40, daysUsed: 9, practiced: 12, streak: 4, lastActive: '2026-01-02' } } }));
+      var dr = TB.Store.data(ru);
+      t('a restored backup keeps the voice and text size', dr.prefs.voiceSex === 'f' && dr.prefs.textSize === 'large');
+      t('and ignores settings this app does not know', !('bogus' in dr.prefs));
+      t('and keeps the days used and the streak', dr.stats.daysUsed === 9 && dr.stats.streak === 4);
+      t('history entries with no id are all kept', dr.history.length === 2, dr.history.length);
+
+      /* the streak survives a clock wound back */
+      var cu = 'clock';
+      var dc = TB.Store.data(cu); dc.stats.streak = 6; dc.stats.lastActive = '2099-01-01'; TB.Store.saveData(cu, dc);
+      TB.Store.touchStreak(cu);
+      t('a clock wound back does not reset the streak', TB.Store.data(cu).stats.streak === 6);
+
+      /* a visitor's work comes with them into an account */
+      ctx.localStorage.setItem('tb.data.guest', JSON.stringify({ history: [{ id: 'g1', ts: 5, src: 'guest word' }],
+        srs: { v001: { seen: 9 } }, progress: {}, stats: { xp: 30 }, prefs: { voiceSex: 'm' } }));
+      t('signing up adopts what the visitor did', TB.Store.adoptGuest('newcomer') === true);
+      var dn = TB.Store.data('newcomer');
+      t('their history, cards, score and voice', dn.history.some(function (h) { return h.id === 'g1'; })
+        && !!dn.srs.v001 && dn.stats.xp === 30 && dn.prefs.voiceSex === 'm');
+      t('and the guest record is cleared so it is not adopted twice', !ctx.localStorage.getItem('tb.data.guest'));
+      t('sync uses the same merge', /TB\.Store\.mergeInto\(local, remote\)/.test(require('fs').readFileSync(__dirname + '/js/sync.js', 'utf8')));
+      /* leave a guest record for the checks that follow */
+      TB.Store.saveData(null, TB.Store.data(null));
+    })();
+
     /* A missing id must never be read as the guest bucket here. */
     TB.Store.deleteUser('');
     t('deleteUser ignores a missing id', !!ctx.localStorage.getItem('tb.data.guest'));

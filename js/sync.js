@@ -186,29 +186,13 @@ TB.Sync = (function () {
       }, 40000);
     },
 
-    /* Merge remote into local without losing anything: newest history wins,
-       SRS keeps whichever card was reviewed most recently. */
+    /* Merge remote into local without losing anything. The same merge a
+       restored backup uses. This one used to keep the larger streak whatever
+       its date — reviving a streak that had ended — and dropped days used,
+       practised and translated altogether. */
     merge: function (local, remote) {
       if (!remote) return local;
-      var seen = {};
-      local.history = (remote.history || []).concat(local.history || [])
-        .filter(function (h) { if (!h || !h.id || seen[h.id]) return false; seen[h.id] = 1; return true; })
-        .sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); })
-        .slice(0, 1000);
-
-      Object.keys(remote.srs || {}).forEach(function (k) {
-        var r = remote.srs[k], l = local.srs[k];
-        if (!l || (r.seen || 0) > (l.seen || 0)) local.srs[k] = r;
-      });
-      Object.keys(remote.progress || {}).forEach(function (k) {
-        var r = remote.progress[k], l = local.progress[k];
-        if (!l || (r.ts || 0) > (l.ts || 0)) local.progress[k] = r;
-      });
-      if (remote.stats) {
-        local.stats.xp = Math.max(local.stats.xp || 0, remote.stats.xp || 0);
-        local.stats.streak = Math.max(local.stats.streak || 0, remote.stats.streak || 0);
-      }
-      return local;
+      return TB.Store.mergeInto(local, remote);
     }
   };
 

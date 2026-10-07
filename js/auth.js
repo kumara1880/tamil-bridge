@@ -154,6 +154,8 @@ TB.Auth = (function () {
         TB.Store.putUser(user);
         TB.Store.setSession(user.id);
         current = user;
+        /* whatever was done before signing in comes with you */
+        TB.Store.adoptGuest(user.id);
         TB.Store.touchStreak(user.id);
         return user;
       });
@@ -179,6 +181,8 @@ TB.Auth = (function () {
         if (!ok) throw new Error('Incorrect password. Please try again.');
         if (remember !== false) TB.Store.setSession(user.id);
         current = user;
+        /* whatever was done before signing in comes with you */
+        TB.Store.adoptGuest(user.id);
         TB.Store.touchStreak(user.id);
         return user;
       });
@@ -208,6 +212,8 @@ TB.Auth = (function () {
         TB.Store.putUser(user);
         TB.Store.setSession(user.id);
         current = user;
+        /* whatever was done before signing in comes with you */
+        TB.Store.adoptGuest(user.id);
         TB.Store.touchStreak(user.id);
         return user;
       });

@@ -133,7 +133,7 @@
        + '<div class="card-sub ta">' + esc(u.title.ta) + '</div></div>'
        + '<div class="spacer"></div><a class="btn btn-sm" href="#/learn">← All lessons</a></div>'
        + '<p class="small">' + esc(u.goal) + '</p>'
-       + '<div class="explain">' + u.grammar.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>'
+       + '<div class="explain">' + V.emph(u.grammar) + '</div>'
        + '<button class="btn btn-primary mt" id="playAll" type="button">🔊 Play the whole lesson</button>'
        + '</div>';
 

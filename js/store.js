@@ -55,6 +55,74 @@ TB.Store = (function () {
     return isFinite(n) ? n : 0;
   }
 
+  /* A plain object — not null, not a list, not a number or a string. */
+  function isRecord(v) {
+    return !!v && typeof v === 'object' && !Array.isArray(v);
+  }
+
+  /* Fold one record into another — a restored backup, or a guest's work
+     arriving in a new account. Nothing already there is lost.
+
+     A backup file is whatever somebody hands you, so every part is checked
+     for its shape and every number for being a number: "NaN" as the xp used
+     to survive Math.max and be written out as null, blanking a real score.
+
+     It used to bring back history, cards, progress and xp, and nothing else:
+     a restored backup lost the voice, the theme, the text size, the streak
+     and the days used. And every history entry without an id collapsed into
+     one, because they all shared the id "undefined". */
+  function merge(d, inc) {
+    if (!isRecord(inc)) return d;
+    if (Array.isArray(inc.history)) {
+      var seen = {}, n = 0;
+      d.history = inc.history.filter(isRecord).map(function (h) {
+        if (!h.id) h.id = 'imp' + (h.ts || 0).toString(36) + '-' + (n++);
+        return h;
+      }).concat(d.history)
+        .filter(function (h) { if (seen[h.id]) return false; seen[h.id] = 1; return true; })
+        .sort(function (a, b) { return num(b.ts) - num(a.ts); })
+        .slice(0, MAX_HISTORY);
+    }
+    if (isRecord(inc.srs)) {
+      Object.keys(inc.srs).forEach(function (k) {
+        var r = inc.srs[k], l = d.srs[k];
+        if (!isRecord(r)) return;
+        /* the card reviewed most recently is the one that knows the most */
+        if (!l || num(r.seen) > num(l.seen)) d.srs[k] = r;
+      });
+    }
+    if (isRecord(inc.progress)) {
+      Object.keys(inc.progress).forEach(function (k) {
+        var r = inc.progress[k], l = d.progress[k];
+        if (!isRecord(r)) return;
+        /* the more recent result wins, so restoring an old backup cannot
+           undo a lesson finished since */
+        if (!isRecord(l) || num(r.ts) >= num(l.ts)) d.progress[k] = r;
+      });
+    }
+    if (isRecord(inc.stats)) {
+      var s = inc.stats;
+      ['xp', 'daysUsed', 'practiced', 'translated'].forEach(function (k) {
+        d.stats[k] = Math.max(num(d.stats[k]), num(s[k]));
+      });
+      /* the streak belongs to whichever record was used most recently */
+      if (typeof s.lastActive === 'string' && (!d.stats.lastActive || s.lastActive > d.stats.lastActive)) {
+        d.stats.lastActive = s.lastActive;
+        d.stats.streak = Math.max(1, num(s.streak));
+      }
+    }
+    if (isRecord(inc.prefs)) {
+      var base = blankData().prefs;
+      Object.keys(inc.prefs).forEach(function (k) {
+        var v = inc.prefs[k];
+        /* only settings this app knows, of the type it expects */
+        if (k in base && v != null && typeof v === typeof base[k]) d.prefs[k] = v;
+        else if ((k === 'talkLang' || k === 'talkLevel') && v != null) d.prefs[k] = v;
+      });
+    }
+    return d;
+  }
+
   function blankData() {
     return {
       history: [],       /* newest first */
@@ -117,11 +185,19 @@ TB.Store = (function () {
     data: function (userId) {
       var key = K_DATA + bucket(userId);
       var d = read(key, null);
-      if (!d) { d = blankData(); write(key, d); return d; }
+      /* A stored value that is not a record at all — a number, a string, a
+         list — used to get past the check above and then throw on d.prefs,
+         which broke every page. It is treated as no data. */
+      if (!isRecord(d)) { d = blankData(); write(key, d); return d; }
       /* merge in any keys added by a later version of the app */
       var base = blankData();
       Object.keys(base).forEach(function (k) {
         if (d[k] == null) d[k] = base[k];
+      });
+      /* and put back any part that is the wrong shape for what reads it */
+      if (!Array.isArray(d.history)) d.history = [];
+      ['srs', 'progress', 'stats', 'prefs'].forEach(function (k) {
+        if (!isRecord(d[k])) d[k] = base[k];
       });
       Object.keys(base.prefs).forEach(function (k) {
         if (d.prefs[k] == null) d.prefs[k] = base.prefs[k];
@@ -134,6 +210,9 @@ TB.Store = (function () {
 
     saveData: function (userId, d) { return write(K_DATA + bucket(userId), d); },
 
+    /* The one merge — a backup, a guest's work, or the server's copy. */
+    mergeInto: function (d, inc) { return merge(d, inc); },
+
     /* ---------- history ---------- */
     addHistory: function (userId, entry) {
       var d = api.data(userId);
@@ -141,8 +220,8 @@ TB.Store = (function () {
       entry.ts = Date.now();
       d.history.unshift(entry);
       if (d.history.length > MAX_HISTORY) d.history.length = MAX_HISTORY;
-      api.saveData(userId, d);
-      return entry;
+      /* Only an entry that was really kept is handed back. */
+      return api.saveData(userId, d) ? entry : null;
     },
 
     deleteHistory: function (userId, entryId) {
@@ -181,6 +260,11 @@ TB.Store = (function () {
            rounds to the wrong number of days. */
         var at = function (s2) { return new Date(s2 + 'T12:00:00'); };
         var diff = Math.round((at(today) - at(last)) / 86400000);
+        /* Today is before the last day used: the clock was wound back, or
+           the phone crossed a time zone westward. Nothing was missed, so
+           nothing is reset — and the later date is kept, so the streak
+           carries on normally once the calendar catches up. */
+        if (!(diff >= 0)) return d.stats;
         d.stats.streak = diff === 1 ? (d.stats.streak || 0) + 1 : (diff === 0 ? (d.stats.streak || 1) : 1);
       } else {
         d.stats.streak = 1;
@@ -216,23 +300,34 @@ TB.Store = (function () {
       var parsed = JSON.parse(json);
       if (!parsed || !parsed.data) throw new Error('That file is not a valid backup.');
       var d = api.data(userId);
-      var inc = parsed.data;
-      if (Array.isArray(inc.history)) {
-        var seen = {};
-        d.history = inc.history.concat(d.history)
-          .filter(function (h) { if (!h || seen[h.id]) return false; seen[h.id] = 1; return true; })
-          .sort(function (a, b) { return b.ts - a.ts; })
-          .slice(0, MAX_HISTORY);
-      }
-      if (inc.srs) Object.keys(inc.srs).forEach(function (k) { if (!d.srs[k]) d.srs[k] = inc.srs[k]; });
-      if (inc.progress) Object.keys(inc.progress).forEach(function (k) { d.progress[k] = inc.progress[k]; });
-      /* A backup file is whatever somebody hands you. "NaN" as the xp used
-         to reach Math.max unchecked, and NaN survives it — then JSON writes
-         it out as null, so a corrupt file could blank a real score. Anything
-         that is not a finite number counts as nothing. */
-      if (inc.stats) d.stats.xp = Math.max(num(d.stats.xp), num(inc.stats.xp));
+      merge(d, parsed.data);
       api.saveData(userId, d);
       return d;
+    },
+
+    /* What a visitor did before making an account comes with them.
+
+       The site is open to everyone, so most people try it first and sign up
+       later — and signing up used to start them on a blank record, leaving
+       their history, cards, progress, voice and theme behind in the guest
+       bucket where the new account never looks. Called once an account is
+       made: the guest's work is merged in, and the guest bucket is cleared so
+       it is not merged into the next account made in this browser too. */
+    adoptGuest: function (userId) {
+      if (!userId) return false;
+      var g = read(K_DATA + GUEST, null);
+      if (!isRecord(g)) return false;
+      var hasWork = (Array.isArray(g.history) && g.history.length)
+        || (isRecord(g.srs) && Object.keys(g.srs).length)
+        || (isRecord(g.progress) && Object.keys(g.progress).length)
+        || (isRecord(g.stats) && num(g.stats.xp) > 0)
+        || (isRecord(g.prefs) && g.prefs.themeChosen);
+      if (!hasWork) return false;
+      var d = api.data(userId);
+      merge(d, g);
+      var ok = api.saveData(userId, d);
+      if (ok) { try { localStorage.removeItem(K_DATA + GUEST); } catch (e) {} }
+      return ok;
     },
 
     available: function () {

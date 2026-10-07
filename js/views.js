@@ -12,6 +12,21 @@ TB.Views = (function () {
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  /* Tutor and lesson text marks emphasis as **word**. It is escaped first and
+     only then given its bold, because some of it carries the reader's own
+     words — the Sentence Explainer quotes the verb you typed back to you —
+     and those must never reach the page as markup. Bolding the raw text and
+     never escaping it let a typed <img onerror> run. */
+  function emph(s) {
+    return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  }
+  /* A word carried in the address. A half-copied link — "%E0%A4" with the
+     rest of the letter missing — made decodeURIComponent throw inside html(),
+     which the router does not catch, and the page stopped drawing. Whatever
+     cannot be decoded is used as it is. */
+  function safeDecode(s) {
+    try { return decodeURIComponent(s); } catch (e) { return String(s || ''); }
+  }
   function speak(text, lang, label) {
     if (!text) return '';
     return '<button class="speak-btn" data-speak="' + esc(text) + '" data-lang="' + lang + '" '
@@ -479,7 +494,7 @@ TB.Views = (function () {
   var meaning = {
     title: 'Meaning', sub: 'Any word — in any language',
     html: function (param) {
-      var seed = param ? decodeURIComponent(param) : '';
+      var seed = param ? safeDecode(param) : '';
       return ''
       + '<div class="view">'
       + '<div class="card">'
@@ -605,7 +620,7 @@ TB.Views = (function () {
       if (TB.App.pending && TB.App.pending.word) {
         input.value = TB.App.pending.word; TB.App.pending = null; go();
       } else if (param) {
-        input.value = decodeURIComponent(param); go();
+        input.value = safeDecode(param); go();
       } else input.focus();
     }
   };
@@ -710,10 +725,10 @@ TB.Views = (function () {
         if (a.order) {
           h += '<div class="explain"><b>Word order</b><br>' + esc(a.order.english) + '<br>' + esc(a.order.tamil)
              + (a.order.reordered ? '<br><span class="mono small">In Tamil word order: ' + esc(a.order.reordered) + '</span>' : '')
-             + '<br>' + a.order.explain.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>';
+             + '<br>' + emph(a.order.explain) + '</div>';
         }
 
-        a.tips.forEach(function (t) { h += '<div class="explain tip">💡 ' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>'; });
+        a.tips.forEach(function (t) { h += '<div class="explain tip">💡 ' + emph(t) + '</div>'; });
 
         h += '<div class="grid g2 mt">';
         ['ta', 'en', 'hi'].filter(function (L) { return L !== a.lang; }).forEach(function (L) {
@@ -845,7 +860,7 @@ TB.Views = (function () {
        object under its route name, and #/speak claims that key. A
        helper and a view cannot both be TB.Views.speak — the view won,
        silently, and the word popup died on a TypeError. */
-    esc: esc, speakBtn: speak, tappable: tappable, ago: ago, saveFile: saveFile,
+    esc: esc, emph: emph, speakBtn: speak, tappable: tappable, ago: ago, saveFile: saveFile,
     scrollWatch: scrollWatch,
     hiRead: hiRead, hiTamil: hiTamil, readAid: readAid, copy: copy, copyWithToast: copyWithToast,
     themeName: themeName, langLabel: langLabel, sayAllThree: sayAllThree,
