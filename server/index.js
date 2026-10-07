@@ -988,75 +988,138 @@ async function askGemini(learn, level, history, retried, voice) {
     });
   }
 
-  /* The best model first, then the next ones along: a model that is
-     overloaded, slow or out of free quota hands over to the next, and the
-     one that answers is used first from then on. */
-  const models = (TUTOR_STATE.models && TUTOR_STATE.models.length
-    ? TUTOR_STATE.models : [TUTOR_STATE.model || GEMINI_FALLBACK]).slice(0, 3);
-  let last = { status: 0, problem: 'unreachable' };
-  for (let i = 0; i < models.length; i++) {
-    const model = models[i];
-    /* Measured live, a Flash model's full answer takes about twelve
-       seconds. A twelve-second limit therefore cut off good answers and
-       sent them down the line to models that were no faster. The limit is
-       for a model that has stalled, not one that is thinking. */
-    const wait = i === 0 ? 25000 : 20000;
+  function problemOf(r) {
+    if (r.ok) return '';
+    if (r.status) return tutorProblem(r.status, r.body);
+    return r.timeout ? 'timeout' : (r.cancelled ? 'cancelled' : 'network');
+  }
+
+  /* One model's try. Resolves with its answer, or with why it has none. */
+  async function attempt(model, signal) {
     const t0 = Date.now();
-    let r = await callGemini(model, payload(model, true), wait);
-    let p = r.ok ? '' : (r.status ? tutorProblem(r.status, r.body) : (r.timeout ? 'timeout' : 'network'));
+    let r = await callGemini(model, payload(model, true), TUTOR_CAP_MS, signal);
+    let p = problemOf(r);
     /* a model that does not take the thinking setting: same model, without it */
-    if (p === 'bad-request' && /thinking/i.test(r.body)) {
-      r = await callGemini(model, payload(model, false), wait);
-      p = r.ok ? '' : (r.status ? tutorProblem(r.status, r.body) : (r.timeout ? 'timeout' : 'network'));
+    if (p === 'bad-request' && /thinking/i.test(r.body) && !signal.aborted) {
+      r = await callGemini(model, payload(model, false), TUTOR_CAP_MS, signal);
+      p = problemOf(r);
     }
     if (r.ok) {
       let j; try { j = JSON.parse(r.body); } catch (e) { j = null; }
       const text = j && j.candidates && j.candidates[0] && j.candidates[0].content
         && j.candidates[0].content.parts && j.candidates[0].content.parts.map(x => x.text || '').join('');
       const out = shapeTutor(parseTutor(text));
-      if (out) {
-        if (i > 0) {
-          TUTOR_STATE.models = [model].concat(TUTOR_STATE.models.filter(m => m !== model));
-          TUTOR_STATE.model = model;
-          console.log('[tutor] now using ' + model);
-        }
-        TUTOR_STATE.problem = '';
-        TUTOR_STATE.ms = Date.now() - t0;
-        return out;
-      }
+      if (out) return { model, out, ms: Date.now() - t0 };
       p = 'unreadable';
     }
-    /* Reported to the operator in the log; the caller only learns that the
-       tutor is unavailable, never Google's raw message. */
-    console.warn('[tutor] ' + model + ': ' + (r.status || '-') + ' (' + p + ') ' + String(r.body || '').slice(0, 300));
-    TUTOR_STATE.problem = p;
-    last = { status: r.status, problem: p };
-    /* Slow, overloaded or out of quota: to the back of the line at once,
-       so the next message goes straight to a model that is answering
-       instead of waiting on this one again. */
-    if (['timeout', 'google-down', 'quota', 'network', 'unreadable'].indexOf(p) >= 0 && TUTOR_STATE.models.length > 1) {
-      TUTOR_STATE.models = TUTOR_STATE.models.filter(m => m !== model).concat([model]);
-      TUTOR_STATE.model = TUTOR_STATE.models[0];
-    }
-    if (TUTOR_FATAL.indexOf(p) >= 0) { TUTOR_STATE.ready = false; break; }
-    /* the model has gone: choose again from what is there, and start over */
-    if (p === 'model-missing' && !retried) {
-      await setupTutor();
-      if (TUTOR_STATE.ready) return askGemini(learn, level, history, true, voice);
-      break;
-    }
+    return { model, fail: { model, status: r.status, problem: p, body: r.body } };
   }
-  if (last.problem === 'unreadable') return null;
-  const e = new Error(last.status === 429 ? 'busy' : 'unavailable');
-  e.status = last.status;
+
+  /* A race, not a queue. Measured live after a restart, the newest models
+     stalled one after another — 25 s, then 20, then 20 — and a learner
+     waited over a minute for nothing, while an older model answered the
+     next message in four seconds. So the best model is asked first; if it
+     has not answered in a few seconds the next one is asked as well, and
+     then a third; whichever answers first is used and the others are
+     called off. A model that fails outright hands over at once. The winner
+     goes first next time. */
+  const models = (TUTOR_STATE.models && TUTOR_STATE.models.length
+    ? TUTOR_STATE.models : [TUTOR_STATE.model || GEMINI_FALLBACK]).slice(0, 3);
+
+  const result = await new Promise(resolve => {
+    let next = 0, running = 0, done = false, hedge = null;
+    const ctls = [], fails = [];
+    const overall = setTimeout(() => finish({ fails, timedOut: true }), TUTOR_TOTAL_MS);
+    function finish(v) {
+      if (done) return;
+      done = true;
+      clearTimeout(hedge);
+      clearTimeout(overall);
+      ctls.forEach(c => { try { c.abort(); } catch (e) {} });
+      /* every outcome carries the failures so far, a win included */
+      resolve(Object.assign({}, v, { fails: fails.slice() }));
+    }
+    function launch() {
+      if (done || next >= models.length) return;
+      const model = models[next++];
+      const ctl = new AbortController();
+      ctls.push(ctl);
+      running++;
+      clearTimeout(hedge);
+      if (next < models.length) hedge = setTimeout(launch, TUTOR_HEDGE_MS);
+      attempt(model, ctl.signal).then(res => {
+        running--;
+        if (done) return;
+        if (res.out) return finish(res);
+        fails.push(res.fail);
+        const p = res.fail.problem;
+        if (TUTOR_FATAL.indexOf(p) >= 0 || p === 'model-missing') return finish({ fails, stop: p });
+        if (next < models.length) launch();          /* failed outright: no need to wait */
+        else if (running === 0) finish({ fails });
+      }, () => {
+        running--;
+        if (!done && next >= models.length && running === 0) finish({ fails });
+      });
+    }
+    launch();
+  });
+
+  /* Reported to the operator in the log; the caller only learns that the
+     tutor is unavailable, never Google's raw message. */
+  result.fails.forEach(f => {
+    console.warn('[tutor] ' + f.model + ': ' + (f.status || '-') + ' (' + f.problem + ') ' + String(f.body || '').slice(0, 300));
+  });
+  /* Slow, overloaded or out of quota: to the back of the line, so the next
+     message does not wait on it again. */
+  result.fails.forEach(f => {
+    if (['timeout', 'google-down', 'quota', 'network', 'unreadable'].indexOf(f.problem) >= 0 && TUTOR_STATE.models.length > 1) {
+      TUTOR_STATE.models = TUTOR_STATE.models.filter(m => m !== f.model).concat([f.model]);
+    }
+  });
+
+  if (result.out) {
+    if (TUTOR_STATE.models[0] !== result.model) console.log('[tutor] now using ' + result.model);
+    TUTOR_STATE.models = [result.model].concat(TUTOR_STATE.models.filter(m => m !== result.model));
+    TUTOR_STATE.model = result.model;
+    TUTOR_STATE.problem = '';
+    TUTOR_STATE.ms = result.ms;
+    return result.out;
+  }
+
+  TUTOR_STATE.model = TUTOR_STATE.models[0];
+  const last = result.fails[result.fails.length - 1] || { status: 0, problem: 'timeout' };
+  TUTOR_STATE.problem = result.timedOut ? 'timeout' : last.problem;
+  if (result.stop && TUTOR_FATAL.indexOf(result.stop) >= 0) TUTOR_STATE.ready = false;
+  /* the model has gone: choose again from what is there, and start over */
+  if (result.stop === 'model-missing' && !retried) {
+    await setupTutor();
+    if (TUTOR_STATE.ready) return askGemini(learn, level, history, true, voice);
+  }
+  if (!result.timedOut && result.fails.length && result.fails.every(f => f.problem === 'unreadable')) return null;
+  const quota = result.fails.some(f => f.status === 429) && !result.fails.some(f => f.problem === 'timeout');
+  const e = new Error(quota ? 'busy' : 'unavailable');
+  e.status = quota ? 429 : last.status;
   throw e;
 }
 
-/* One request to one model. Never throws: a timeout or a dropped
-   connection comes back as a result like any other. */
-async function callGemini(model, body, waitMs) {
+/* Ask the next model if the first has said nothing for this long; one
+   model's hard limit; and the most a learner is ever kept waiting. */
+const TUTOR_HEDGE_MS = 7000;
+const TUTOR_CAP_MS = 30000;
+const TUTOR_TOTAL_MS = 35000;
+
+/* One request to one model. Never throws: a timeout, a dropped connection
+   or being called off (another model answered first) comes back as a
+   result like any other. */
+async function callGemini(model, body, waitMs, outer) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), waitMs || 15000);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, waitMs || 15000);
+  const callOff = () => ctl.abort();
+  if (outer) {
+    if (outer.aborted) ctl.abort();
+    else outer.addEventListener('abort', callOff, { once: true });
+  }
   try {
     const r = await fetch(GEMINI_BASE + '/models/' + encodeURIComponent(model) + ':generateContent', {
       method: 'POST',
@@ -1066,9 +1129,10 @@ async function callGemini(model, body, waitMs) {
     });
     return { ok: r.ok, status: r.status, body: await r.text() };
   } catch (e) {
-    return { ok: false, status: 0, body: '', timeout: !!(e && e.name === 'AbortError') };
+    return { ok: false, status: 0, body: '', timeout: timedOut, cancelled: !timedOut && !!(outer && outer.aborted) };
   } finally {
     clearTimeout(timer);
+    if (outer) outer.removeEventListener('abort', callOff);
   }
 }
 

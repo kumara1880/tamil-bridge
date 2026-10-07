@@ -4181,9 +4181,9 @@ section('DICTIONARY (offline)');
     t('leaving the page ends a voice conversation', /function stopAll\(\) \{ gen\+\+; busy = false; live = false; liveGen\+\+;/.test(v13));
 
     const srv = require('fs').readFileSync(__dirname + '/server/index.js', 'utf8');
-    t('a slow model is given up on quickly, and sent to the back of the line',
-      /const wait = i === 0 \? 25000 : 20000;/.test(srv) && /callGemini\(model, payload\(model, true\), wait\)/.test(srv)
-      && /TUTOR_STATE\.models\.filter\(m => m !== model\)\.concat\(\[model\]\)/.test(srv));
+    t('models race instead of queueing, and a failed one goes to the back of the line',
+      /const TUTOR_HEDGE_MS = 7000;/.test(srv) && /hedge = setTimeout\(launch, TUTOR_HEDGE_MS\)/.test(srv)
+      && /TUTOR_STATE\.models\.filter\(m => m !== f\.model\)\.concat\(\[f\.model\]\)/.test(srv));
     t('the AI teaches to the level, beginner to native-like', /function levelWay\(level, L\)/.test(srv) && /Level C2/.test(srv) && /levelWay\(level, L\),/.test(srv));
     t('spoken replies are kept short and speakable', /This is a SPOKEN conversation/.test(srv) && /b\.voice === true/.test(srv));
     t('Hindi replies come with English too', /"reply_en": string/.test(srv) && /reply_en: clip\(j\.reply_en, 800\)/.test(srv));
@@ -4196,6 +4196,123 @@ section('DICTIONARY (offline)');
     t('controls and the language\'s own name are left alone', /button, label/.test(cap) && /NAME_ONLY/.test(cap));
     t('a reading that cannot be made is left off', /return r && r\.can && \(r\.roman \|\| r\.tamil\) \? r : null;/.test(cap));
     t('its own captions do not set the watcher off again', /n\.classList\.contains\('cap-auto'\)/.test(cap));
+  }
+
+  /* ---------------------------------- the tutor's race between models
+     The real server file, run in a sandbox: Express and the database are
+     stubbed, and Google is a fake whose models each stall, fail or answer
+     on cue. The timings are the server's own, scaled down by its constants. */
+  console.log('\nTUTOR MODEL RACE');
+  {
+    const srcAll = require('fs').readFileSync(__dirname + '/server/index.js', 'utf8')
+      /* the same code at a thousandth of the time */
+      .replace('const TUTOR_HEDGE_MS = 7000;', 'const TUTOR_HEDGE_MS = 40;')
+      .replace('const TUTOR_CAP_MS = 30000;', 'const TUTOR_CAP_MS = 150;')
+      .replace('const TUTOR_TOTAL_MS = 35000;', 'const TUTOR_TOTAL_MS = 220;');
+    const noop = function () {};
+    const appStub = { set: noop, disable: noop, use: noop, get: noop, post: noop, put: noop, delete: noop, listen: noop };
+    const expressStub = function () { return appStub; };
+    expressStub.json = function () { return noop; };
+    const behaviour = {};      /* model -> { ms, status, text } */
+    const asked = [];
+    let aborted = 0;
+    const goodJson = function (tag) {
+      return JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({
+        reply_ta: 'சரி ' + tag, reply_target: 'OK ' + tag, teach: [], correction: null, next: null }) }] } }] });
+    };
+    const fakeFetch = function (url, opts) {
+      if (/\/models\?/.test(url)) {
+        return Promise.resolve({ ok: true, status: 200, text: function () { return Promise.resolve(JSON.stringify({ models: [
+          { name: 'models/gemini-3.8-flash', supportedGenerationMethods: ['generateContent'] },
+          { name: 'models/gemini-3.6-flash', supportedGenerationMethods: ['generateContent'] },
+          { name: 'models/gemini-3.5-flash', supportedGenerationMethods: ['generateContent'] }] })); } });
+      }
+      const model = decodeURIComponent((url.match(/models\/([^:]+):generateContent/) || [])[1] || '');
+      asked.push(model);
+      const b = behaviour[model] || { ms: 5, status: 200 };
+      return new Promise(function (resolve, reject) {
+        const tm = setTimeout(function () {
+          resolve({ ok: b.status === 200, status: b.status,
+            text: function () { return Promise.resolve(b.status === 200 ? (b.text || goodJson(model)) : (b.text || '{"error":{}}')); } });
+        }, b.ms);
+        if (opts && opts.signal) opts.signal.addEventListener('abort', function () {
+          clearTimeout(tm); aborted++;
+          const e = new Error('aborted'); e.name = 'AbortError'; reject(e);
+        });
+      });
+    };
+    const sandbox = {
+      require: function (m) {
+        return { express: expressStub, cors: function () { return noop; }, bcryptjs: {}, jsonwebtoken: {},
+                 crypto: require('crypto'), mongodb: { MongoClient: function () {} }, nodemailer: null }[m];
+      },
+      process: { env: { GEMINI_API_KEY: 'test-key', PORT: '0' }, on: noop, exit: noop },
+      console: { log: noop, warn: noop, error: noop },
+      fetch: fakeFetch, AbortController: AbortController, setTimeout: setTimeout, clearTimeout: clearTimeout,
+      Promise: Promise, URLSearchParams: URLSearchParams, Buffer: Buffer
+    };
+    vm.createContext(sandbox);
+    try {
+      vm.runInContext(srcAll, sandbox, { filename: 'server/index.js' });
+      await new Promise(function (r) { setTimeout(r, 30); });          /* setupTutor lists the models */
+      const run = function (code) { return vm.runInContext(code, sandbox); };
+      const hist = '[{ role: "user", text: "hello" }]';
+      const ask = function () { return run('askGemini("en", 1, ' + hist + ', false, true)'); };
+      t('the models are ranked newest Flash first', run('TUTOR_STATE.models.join()') === 'gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash',
+        run('TUTOR_STATE.models.join()'));
+
+      /* the two newest stall, the oldest answers at once */
+      behaviour['gemini-3.8-flash'] = { ms: 10000, status: 200 };
+      behaviour['gemini-3.6-flash'] = { ms: 10000, status: 200 };
+      behaviour['gemini-3.5-flash'] = { ms: 10, status: 200 };
+      asked.length = 0; aborted = 0;
+      let t0 = Date.now();
+      let out = await ask();
+      let took = Date.now() - t0;
+      t('when the first models stall, the next is asked as well and its answer used',
+        out && out.reply_target === 'OK gemini-3.5-flash', JSON.stringify(out));
+      t('in about two hedge steps, not three full time limits', took < 150, took + ' ms');
+      t('the stalled requests are called off once one answers', aborted >= 2, aborted);
+      t('the winner goes first next time', run('TUTOR_STATE.models[0]') === 'gemini-3.5-flash' && run('TUTOR_STATE.problem') === '');
+
+      /* next message: straight to the winner, nobody else asked */
+      asked.length = 0;
+      out = await ask();
+      t('the next message goes straight to the model that answered', asked.join() === 'gemini-3.5-flash' && out.reply_target === 'OK gemini-3.5-flash', asked.join());
+
+      /* the leader fails outright: the next is asked at once, without waiting */
+      behaviour['gemini-3.5-flash'] = { ms: 5, status: 503 };
+      behaviour['gemini-3.8-flash'] = { ms: 10, status: 200 };
+      asked.length = 0; t0 = Date.now();
+      out = await ask();
+      took = Date.now() - t0;
+      t('a model that fails hands over at once', out && out.reply_target === 'OK gemini-3.8-flash' && took < 40, took + ' ms ' + asked.join());
+      t('and goes to the back of the line', run('TUTOR_STATE.models[TUTOR_STATE.models.length - 1]') === 'gemini-3.5-flash', run('TUTOR_STATE.models.join()'));
+
+      /* everybody stalls: the learner is told within the total limit */
+      Object.keys(behaviour).forEach(function (m) { behaviour[m] = { ms: 10000, status: 200 }; });
+      t0 = Date.now();
+      let err = null;
+      try { await ask(); } catch (e) { err = e; }
+      took = Date.now() - t0;
+      t('when every model stalls, the answer is "unavailable" within the total limit', err && err.message === 'unavailable' && took < 300, took + ' ms');
+      t('and the problem is reported as a timeout', run('TUTOR_STATE.problem') === 'timeout');
+
+      /* out of free quota everywhere: "busy", which the page explains */
+      Object.keys(behaviour).forEach(function (m) { behaviour[m] = { ms: 5, status: 429 }; });
+      err = null;
+      try { await ask(); } catch (e) { err = e; }
+      t('out of quota on every model is reported as busy', err && err.status === 429 && err.message === 'busy', err && err.message);
+
+      /* a bad key stops everything and turns the tutor off */
+      behaviour['gemini-3.8-flash'] = behaviour['gemini-3.6-flash'] = behaviour['gemini-3.5-flash'] =
+        { ms: 5, status: 400, text: '{"error":{"message":"API key not valid. Please pass a valid API key."}}' };
+      err = null;
+      try { await ask(); } catch (e) { err = e; }
+      t('a bad key turns the tutor off instead of failing on every message', err && run('TUTOR_STATE.ready') === false && run('TUTOR_STATE.problem') === 'key-invalid');
+    } catch (e) {
+      fail++; console.log('  FAIL  model race threw: ' + (e && e.stack || e));
+    }
   }
 
   /* ------------------------------------------- accounts on the server */
