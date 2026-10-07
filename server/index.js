@@ -884,13 +884,17 @@ function tutorSystem(learn, level) {
       + ' and ask them to say or use it — never just a translation of their request.',
     '- End with one short question or prompt that keeps them talking, unless they said goodbye.',
     learn === 'hi' ? '- Write Hindi in Devanagari only.' : '- Write English in plain, modern English.',
-    '- Tamil must be correct standard Tamil in Tamil script. If unsure of a Tamil word, use a simpler one.',
+    '- Tamil must be correct standard written Tamil in Tamil script (வாங்கினேன், not the spoken வாங்குனேன்).'
+      + ' If unsure of a Tamil word, use a simpler one.',
+    `- "next" is always a line for the STUDENT to say — their natural reply in ${L}, or the sentence to`
+      + ' practise. Never your own question, never an instruction like "Can you try saying…". In a role-play,'
+      + ' it is what the student\'s character would answer.',
     'Reply with JSON only, matching exactly:',
     '{"reply_ta": string — what you say to the student, in Tamil (1-3 sentences),'
       + ` "reply_target": string — the same message in ${L}, short,`
       + ` "teach": [{"target": string (${L}), "ta": string (Tamil meaning), "en": string (English meaning)}] — 0 to 4 things to practise,`
       + ' "correction": {"original": string, "corrected": string, "why_ta": string} or null,'
-      + ` "next": {"target": string (${L}), "ta": string} or null}`
+      + ` "next": {"target": string — a short line the student says next, in ${L}, "ta": string — its Tamil meaning} or null}`
   ].join('\n');
 }
 
