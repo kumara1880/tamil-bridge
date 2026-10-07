@@ -228,8 +228,191 @@ TB.Converse = (function () {
     return list[(turn || 0) % list.length];
   }
 
+  /* ------------------------------------------------- what was asked for
+
+     Free talk used to treat every sentence the same way: check its grammar,
+     then ask a stock question. "Can you teach me Hindi?" got its capital
+     letters fixed and "Where are you from?" — the one thing a learner
+     asking to be taught did not want. These are the requests people
+     actually make, recognised in English, Tamil or Hindi phrasing, so each
+     can be answered for what it is. */
+
+  function lower(s) { return String(s || '').toLowerCase().trim(); }
+
+  /* Which language a request names, if any. Indic scripts have no word
+     boundaries a regex can see, so those are plain substrings. */
+  function namedLang(t) {
+    var s = lower(t);
+    if (/\bhindi\b/.test(s) || /ஹிந்தி|இந்தி|हिंदी|हिन्दी/.test(s)) return 'hi';
+    if (/\benglish\b/.test(s) || /ஆங்கில|இங்கிலீஷ்|अंग्रेज़ी|अंग्रेजी|इंग्लिश/.test(s)) return 'en';
+    if (/\btamil\b/.test(s) || /தமிழ்|तमिल/.test(s)) return 'ta';
+    return '';
+  }
+
+  var THEME_WORDS = {
+    greetings: 'greet greeting greetings hello வணக்க नमस्ते',
+    family: 'family mother father brother sister relative குடும்ப உறவு परिवार',
+    numbers: 'number numbers count counting எண் எண்கள் संख्या गिनती',
+    colors: 'colour colours color colors நிறம் நிறங்கள் रंग',
+    body: 'body parts உடல் शरीर',
+    food: 'food eat eating fruit vegetable சாப்பா உணவு खाना भोजन',
+    time: 'time day days week month நேரம் நாள் समय दिन',
+    travel: 'travel trip bus train journey பயண यात्रा',
+    home: 'home house room வீடு घर',
+    school: 'school study class student பள்ளி படிப்பு स्कूल पढ़ाई',
+    work: 'work job office வேலை काम नौकरी',
+    nature: 'nature tree sky river இயற்கை प्रकृति',
+    verbs: 'verb verbs action doing வினை क्रिया',
+    adjectives: 'adjective adjectives describing பெயரடை विशेषण',
+    emotions: 'feeling feelings emotion emotions உணர்ச்சி உணர்வு भावना',
+    shopping: 'shop shopping buy price market கடை வாங்க खरीद दुकान',
+    health: 'health doctor sick body ஆரோக்கிய உடல்நலம் सेहत स्वास्थ्य',
+    tech: 'tech technology phone computer தொழில்நுட்ப तकनीक',
+    animals: 'animal animals pet விலங்கு மிருக जानवर पशु'
+  };
+
+  function themeIn(t) {
+    var words = tokens(t);
+    var best = '', score = 0;
+    Object.keys(THEME_WORDS).forEach(function (th) {
+      var keys = THEME_WORDS[th].split(/\s+/), s = 0;
+      words.forEach(function (w) {
+        keys.forEach(function (k) {
+          if (w === k) s += 2;
+          else if (k.length > 3 && w.length > 3 && (w.indexOf(k) === 0 || k.indexOf(w) === 0)) s += 1;
+        });
+      });
+      if (s > score) { score = s; best = th; }
+    });
+    return best;
+  }
+
+  /* The phrase inside a request like "how do I say good morning in Hindi". */
+  function strip(s) {
+    return String(s || '').replace(/^["'“‘\s]+|["'”’?.!\s]+$/g, '').trim();
+  }
+
+  function intent(text) {
+    var raw = String(text || '').trim();
+    var s = lower(raw);
+    var words = s.split(/\s+/).filter(Boolean);
+    var lang = namedLang(raw);
+    var m;
+
+    if (!s) return { kind: 'empty' };
+
+    /* carry on with whatever is being taught */
+    /* the whole message, not its first word: "more words" is a request for
+       words, "more" on its own is "carry on" */
+    if (words.length <= 3 && /^(next|more|ok|okay|yes|yeah|yep|continue|go on|go ahead|then|sure|done|next one|அடுத்து|அடுத்தது|சரி|ஆமாம்|ஓகே|ஆம்|हाँ|हां|ठीक है|ठीक|अगला|आगे)[\s.!?,]*$/.test(s)) {
+      return { kind: 'next' };
+    }
+
+    /* didn't catch that */
+    if (/(repeat|say (it|that) again|once more|slow(er|ly)?|didn.?t (understand|get)|don.?t (understand|get)|not clear|confus|புரியவில்லை|புரியல|மீண்டும்|மெதுவா|திரும்ப|फिर से|धीरे|समझ नहीं)/.test(s)) {
+      return { kind: 'repeat' };
+    }
+
+    /* how do I say X / X in Hindi / what is X in Hindi */
+    if ((m = raw.match(/how (?:do|can|would|to)\s+(?:i|you|we)?\s*(?:say|tell|speak|write)\s+(.+?)(?:\s+in\s+(hindi|english|tamil))?\s*\??$/i))) {
+      return { kind: 'howsay', phrase: strip(m[1]), lang: m[2] ? namedLang(m[2]) : lang };
+    }
+    if ((m = raw.match(/^(?:what(?:'s| is)|whats)\s+(.+?)\s+in\s+(hindi|english|tamil)\s*\??$/i))) {
+      return { kind: 'howsay', phrase: strip(m[1]), lang: namedLang(m[2]) };
+    }
+    /* "say any words in Hindi" asks for words, not for "any words" to be
+       translated — the request in the screenshot that got "worlds" back */
+    if ((m = raw.match(/^(?:translate|say)\s+(.+?)\s+(?:in|into|to)\s+(hindi|english|tamil)\s*\??$/i))
+        && !/\b(words?|vocab|some|something|anything)\b/i.test(m[1])) {
+      return { kind: 'howsay', phrase: strip(m[1]), lang: namedLang(m[2]) };
+    }
+    if ((m = raw.match(/^(.{1,60}?)\s+in\s+(hindi|english)\s*\??$/i)) && !/\b(words?|teach|learn|speak|talk)\b/i.test(m[1])) {
+      return { kind: 'howsay', phrase: strip(m[1]), lang: namedLang(m[2]) };
+    }
+    /* Tamil: "X-ஐ இந்தியில் எப்படிச் சொல்வது / என்ன" */
+    if ((m = raw.match(/^(.+?)(?:\s*-?ஐ)?\s+(இந்தியில்|ஹிந்தியில்|ஆங்கிலத்தில்|இங்கிலீஷில்)\s*(?:எப்படி|என்ன|சொல்)/))) {
+      return { kind: 'howsay', phrase: strip(m[1]), lang: /ஆங்கில|இங்கிலீஷ்/.test(m[2]) ? 'en' : 'hi' };
+    }
+
+    /* what does X mean */
+    if ((m = raw.match(/(?:what does|what do)\s+(.+?)\s+mean\s*\??$/i)) ||
+        (m = raw.match(/(?:meaning of|what is the meaning of|what's the meaning of)\s+(.+?)\s*\??$/i)) ||
+        (m = raw.match(/^(.+?)\s+(?:என்றால் என்ன|என்ன அர்த்தம்|அர்த்தம் என்ன|का मतलब क्या है|का मतलब)/))) {
+      return { kind: 'meaning', phrase: strip(m[1]) };
+    }
+
+    /* give me some words */
+    var askWords = /\b(words?|vocab(ulary)?)\b/.test(s) || /சொற்கள்|வார்த்தை|शब्द/.test(s);
+    if (askWords) return { kind: 'words', lang: lang, theme: themeIn(raw) };
+
+    /* teach me */
+    if (/\b(teach|learn|lesson|lessons|tutor|study)\b/.test(s) || /கற்று|சொல்லிக்கொடு|சொல்லி கொடு|கத்து|பாடம்|सिखा|सीख|पढ़ा/.test(s)) {
+      return { kind: 'teach', lang: lang, theme: themeIn(raw) };
+    }
+
+    if (/^(hi+|hello|hey|hai|helo|vanakkam|namaste|namaskar|good (morning|afternoon|evening|night))\b/.test(s)
+        || /^(வணக்கம்|नमस्ते|नमस्कार)/.test(raw)) {
+      return { kind: 'greet' };
+    }
+    if (/\b(thank|thanks|thx)\b/.test(s) || /நன்றி|धन्यवाद|शुक्रिया/.test(raw)) return { kind: 'thanks' };
+    if (/^(bye|goodbye|good bye|see you|cya|tata)\b/.test(s) || /^(போய் வருகிறேன்|பை|அப்புறம் பார்ப்போம்|अलविदा|फिर मिलेंगे)/.test(raw)) {
+      return { kind: 'bye' };
+    }
+    return { kind: 'talk', script: scriptOf(raw) };
+  }
+
+  /* Things to teach, in order, for a language: a starter course drawn from
+     the phrasebook, or the words of one theme. Each item carries its
+     meaning in the other two languages. */
+  var COURSE = ['greet', 'intro', 'polite', 'yesno', 'understand', 'help', 'smalltalk', 'food',
+                'time', 'directions', 'shop', 'feelings', 'family', 'plans'];
+
+  function lesson(theme) {
+    var out = [];
+    if (theme && TB.VOCAB) {
+      TB.VOCAB.filter(function (v) { return v.th === theme; }).forEach(function (v) {
+        out.push({ en: v.en, hi: v.hi, ta: v.ta, kind: 'word' });
+      });
+      if (out.length) return out;
+    }
+    if (TB.PHRASES) {
+      COURSE.forEach(function (g) {
+        TB.PHRASES.filter(function (p) { return p.g === g; }).slice(0, 4).forEach(function (p) {
+          out.push({ en: p.en, hi: p.hi, ta: p.ta, kind: 'phrase' });
+        });
+      });
+    }
+    return out;
+  }
+
+  /* A handful of words: from the theme asked for, or a varied mix. */
+  function someWords(theme, n, offset) {
+    var src = (TB.VOCAB || []).filter(function (v) { return !theme || v.th === theme; });
+    if (!src.length) src = TB.VOCAB || [];
+    var start = ((offset || 0) * (n || 6)) % Math.max(1, src.length);
+    var out = [];
+    for (var i = 0; i < (n || 6) && i < src.length; i++) {
+      var v = src[(start + i) % src.length];
+      out.push({ en: v.en, hi: v.hi, ta: v.ta, kind: 'word' });
+    }
+    return out;
+  }
+
+  var THEME_NAMES = {
+    greetings: 'வணக்கங்கள்', family: 'குடும்பம்', numbers: 'எண்கள்', colors: 'நிறங்கள்', body: 'உடல் உறுப்புகள்',
+    food: 'உணவு', time: 'நேரம்', travel: 'பயணம்', home: 'வீடு', school: 'பள்ளி', work: 'வேலை',
+    nature: 'இயற்கை', verbs: 'வினைச்சொற்கள்', adjectives: 'பெயரடைகள்', emotions: 'உணர்வுகள்',
+    shopping: 'கடை', health: 'உடல்நலம்', tech: 'தொழில்நுட்பம்', animals: 'விலங்குகள்'
+  };
+
   return {
     PASS: PASS,
+    intent: intent,
+    namedLang: namedLang,
+    themeIn: themeIn,
+    lesson: lesson,
+    someWords: someWords,
+    THEME_NAMES: THEME_NAMES,
     all: all,
     byLevel: byLevel,
     find: find,

@@ -173,7 +173,29 @@ TB.Check = (function () {
 
   function known(w) {
     if (!WORDS) buildWordList();
-    return !!WORDS[String(w).toLowerCase()];
+    var low = String(w).toLowerCase();
+    if (WORDS[low]) return true;
+    /* An ordinary inflection of a known word is a known word. The list holds
+       "word", not "words" — so "words" was "corrected" to "worlds", the
+       nearest word the list did hold. Plural, third-person, past, -ing and
+       the possessive are all checked against their base before anything is
+       called a misspelling. */
+    if (TB.IRREG_REV && TB.IRREG_REV[low] && WORDS[TB.IRREG_REV[low]]) return true;
+    var bases = [];
+    if (/'s$/.test(low)) bases.push(low.slice(0, -2));
+    if (/ies$/.test(low)) bases.push(low.slice(0, -3) + 'y');
+    if (/es$/.test(low)) bases.push(low.slice(0, -2));
+    if (/s$/.test(low) && !/ss$/.test(low)) bases.push(low.slice(0, -1));
+    if (/ied$/.test(low)) bases.push(low.slice(0, -3) + 'y');
+    if (/ed$/.test(low)) { bases.push(low.slice(0, -2)); bases.push(low.slice(0, -1)); }
+    if (/([b-df-hj-np-tv-z])\1ed$/.test(low)) bases.push(low.slice(0, -3));
+    if (/ing$/.test(low)) { bases.push(low.slice(0, -3)); bases.push(low.slice(0, -3) + 'e'); }
+    if (/([b-df-hj-np-tv-z])\1ing$/.test(low)) bases.push(low.slice(0, -4));
+    /* No -er, -est or -ly here: "enginer" would pass as "engine" + r. */
+    for (var i = 0; i < bases.length; i++) {
+      if (bases[i].length > 1 && WORDS[bases[i]]) return true;
+    }
+    return false;
   }
 
   /* Levenshtein counts a swapped pair as two edits, but "recieve" is one
@@ -201,6 +223,31 @@ TB.Check = (function () {
   }
 
   function lev(a, b) { return damerau(a, b); }
+
+  /* Is the change from what was typed to the suggestion the shape of a slip
+     of the fingers, rather than a different word?
+
+     The word list is this app's vocabulary, not the whole of English, so a
+     real word it lacks looks like a misspelling — and swapping one letter
+     turns it into another real word: "kids" became "kiss". A letter left
+     out, an extra letter, or two letters swapped is what a typo looks like
+     ("enginer", "recieve"). One letter replaced by another, in a short word,
+     is as likely to be a word the list does not know, so it is offered as a
+     suggestion and the sentence is left alone. Known misspellings
+     ("ALWAYS", "SOUNDALIKE") are applied whatever their shape. */
+  function typoShaped(typed, fix) {
+    if (!fix) return false;
+    if (ALWAYS[typed] || SOUNDALIKE[typed]) return true;
+    if (typed.length !== fix.length) return true;              /* inserted or dropped letter */
+    var diffs = [];
+    for (var i = 0; i < typed.length; i++) if (typed.charAt(i) !== fix.charAt(i)) diffs.push(i);
+    if (diffs.length === 2 && diffs[1] === diffs[0] + 1
+        && typed.charAt(diffs[0]) === fix.charAt(diffs[1])
+        && typed.charAt(diffs[1]) === fix.charAt(diffs[0])) return true;   /* swapped pair */
+    /* a single substituted letter only in a long word, where another real
+       word one letter away is unlikely */
+    return diffs.length === 1 && typed.length >= 8;
+  }
 
   function shared(a, b, fromEnd) {
     var n = Math.min(a.length, b.length), i = 0;
@@ -300,7 +347,7 @@ TB.Check = (function () {
 
       /* Auto-apply only when one candidate beats the rest outright. Where
          several are equally good we show them and leave the word alone. */
-      var applied = clearWinner(lastRanked);
+      var applied = clearWinner(lastRanked) && typoShaped(low, sug[0]);
       found.push({ index: idx, word: raw, suggestions: sug, kind: 'spelling', applied: applied });
       if (!applied) return raw;
       var rep = sug[0];

@@ -2048,3 +2048,10 @@ html.depth .tally-group:last-of-type line:last-of-type { animation: chalk .2s ea
 .tk-weak { padding: 6px 0; border-top: 1px dashed var(--line-soft); }
 .tk-hide { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
 @media (max-width: 560px) { .tk-bubble { max-width: 100%; } }
+
+/* the tutor speaking, a thing to learn, and what to say next */
+.tk-say { font-size: calc(15.5px * var(--fs, 1)); line-height: 1.55; }
+.tk-say2 { font-size: calc(15px * var(--fs, 1)); color: var(--text-dim); margin-top: 2px; }
+.tk-item { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line-soft); }
+.tk-chips { gap: 6px; }
+.tk-chip { font-size: calc(13px * var(--fs, 1)); }

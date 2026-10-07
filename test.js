@@ -2353,6 +2353,47 @@ section('TALK & LEARN');
       !fix('yesterday i eat biryani').issues.some(function (x) { return x.type === 'article-missing' && /yesterday/i.test(x.from); }));
   })();
 
+  /* Free talk answers what was asked. Every one of these failed on a phone:
+     "Can you teach hindi" got its capitals fixed and "Where are you from?";
+     "Say any words in hindi" came back as "worlds". */
+  (function () {
+    function k(s) { return C.intent(s); }
+    t('"Can you teach hindi" asks to be taught Hindi', k('Can you teach hindi').kind === 'teach' && k('Can you teach hindi').lang === 'hi');
+    t('"teach me english" asks for English', k('teach me english').lang === 'en');
+    t('asked in Tamil, too', k('எனக்கு இந்தி கற்றுக்கொடுங்கள்').kind === 'teach' && k('எனக்கு இந்தி கற்றுக்கொடுங்கள்').lang === 'hi');
+    t('"Say any words in hindi" asks for words', k('Say any words in hindi').kind === 'words' && k('Say any words in hindi').lang === 'hi',
+      JSON.stringify(k('Say any words in hindi')));
+    t('and in Tamil', k('இந்தி வார்த்தைகள் சொல்லுங்கள்').kind === 'words');
+    t('"words about food" finds the food words', k('Words about food').theme === 'food');
+    t('"how do I say good morning in Hindi" is answered',
+      k('How do I say good morning in Hindi?').kind === 'howsay' && k('How do I say good morning in Hindi?').phrase === 'good morning');
+    t('"what is thank you in hindi" too', k('what is thank you in hindi').phrase === 'thank you');
+    t('and the Tamil way of asking it', k('காலை வணக்கம் இந்தியில் எப்படிச் சொல்வது').kind === 'howsay'
+      && k('காலை வணக்கம் இந்தியில் எப்படிச் சொல்வது').phrase === 'காலை வணக்கம்');
+    t('"what does beautiful mean"', k('what does beautiful mean').kind === 'meaning' && k('what does beautiful mean').phrase === 'beautiful');
+    t('"next" carries on, "More words" asks for words', k('next').kind === 'next' && k('More words').kind === 'words');
+    t('"I don’t understand" asks again, slowly', k("I don't understand").kind === 'repeat' && k('புரியவில்லை').kind === 'repeat');
+    t('hello, thanks and goodbye are answered as such',
+      k('hi').kind === 'greet' && k('thank you').kind === 'thanks' && k('bye').kind === 'bye');
+    t('anything else is talk, by its script',
+      k('I went to Chennai yesterday').kind === 'talk' && k('நான் நேற்று சென்னைக்குப் போனேன்').script === 'ta');
+    t('a lesson exists for both languages', C.lesson('').length > 20 && C.lesson('food').length >= 5);
+    t('and words come in a varied handful', C.someWords('', 6, 0).length === 6
+      && C.someWords('', 6, 0)[0].en !== C.someWords('', 6, 1)[0].en);
+    var v13 = require('fs').readFileSync(__dirname + '/js/views13.js', 'utf8');
+    t('a question already asked is not asked again', /function freshQuestion/.test(v13) && /asked\[q\.en\]/.test(v13));
+    t('asking for the other language switches to it', /function switchTo\(lang\)/.test(v13));
+    t('Tamil before a noun bends: ஆங்கிலச் சொற்கள்', /LADJ_TA\[learn\] \+ ' சொற்கள்'/.test(v13));
+  })();
+
+  /* The checker no longer corrects correct words into other words. */
+  (function () {
+    function fix(s) { return TB.Check.check(s, 'en').corrected; }
+    t('"words" stays "words"', fix('Say any words in hindi') === 'Say any words in Hindi.', fix('Say any words in hindi'));
+    t('"kids" stays "kids"', fix('She is playing with the kids') === 'She is playing with the kids.', fix('She is playing with the kids'));
+    t('a real typo is still fixed', fix('i am a enginer') === 'I am an engineer.', fix('i am a enginer'));
+  })();
+
   t('the script of what was said is recognised',
     C.scriptOf('வணக்கம்') === 'ta' && C.scriptOf('नमस्ते') === 'hi' && C.scriptOf('hello') === 'en');
 

@@ -340,9 +340,10 @@
           + '</div>'
           + '<div class="card tk-chat" id="frChat">'
           +   '<div class="tk-bubble tk-A"><div class="tk-who">Tutor</div>'
-          +   '<div class="ta">வணக்கம்! எதைப் பற்றி வேண்டுமானாலும் பேசுங்கள். தமிழில் சொன்னால் '
-          +     IN_TAMIL[learn] + ' எப்படிச் சொல்வது என்று கற்றுத் தருகிறேன்.</div>'
-          +   '<div class="tiny muted">Hello! Talk about anything you like.</div></div>'
+          +   '<div class="ta tk-say">வணக்கம்! நான் உங்கள் ஆசிரியர். "எனக்கு ' + LNAME_TA[learn] + ' கற்றுக்கொடுங்கள்" என்று '
+          +     'சொல்லுங்கள், அல்லது தமிழில் எதையாவது சொல்லுங்கள் — அதை ' + IN_TAMIL[learn] + ' எப்படிச் சொல்வது என்று கற்றுத் தருகிறேன்.</div>'
+          +   '<div class="tiny muted">Hello! I am your tutor. Ask me to teach you, or say anything.</div>'
+          +   starterChips() + '</div>'
           + '</div>'
           + '<div class="card"><div class="row">'
           +   '<input id="frText" type="text" placeholder="Type or speak anything…" aria-label="What you want to say" style="flex:1;min-width:180px">'
@@ -368,69 +369,266 @@
           .catch(function () { return ''; });
       }
 
+      /* ------------------------------------------- the tutor's voice
+
+         Free talk answers what was asked. A request to be taught is met with
+         "Sure — I will teach you", then a lesson, one line at a time, each
+         heard, read, understood and said back. A request for words gets
+         words. "How do I say…" gets the answer. Hello gets hello. Anything
+         else said in the language being learnt is checked and answered with a
+         question it has not already asked. */
+      var LNAME_TA = { en: 'ஆங்கிலம்', hi: 'இந்தி' };
+      /* before a noun the name bends: ஆங்கிலச் சொற்கள், not ஆங்கிலம் சொற்கள் */
+      var LADJ_TA = { en: 'ஆங்கிலச்', hi: 'இந்திச்' };
+      var queue = [], qi = 0, lastItem = null, asked = {}, wordsPage = 0;
+
+      function tutorText(ta, target) {
+        return '<div class="ta tk-say">' + esc(ta) + '</div>'
+          + (target ? '<div class="' + learn + ' tk-say2">' + esc(target) + '</div>' : '');
+      }
+
+      /* One thing to learn: the line, how to read it, what it means. */
+      function itemHtml(item) {
+        var t = item[learn];
+        return '<div class="tk-item">'
+          + '<div class="' + learn + ' tk-line">' + esc(t) + speakBtn(t, learn) + '</div>'
+          + readAid(t, learn, true)
+          + '<div class="tk-mean"><span class="tiny muted">தமிழ்</span> <span class="ta">' + esc(item.ta || '') + '</span></div>'
+          + (learn === 'hi' && item.en ? '<div class="tk-mean"><span class="tiny muted">English</span> <span>' + esc(item.en) + '</span></div>' : '')
+          + '</div>';
+      }
+
+      function practiceRow(withNext) {
+        return '<div class="row mt tk-actions">'
+          + (canHear ? '<button class="btn btn-primary btn-sm" data-frmic="1" type="button">\u{1F3A4} Say it after me</button>' : '')
+          + '<button class="btn btn-sm" data-frslow="1" type="button">\u{1F422} Slowly</button>'
+          + (withNext ? '<button class="btn btn-sm" data-say="next" type="button">Next ▶</button>' : '')
+          + '</div><div data-frheard></div>';
+      }
+
+      function chips(list) {
+        return '<div class="pill-row mt tk-chips">' + list.map(function (c) {
+          return '<button class="pill tk-chip" data-say="' + esc(c) + '" type="button">' + esc(c) + '</button>';
+        }).join('') + '</div>';
+      }
+
+      function starterChips() {
+        var L = learn === 'hi' ? 'Hindi' : 'English';
+        return chips(['Teach me ' + L, 'Give me some ' + L + ' words', 'Words about food',
+                      'How do I say good morning in ' + L + '?', learn === 'hi' ? 'Teach me English' : 'Teach me Hindi']);
+      }
+
+      /* Change the language being taught when the learner asks for the other
+         one — "teach me Hindi" while English is selected means Hindi. */
+      function switchTo(lang) {
+        if ((lang !== 'en' && lang !== 'hi') || lang === learn) return false;
+        learn = lang;
+        if (freeSpeak !== 'ta') freeSpeak = learn;
+        saveLevel();
+        root.querySelectorAll('#tkLang .pill').forEach(function (x) {
+          x.classList.toggle('on', x.getAttribute('data-lang') === learn);
+        });
+        return true;
+      }
+
+      function present(bubbleEl, item, intro) {
+        lastItem = item;
+        bubbleEl.__line = item;
+        bubbleEl.innerHTML = '<div class="tk-who">Tutor</div>' + (intro || '') + itemHtml(item)
+          + practiceRow(qi < queue.length);
+        return say(item[learn], learn, true);
+      }
+
+      function nextItem(bubbleEl) {
+        if (!queue.length) {
+          bubbleEl.innerHTML = '<div class="tk-who">Tutor</div>'
+            + tutorText('எதைக் கற்றுக்கொள்ள விரும்புகிறீர்கள்? அன்றாட வாக்கியங்கள், அல்லது உணவு, குடும்பம், எண்கள் பற்றிய சொற்கள் — எதுவாக இருந்தாலும் சொல்லுங்கள்.',
+                        learn === 'hi' ? 'आप क्या सीखना चाहेंगे?' : 'What would you like to learn?')
+            + starterChips();
+          return;
+        }
+        if (qi >= queue.length) {
+          bubbleEl.innerHTML = '<div class="tk-who">Tutor</div>'
+            + tutorText('அருமை! இந்தப் பகுதியை முடித்துவிட்டீர்கள். அடுத்து எதைக் கற்கலாம்?',
+                        learn === 'hi' ? 'शाबाश! यह हिस्सा पूरा हो गया।' : 'Well done! You finished this part.')
+            + chips(['Words about family', 'Words about numbers', 'Words about colours', 'Teach me more sentences']);
+          queue = []; qi = 0;
+          return;
+        }
+        var n = qi + 1, total = queue.length;
+        var item = queue[qi++];
+        present(bubbleEl, item, '<div class="tiny muted">' + n + ' / ' + total + '</div>');
+      }
+
+      /* A question for what was said, never one already asked this session. */
+      function freshQuestion(text) {
+        for (var k = 0; k < 8; k++) {
+          var q = C.followUp(text, freeTurns + k);
+          if (!asked[q.en]) { asked[q.en] = 1; return q; }
+        }
+        for (k = 0; k < 4; k++) {
+          var f = C.followUp('', freeTurns + k);
+          if (!asked[f.en]) { asked[f.en] = 1; return f; }
+        }
+        asked = {};
+        return C.followUp(text, freeTurns);
+      }
+
       function respond(text) {
         text = String(text || '').trim();
         if (!text) return;
         var my = gen;
-        var src = C.scriptOf(text) || freeSpeak;
-        frBubble('<div class="' + src + '">' + esc(text) + '</div>', 'B');
-        var wait = frBubble('<span class="spin"></span> Thinking…', 'A');
+        var it = C.intent(text);
+        if (it.kind !== 'next' || text.toLowerCase() !== 'next') {
+          frBubble('<div class="' + (C.scriptOf(text) || 'en') + '">' + esc(text) + '</div>', 'B');
+        }
+        var b = frBubble('<span class="spin"></span>', 'A');
+        if (!b) return;
         freeTurns++;
+        var dd = D(); dd.stats.xp = (dd.stats.xp || 0) + 1; saveD(dd);
+        TB.App.refreshChips();
 
-        if (src === 'ta') {
-          /* Tamil: teach how to say it, in the language being learnt. */
-          var other = learn === 'en' ? 'hi' : 'en';
-          Promise.all([translate(text, 'ta', learn), translate(text, 'ta', other)]).then(function (tr) {
-            if (!alive(my) || !wait) return;
-            var said = tr[0];
-            if (!said) {
-              wait.innerHTML = '<div class="tk-who">Tutor</div><div class="msg msg-warn">Translating needs an internet '
-                + 'connection, and it could not be reached. Try again in a moment.</div>';
-              return;
-            }
-            var line = { ta: text }; line[learn] = said; line[other] = tr[1];
-            wait.innerHTML = '<div class="tk-who">Tutor</div>'
-              + '<div class="ta small">இதை ' + IN_TAMIL[learn] + ' இப்படிச் சொல்லலாம்:</div>'
-              + '<div class="' + learn + ' tk-line">' + esc(said) + speakBtn(said, learn) + '</div>'
-              + readAid(said, learn, true)
-              + (tr[1] ? '<div class="tk-mean"><span class="tiny muted">' + LANG_NAME[other] + '</span> <span class="' + other + '">'
-                  + esc(tr[1]) + '</span></div>' : '')
-              + '<div class="row mt">'
-              + (canHear ? '<button class="btn btn-primary btn-sm" data-frmic="1" type="button">\u{1F3A4} Now you say it</button>' : '')
-              + '</div><div data-frheard></div>';
-            wait.__line = line;
-            say(said, learn);
-          });
+        if (it.kind === 'next') { nextItem(b); return; }
+
+        if (it.kind === 'repeat') {
+          if (!lastItem) {
+            b.innerHTML = '<div class="tk-who">Tutor</div>'
+              + tutorText('எதை மீண்டும் சொல்ல வேண்டும்? ஒரு வாக்கியத்தைத் தட்டச்சு செய்யுங்கள், மெதுவாகச் சொல்கிறேன்.', '');
+            return;
+          }
+          present(b, lastItem, tutorText('சரி, மெதுவாக மீண்டும் சொல்கிறேன்:', learn === 'hi' ? 'धीरे-धीरे फिर से:' : 'Once more, slowly:'));
           return;
         }
 
-        /* English or Hindi: check it, explain it, answer it. */
-        var check = src === 'en' && TB.Check ? TB.Check.check(text, 'en') : null;
+        if (it.kind === 'teach') {
+          if (it.lang === 'ta') {
+            b.innerHTML = '<div class="tk-who">Tutor</div>'
+              + tutorText('இந்தத் தளம் தமிழ் வழியாக ஆங்கிலமும் இந்தியும் கற்றுத் தருகிறது. எதைக் கற்க விரும்புகிறீர்கள்?', '')
+              + chips(['Teach me English', 'Teach me Hindi']);
+            return;
+          }
+          switchTo(it.lang);
+          queue = C.lesson(it.theme); qi = 0;
+          var topic = it.theme ? (C.THEME_NAMES[it.theme] || '') + ' பற்றிய சொற்களிலிருந்து' : 'அன்றாடம் பேசும் வாக்கியங்களிலிருந்து';
+          var intro = tutorText('நிச்சயமாக! நான் உங்களுக்கு ' + LNAME_TA[learn] + ' கற்றுத் தருகிறேன். '
+              + topic + ' தொடங்குவோம். ஒவ்வொன்றையும் கேளுங்கள், பிறகு நீங்களே சொல்லுங்கள்.',
+              learn === 'hi' ? 'ज़रूर! चलिए हिंदी सीखते हैं। सुनिए, फिर मेरे बाद बोलिए।'
+                             : 'Sure! Let’s learn English. Listen, then say it after me.');
+          var first = queue[qi++];
+          if (!first) { b.innerHTML = '<div class="tk-who">Tutor</div>' + intro; return; }
+          say(learn === 'hi' ? 'ज़रूर! चलिए हिंदी सीखते हैं।' : 'Sure! Let’s learn English.', learn).then(function () {
+            if (alive(my)) present(b, first, intro + '<div class="tiny muted mt">1 / ' + queue.length + '</div>');
+          });
+          b.innerHTML = '<div class="tk-who">Tutor</div>' + intro;
+          return;
+        }
+
+        if (it.kind === 'words') {
+          switchTo(it.lang);
+          var list = C.someWords(it.theme, 6, wordsPage++);
+          queue = list.slice(); qi = 0;
+          b.innerHTML = '<div class="tk-who">Tutor</div>'
+            + tutorText('இதோ சில ' + LADJ_TA[learn] + ' சொற்கள்' + (it.theme ? ' — ' + (C.THEME_NAMES[it.theme] || '') : '') + ':',
+                        learn === 'hi' ? 'ये कुछ शब्द सीखिए:' : 'Here are some words to learn:')
+            + list.map(itemHtml).join('')
+            + tutorText('இப்போது ஒவ்வொன்றாகப் பயிற்சி செய்யலாம்.', '')
+            + chips(['next', 'More words', 'Words about animals']);
+          TB.Speech.sequence(list.map(function (w) { return { text: w[learn], lang: learn, rate: 0.75, pause: 500 }; }), sayOpts());
+          return;
+        }
+
+        if (it.kind === 'greet') {
+          var hello = learn === 'hi' ? 'नमस्ते! आपसे मिलकर ख़ुशी हुई। आज आप क्या सीखना चाहेंगे?'
+                                     : 'Hello! It’s lovely to meet you. What would you like to learn today?';
+          b.innerHTML = '<div class="tk-who">Tutor</div>'
+            + tutorText('வணக்கம்! உங்களைச் சந்தித்ததில் மகிழ்ச்சி. இன்று என்ன கற்றுக்கொள்ள விரும்புகிறீர்கள்?', hello)
+            + readAid(hello, learn, true) + starterChips();
+          say(hello, learn);
+          return;
+        }
+        if (it.kind === 'thanks') {
+          var yw = learn === 'hi' ? 'आपका स्वागत है! आगे बढ़ें?' : 'You’re welcome! Shall we keep going?';
+          b.innerHTML = '<div class="tk-who">Tutor</div>' + tutorText('மகிழ்ச்சி! தொடரலாமா?', yw) + chips(['next', 'Give me some words']);
+          say(yw, learn);
+          return;
+        }
+        if (it.kind === 'bye') {
+          var by = learn === 'hi' ? 'फिर मिलेंगे! रोज़ थोड़ा अभ्यास कीजिए।' : 'Goodbye! Practise a little every day. See you soon!';
+          b.innerHTML = '<div class="tk-who">Tutor</div>' + tutorText('போய் வாருங்கள்! தினமும் கொஞ்சம் பயிற்சி செய்யுங்கள்.', by);
+          say(by, learn);
+          return;
+        }
+
+        if (it.kind === 'meaning') {
+          var mfrom = C.scriptOf(it.phrase) || 'en';
+          var other = mfrom === 'hi' ? 'en' : 'hi';
+          Promise.all([translate(it.phrase, mfrom, 'ta'), mfrom === 'ta' ? Promise.resolve('') : translate(it.phrase, mfrom, other)])
+            .then(function (tr) {
+              if (!alive(my)) return;
+              if (!tr[0]) { b.innerHTML = '<div class="tk-who">Tutor</div>' + offline(); return; }
+              b.innerHTML = '<div class="tk-who">Tutor</div>'
+                + tutorText('"' + it.phrase + '" என்றால்:', '')
+                + '<div class="ta tk-line">' + esc(tr[0]) + '</div>'
+                + (tr[1] ? '<div class="tk-mean"><span class="tiny muted">' + LANG_NAME[other] + '</span> <span class="' + other + '">' + esc(tr[1]) + '</span></div>' : '')
+                + chips(['How do I say "' + it.phrase + '" in ' + (learn === 'hi' ? 'Hindi' : 'English') + '?', 'Give me some words']);
+            });
+          return;
+        }
+
+        /* "How do I say…", a Tamil sentence, or the other language: teach
+           the line in the language being learnt. */
+        var phrase = it.kind === 'howsay' ? it.phrase : text;
+        if (it.kind === 'howsay') switchTo(it.lang);
+        var from = C.scriptOf(phrase) || 'en';
+        if (it.kind === 'howsay' || from !== learn) {
+          if (from === learn) {
+            b.innerHTML = '<div class="tk-who">Tutor</div>'
+              + tutorText('அது ஏற்கெனவே ' + LNAME_TA[learn] + ' — அதன் பொருள் இதோ:', '') ;
+            translate(phrase, from, 'ta').then(function (m) {
+              if (alive(my)) b.innerHTML += '<div class="ta tk-line">' + esc(m || '—') + '</div>';
+            });
+            return;
+          }
+          var also = from === 'ta' ? (learn === 'hi' ? 'en' : 'hi') : 'ta';
+          Promise.all([translate(phrase, from, learn), translate(phrase, from, 'ta'), learn === 'hi' ? translate(phrase, from, 'en') : Promise.resolve('')])
+            .then(function (tr) {
+              if (!alive(my)) return;
+              if (!tr[0]) { b.innerHTML = '<div class="tk-who">Tutor</div>' + offline(); return; }
+              var item = { ta: from === 'ta' ? phrase : (tr[1] || ''), en: learn === 'hi' ? (from === 'en' ? phrase : tr[2]) : tr[0] };
+              item[learn] = tr[0];
+              queue = []; qi = 0;
+              present(b, item, tutorText('"' + phrase + '" — இதை ' + IN_TAMIL[learn] + ' இப்படிச் சொல்லலாம்:',
+                learn === 'hi' ? 'इसे हिंदी में ऐसे कहते हैं:' : 'In English, you say:'));
+              b.insertAdjacentHTML('beforeend', chips(['Say it slowly', 'Give me some words', 'Teach me ' + (learn === 'hi' ? 'Hindi' : 'English')]));
+            });
+          return;
+        }
+
+        /* A sentence in the language being learnt: check it, say what it
+           means, and answer it. */
+        var check = learn === 'en' && TB.Check ? TB.Check.check(text, 'en') : null;
         var fixed = check && check.changed ? check.corrected : '';
-        translate(fixed || text, src, 'ta').then(function (meaning) {
-          if (!alive(my) || !wait) return;
-          var q = C.followUp(text, freeTurns);
-          var issues = check ? (check.issues || []).filter(function (x) { return !x.soft || x.type !== 'punctuation'; }) : [];
-          wait.innerHTML = '<div class="tk-who">Tutor</div>'
-            + (fixed
-                ? '<div class="tk-fix"><div class="tiny muted">Better:</div><div class="en tk-line">' + esc(fixed)
-                  + speakBtn(fixed, 'en') + '</div>'
-                  + issues.slice(0, 3).map(function (x) {
-                      return '<div class="tiny">• ' + esc(x.ta || '') + '</div>';
-                    }).join('') + '</div>'
-                : '<div class="tiny" style="color:var(--green)">✓ Well said.</div>')
+        translate(fixed || text, learn, 'ta').then(function (meaning) {
+          if (!alive(my)) return;
+          var q = freshQuestion(text);
+          var issues = check ? (check.issues || []).filter(function (x) { return x.type !== 'punctuation' && x.type !== 'capital'; }) : [];
+          b.innerHTML = '<div class="tk-who">Tutor</div>'
+            + (fixed && issues.length
+                ? tutorText('நல்ல முயற்சி! ஒரு சிறு திருத்தம்:', 'Good try! A small correction:')
+                  + '<div class="en tk-line">' + esc(fixed) + speakBtn(fixed, 'en') + '</div>'
+                  + issues.slice(0, 3).map(function (x) { return '<div class="tiny">• ' + esc(x.ta || '') + '</div>'; }).join('')
+                : tutorText('நன்றாகச் சொன்னீர்கள்!', learn === 'hi' ? 'बहुत अच्छा!' : 'Well said!'))
             + (meaning ? '<div class="tk-mean"><span class="tiny muted">தமிழ்</span> <span class="ta">' + esc(meaning) + '</span></div>' : '')
-            + '<div class="mt"><div class="' + learn + ' tk-line">' + esc(q[learn]) + speakBtn(q[learn], learn) + '</div>'
-            + readAid(q[learn], learn, true)
-            + '<div class="tk-mean"><span class="tiny muted">தமிழ்</span> <span class="ta">' + esc(q.ta) + '</span></div>'
-            + (learn === 'hi' ? '<div class="tk-mean"><span class="tiny muted">English</span> <span>' + esc(q.en) + '</span></div>' : '')
-            + '</div>';
-          var dd = D(); dd.stats.xp = (dd.stats.xp || 0) + 2; saveD(dd);
-          TB.App.refreshChips();
-          (fixed ? say(fixed, 'en') : Promise.resolve()).then(function () {
+            + '<div class="mt">' + itemHtml(q) + '</div>';
+          (fixed && issues.length ? say(fixed, 'en') : Promise.resolve()).then(function () {
             if (alive(my)) say(q[learn], learn);
           });
         });
+      }
+
+      function offline() {
+        return tutorText('இணைய இணைப்பு கிடைக்கவில்லை, அதனால் இதை இப்போது மொழிபெயர்க்க முடியவில்லை. சிறிது நேரத்தில் மீண்டும் முயலுங்கள்.',
+                         'I could not reach the translator just now. Please try again in a moment.');
       }
 
       function listenFree() {
@@ -548,6 +746,12 @@
         }
         if (e.target.closest('#frMic')) { listenFree(); return; }
         if ((t = e.target.closest('[data-frmic]'))) { repeatAfter(t.closest('.tk-bubble')); return; }
+        if ((t = e.target.closest('[data-frslow]'))) {
+          var bub = t.closest('.tk-bubble');
+          if (bub && bub.__line) { TB.Speech.stop(); say(bub.__line[learn], learn, true); }
+          return;
+        }
+        if ((t = e.target.closest('[data-say]'))) { TB.Speech.stop(); respond(t.getAttribute('data-say')); return; }
       });
 
       body.addEventListener('change', function (e) {
