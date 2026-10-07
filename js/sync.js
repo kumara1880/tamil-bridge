@@ -68,6 +68,18 @@ TB.Sync = (function () {
     }).then(function (r) {
       clearTimeout(timer);
       return r.json().catch(function () { return {}; }).then(function (j) {
+        /* The server no longer accepts this sign-in: the password was reset
+           on another device, or the account was deleted. Everything stays on
+           this device; the dead token is dropped so it is not sent every two
+           minutes for ever, and the person is told once. Only for the routes
+           where 401 means that — on sign-in or delete it means a wrong
+           password. */
+        if (r.status === 401 && token && /^\/api\/(data|auth\/me)$/.test(path)) {
+          api.setToken('');
+          if (TB.App && TB.App.toast) {
+            TB.App.toast('You were signed out on this device. Sign in again to keep your progress in sync.', 'err');
+          }
+        }
         if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
         online = true;
         return j;
@@ -179,9 +191,13 @@ TB.Sync = (function () {
       }, 75000).then(function (j) { api.setToken(''); return j; });
     },
 
-    pull: function () { return req('/api/data').then(function (j) { return j.data; }); },
+    pull: function () {
+      if (!token) return Promise.reject(new Error('not-signed-in'));
+      return req('/api/data').then(function (j) { return j.data; });
+    },
 
     push: function (data) {
+      if (!token) return Promise.reject(new Error('not-signed-in'));
       return req('/api/data', {
         method: 'PUT',
         body: {

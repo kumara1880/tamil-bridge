@@ -597,6 +597,29 @@
           return;
         }
 
+        /* "Talk with me in English": a conversation. The tutor asks, the
+           learner answers. An answer in the language being learnt is checked,
+           corrected and answered with the next question; an answer in Tamil
+           is taught — this is how you say it — so nobody is stuck for words. */
+        if (it.kind === 'converse') {
+          switchTo(it.lang);
+          queue = []; qi = 0;
+          var q0 = freshQuestion(text);
+          var hiTalk = learn === 'hi' ? 'ठीक है, चलिए बात करते हैं! मैं पूछूँगी, आप हिंदी में जवाब दीजिए।'
+                                      : 'Sure, let’s talk! I’ll ask, and you answer in English.';
+          lastItem = q0;
+          b.__line = q0;
+          b.innerHTML = '<div class="tk-who">Tutor</div>'
+            + tutorText('சரி, பேசலாம்! நான் ' + IN_TAMIL[learn] + ' கேட்கிறேன், நீங்கள் ' + IN_TAMIL[learn]
+                + ' பதில் சொல்லுங்கள். எப்படிச் சொல்வது என்று தெரியவில்லை என்றால் தமிழில் சொல்லுங்கள் — '
+                + IN_TAMIL[learn] + ' எப்படிச் சொல்வது என்று கற்றுத் தருகிறேன்.', hiTalk)
+            + '<div class="mt">' + itemHtml(q0) + '</div>'
+            + chips(learn === 'hi' ? ['मैं ठीक हूँ', 'मैं चेन्नई से हूँ', 'நான் நன்றாக இருக்கிறேன்']
+                                   : ['I am fine, thank you', 'I am from Chennai', 'நான் நன்றாக இருக்கிறேன்']);
+          say(hiTalk, learn).then(function () { if (alive(my)) say(q0[learn], learn); });
+          return;
+        }
+
         if (it.kind === 'teach') {
           if (it.lang === 'ta') {
             b.innerHTML = '<div class="tk-who">Tutor</div>'
@@ -613,8 +636,11 @@
                              : 'Sure! Let’s learn English. Listen, then say it after me.');
           var first = queue[qi++];
           if (!first) { b.innerHTML = '<div class="tk-who">Tutor</div>' + intro; return; }
+          /* counted now: by the time the voice finishes, another message
+             may have started something else */
+          var total = queue.length;
           say(learn === 'hi' ? 'ज़रूर! चलिए हिंदी सीखते हैं।' : 'Sure! Let’s learn English.', learn).then(function () {
-            if (alive(my)) present(b, first, intro + '<div class="tiny muted mt">1 / ' + queue.length + '</div>');
+            if (alive(my)) present(b, first, intro + '<div class="tiny muted mt">1 / ' + total + '</div>');
           });
           b.innerHTML = '<div class="tk-who">Tutor</div>' + intro;
           return;

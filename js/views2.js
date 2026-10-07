@@ -59,9 +59,20 @@
       var u = TB.LESSONS.filter(function (x) { return x.id === param; })[0];
       if (!u) return;
 
+      /* Play and stop on one button. Stop used to be an onclick laid over
+         this listener, so it also started the lesson again; and the end of a
+         reading re-rendered whatever page was showing by then, which threw
+         away a half-done quiz — or another page altogether. */
       var playBtn = root.querySelector('#playAll');
+      var lessonRun = null;
       if (playBtn) {
         playBtn.addEventListener('click', function () {
+          var btn = this;
+          function done() {
+            lessonRun = null;
+            if (btn.isConnected) btn.textContent = '🔊 Play the whole lesson';
+          }
+          if (lessonRun) { lessonRun.cancel(); done(); return; }
           var d = D();
           var steps = [];
           steps.push({ text: u.title.ta + '. ' + u.goal, lang: 'ta', pause: 500 });
@@ -70,12 +81,9 @@
             steps.push({ text: l.en, lang: 'en', rate: 0.68, pause: 280 });
             steps.push({ text: l.hi, lang: 'hi', rate: 0.72, pause: 480 });
           });
-          var btn = this;
           btn.textContent = '⏹ Stop';
-          var run = TB.Speech.sequence(steps, { rate: d.prefs.rate, pitch: d.prefs.pitch });
-          btn.onclick = function () { run.cancel(); done(); };
-          run.then(done);
-          function done() { btn.textContent = '🔊 Play the whole lesson'; btn.onclick = null; TB.App.render(); }
+          var run = lessonRun = TB.Speech.sequence(steps, { rate: d.prefs.rate, pitch: d.prefs.pitch });
+          run.then(function () { if (lessonRun === run) done(); });
         });
       }
 
@@ -1598,7 +1606,18 @@
           b.classList.add('on'); theme = b.getAttribute('data-th'); draw();
         });
       });
+      /* Play and stop on one button. Stop used to be an onclick laid over
+         this listener, so it started the reading again too, and the end of a
+         reading re-rendered whatever page was showing by then — clearing the
+         search box here, or another page entirely. */
+      var vRun = null, vLabel = '';
       root.querySelector('#vSpeakAll').addEventListener('click', function () {
+        var btn = this;
+        function finish() {
+          vRun = null;
+          if (btn.isConnected) btn.textContent = vLabel;
+        }
+        if (vRun) { vRun.cancel(); finish(); return; }
         var list = TB.VOCAB.filter(function (w) { return !theme || w.th === theme; }).slice(0, 25);
         var steps = [];
         list.forEach(function (w) {
@@ -1606,11 +1625,10 @@
           steps.push({ text: w.en, lang: 'en', rate: 0.7, pause: 220 });
           steps.push({ text: w.hi, lang: 'hi', rate: 0.75, pause: 420 });
         });
-        var btn = this;
+        vLabel = vLabel || btn.textContent;
         btn.textContent = '⏹ Stop';
-        var run = TB.Speech.sequence(steps, { rate: D().prefs.rate });
-        btn.onclick = function () { run.cancel(); TB.App.render(); };
-        run.then(function () { TB.App.render(); });
+        var run = vRun = TB.Speech.sequence(steps, { rate: D().prefs.rate });
+        run.then(function () { if (vRun === run) finish(); });
       });
       draw();
     }

@@ -114,7 +114,21 @@
       });
 
       /* play the visible group: English, then Hindi slowly, then Tamil */
+      /* One button, play and stop. It used to swap in an onclick for Stop on
+         top of this listener, so Stop also started a new reading, and when a
+         reading ended it re-rendered whatever page was showing by then —
+         another page entirely, if the learner had moved on, wiping what was
+         typed there. Now it puts back only its own label and highlight. */
+      var phRun = null, phLabel = '';
+      function phDone(btn) {
+        phRun = null;
+        if (!btn.isConnected) return;
+        btn.textContent = phLabel;
+        root.querySelectorAll('.phrase.now').forEach(function (x) { x.classList.remove('now'); });
+      }
       root.querySelector('#phPlay').addEventListener('click', function () {
+        var btn = this;
+        if (phRun) { phRun.cancel(); phDone(btn); return; }
         var list = current().slice(0, 25);
         if (!list.length) return;
         var prefs = D().prefs;
@@ -124,20 +138,20 @@
           steps.push({ text: p.hi, lang: 'hi', rate: 0.6, pause: 250 });
           steps.push({ text: p.hi, lang: 'hi', rate: 0.6, pause: 450 });   /* twice, to fix it */
         });
-        var btn = this;
+        phLabel = phLabel || btn.textContent;
         btn.textContent = '⏹ Stop';
-        var run = TB.Speech.sequence(steps, {
+        var run = phRun = TB.Speech.sequence(steps, {
           rate: prefs.rate, pitch: prefs.pitch,
           voiceNames: { ta: prefs.voiceTa, en: prefs.voiceEn, hi: prefs.voiceHi },
           onStep: function (s, i) {
+            if (!btn.isConnected) return;
             var p = list[Math.floor(i / 3)];
             root.querySelectorAll('.phrase').forEach(function (x) { x.classList.remove('now'); });
             var el = root.querySelector('.phrase[data-pid="' + p.id + '"]');
             if (el) { el.classList.add('now'); el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
           }
         });
-        btn.onclick = function () { run.cancel(); TB.App.render(); };
-        run.then(function () { TB.App.render(); });
+        run.then(function () { if (phRun === run) phDone(btn); });
       });
 
       /* say the Hindi yourself and get a score */

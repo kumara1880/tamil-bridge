@@ -2384,6 +2384,30 @@ section('TALK & LEARN');
     t('a question already asked is not asked again', /function freshQuestion/.test(v13) && /asked\[q\.en\]/.test(v13));
     t('asking for the other language switches to it', /function switchTo\(lang\)/.test(v13));
     t('Tamil before a noun bends: ஆங்கிலச் சொற்கள்', /LADJ_TA\[learn\] \+ ' சொற்கள்'/.test(v13));
+
+    /* every way people actually ask to be taught */
+    var teachAsks = ['teach me how to speak english', 'how to speak english', 'english sollikodu',
+      'english kathukodunga', 'enaku english sollikudunga', 'ஆங்கிலம் கற்க வேண்டும்',
+      'நான் ஆங்கிலம் கற்க விரும்புகிறேன்', 'i want speak english fluently', 'start english class',
+      'help me improve my english'];
+    var missed = teachAsks.filter(function (q) { var i = k(q); return i.kind !== 'teach' || i.lang !== 'en'; });
+    t('"teach me how to speak English" and its Tamil and Tanglish forms are a lesson, not a word to look up',
+      missed.length === 0, missed.join(' | '));
+    t('"hindi sikhao" is a Hindi lesson', k('hindi sikhao').kind === 'teach' && k('hindi sikhao').lang === 'hi');
+    var talkAsks = ['let us talk in english', 'talk with me in english', 'speak english with me',
+      'english conversation practice', 'என்னுடன் ஆங்கிலத்தில் பேசுங்கள்'];
+    var notTalk = talkAsks.filter(function (q) { return k(q).kind !== 'converse'; });
+    t('asking to talk starts a conversation', notTalk.length === 0, notTalk.join(' | '));
+    t('"हिंदी में बात करें" is a conversation in Hindi', k('हिंदी में बात करें').kind === 'converse' && k('हिंदी में बात करें').lang === 'hi');
+    t('"teach me how to say thank you in Hindi" still teaches that phrase',
+      k('teach me how to say thank you in hindi').kind === 'howsay' && k('teach me how to say thank you in hindi').phrase === 'thank you');
+    t('"I am fine, thank you" is an answer, not a thank-you', k('i am fine thank you').kind === 'talk');
+    t('"thank you for teaching me" is a thank-you', k('thank you for teaching me').kind === 'thanks');
+    t('a sentence about learning something is practice, not a lesson request', k('I am learning to cook').kind === 'talk');
+    t('"I walk slowly" is practice, not "say it again"', k('I walk slowly').kind === 'talk');
+    t('"slowly" on its own still asks to hear it again', k('slowly').kind === 'repeat' && k('please repeat').kind === 'repeat');
+    t('a conversation opens with a question and invites Tamil when stuck',
+      /it\.kind === 'converse'/.test(v13) && /freshQuestion\(text\)/.test(v13));
   })();
 
   /* The checker no longer corrects correct words into other words. */
@@ -4112,6 +4136,42 @@ section('DICTIONARY (offline)');
     t('the conversation so far goes with each message', /history: talkLog\.slice\(-10\)/.test(v13t));
     t('every AI line is escaped before it is shown',
       /tutorText\(r\.reply_ta \|\| '', r\.reply_target \|\| ''\)/.test(v13t) && /esc\(fix\.corrected\)/.test(v13t) && /esc\(fix\.why_ta\)/.test(v13t));
+  }
+
+  /* ------------------------------------------- accounts on the server */
+  console.log('\nSERVER SESSIONS AND LEAKS');
+  {
+    const srv = require('fs').readFileSync(__dirname + '/server/index.js', 'utf8');
+    t('a token carries the account\'s token version', /jwt\.sign\(\{ sub: user\._id, tv: user\.tv \|\| 0 \}/.test(srv));
+    t('a token is checked against the account, which must still exist',
+      /async function auth\(/.test(srv) && /users\.findOne\(\{ _id: claims\.sub \}\)/.test(srv)
+      && /\(claims\.tv \|\| 0\) !== \(user\.tv \|\| 0\)/.test(srv));
+    t('a password reset signs out every older session', /const tv = \(user\.tv \|\| 0\) \+ 1;/.test(srv) && /sign\(\{ \.\.\.user, tv \}\)/.test(srv));
+    t('a reset link works once, even when two requests race', /updateOne\(\{ _id: user\._id, resetHash: hash \}/.test(srv) && /done\.matchedCount/.test(srv));
+    const fg = srv.slice(srv.indexOf("app.post('/api/auth/forgot'"), srv.indexOf('async function sendReset'));
+    t('forgot answers before it looks anything up', /res\.json\(\{ ok: true, sent: true \}\);\s*sendReset\(email, base\)/.test(fg)
+      && !/users\.findOne/.test(fg));
+    t('health shows no raw database or mail error text',
+      !/refused the connection: '\s*\+\s*err\.message/.test(srv) && !/SMTP server \(' \+ e\.message/.test(srv));
+    const sync = require('fs').readFileSync(__dirname + '/js/sync.js', 'utf8');
+    t('a session the server ended is dropped, not sent for ever',
+      /r\.status === 401 && token && \/\^\\\/api\\\/\(data\|auth\\\/me\)\$\/\.test\(path\)/.test(sync) && /api\.setToken\(''\)/.test(sync));
+    t('no sync is tried without a session', (sync.match(/if \(!token\) return Promise\.reject\(new Error\('not-signed-in'\)\);/g) || []).length === 2);
+
+    const v2 = require('fs').readFileSync(__dirname + '/js/views2.js', 'utf8');
+    const v5 = require('fs').readFileSync(__dirname + '/js/views5.js', 'utf8');
+    t('the end of a reading never redraws whatever page is showing',
+      !/run\.then\(function \(\) \{ TB\.App\.render\(\); \}\)/.test(v2 + v5) && !/run\.cancel\(\); TB\.App\.render\(\)/.test(v2 + v5)
+      && !/btn\.onclick = null; TB\.App\.render\(\)/.test(v2));
+    t('play buttons are one toggle, not a Stop laid over a Play',
+      /if \(lessonRun\) \{ lessonRun\.cancel\(\); done\(\); return; \}/.test(v2) && /if \(vRun\) \{ vRun\.cancel\(\); finish\(\); return; \}/.test(v2)
+      && /if \(phRun\) \{ phRun\.cancel\(\); phDone\(btn\); return; \}/.test(v5));
+    const v3 = require('fs').readFileSync(__dirname + '/js/views3.js', 'utf8');
+    t('a spelling word is scored once and moves on only while it is on screen',
+      /if \(solved\) return;/.test(v3) && /if \(!input\.isConnected \|\| mode !== 'spell'\) return;/.test(v3));
+    const dep = require('fs').readFileSync(__dirname + '/js/depth.js', 'utf8');
+    t('cards are let go of once shown, so a left page is not kept in memory',
+      /if \(watcher\) watcher\.unobserve\(el\);/.test(dep) && /if \(!watcher\) return;\s*\/\*[^*]*\*\/\s*showAll\(\);/.test(dep));
   }
 
   /* ------------------------------------------------ chart reads each once */

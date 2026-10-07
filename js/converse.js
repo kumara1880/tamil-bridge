@@ -292,6 +292,16 @@ TB.Converse = (function () {
     return String(s || '').replace(/^["'“‘\s]+|["'”’?.!\s]+$/g, '').trim();
   }
 
+  /* Asking to be taught, in English, Tanglish, Tamil and Hindi. */
+  var TEACH = /\b(teach|teaching|learn|learning|lesson|lessons|tutor|sikhao|sikhaiye|sikhado|sikha do|sikhna|seekhna|seekhni|sikhni|padhao|padhaiye)\b|\b(solli\s?k[ou]d|solli\s?th?a|kath+u\s?k|kat+h?ru\s?k|kathuk|katruk|padik)/;
+  var TEACH_IN = /கற்று|கற்க|கற்றுக்|கத்து|சொல்லிக்கொடு|சொல்லி கொடு|சொல்லித்|சொல்லிக்|பாடம்|படிக்க|பயிற்சி|सिखा|सीख|पढ़ा/;
+  /* weaker words, a request only when a language is named with them:
+     "I want speak English fluently", "improve my Hindi" */
+  var WANT = /\b(want|wanna|need|start|begin|improve|fluent|fluently|better|spoken|practi[cs]e|study|class|course|coach)\b/;
+  /* asking to talk: a conversation, played out a line at a time */
+  var CHAT = /\b(talk|chat|speak|converse)\b.*\b(with me|to me)\b|\b(let'?s|let us|can we|shall we)\s+(talk|chat|speak|have a conversation|practi[cs]e)|\b(conversation|conversations|role ?play|roleplay|chatting)\b|\bpractice (speaking|talking)\b|\b(pesalam|pesuvom|pesunga|pesu)\b/;
+  var CHAT_IN = /பேசலாம்|பேசுவோம்|உரையாட|என்னுடன்.{0,30}பேசு|என்னிடம்.{0,30}பேசு|என்கூட.{0,30}பேசு|(ஆங்கிலத்தில்|இந்தியில்|ஹிந்தியில்|இங்கிலீஷ்ல|இங்கிலீஷில்)\s*பேசு|बात करें|बात करो|बातचीत|मुझसे बात/;
+
   function intent(text) {
     var raw = String(text || '').trim();
     var s = lower(raw);
@@ -308,13 +318,38 @@ TB.Converse = (function () {
       return { kind: 'next' };
     }
 
-    /* didn't catch that */
-    if (/(repeat|say (it|that) again|once more|slow(er|ly)?|didn.?t (understand|get)|don.?t (understand|get)|not clear|confus|புரியவில்லை|புரியல|மீண்டும்|மெதுவா|திரும்ப|फिर से|धीरे|समझ नहीं)/.test(s)) {
+    /* didn't catch that — asked for, not a word somewhere in a sentence:
+       "I walk slowly" and "நான் மீண்டும் வருவேன்" are things to practise */
+    if (/(^repeat\b|\brepeat (it|that|please|again)\b|\brepeat[\s.!?]*$|say (it|that) again|once more|^(more |a bit |little )?slow(er|ly)?( please)?[\s.!]*$|(speak|say it|talk) slow|didn.?t (understand|get)|don.?t (understand|get)|not clear|i.?m confused|புரியவில்லை|புரியல|மீண்டும் சொல்|திரும்ப சொல்|மெதுவா|फिर से (बोल|कह)|धीरे|समझ नहीं)/.test(s)) {
       return { kind: 'repeat' };
     }
 
+    /* Only a message that is a thank-you. "I am fine, thank you" is an
+       answer to "How are you?", and was being met with "You're welcome!"
+       Checked before "teach", so "thank you for teaching me" is thanks. */
+    if (/^(ok(ay)?[\s,]+)?(thank you|thanks|thank u|thx|ty)(\s+(so much|very much|a lot|teacher|sir|madam|miss))?(\s+for\b.*)?[\s.!]*$/.test(s)
+        || /^(மிக்க\s+)?நன்றி[\s.!]*$|^(बहुत\s+)?(धन्यवाद|शुक्रिया)[\s.!]*$/.test(raw)) return { kind: 'thanks' };
+
+    /* A request to be taught, or to talk, comes before "how do I say".
+       "Teach me how to speak English" used to be read as "how do I say
+       'English'" and was answered with the meaning of the word English —
+       the opposite of what was asked. And "english sollikodu", "ஆங்கிலம்
+       கற்க வேண்டும்" or "hindi sikhao" were not recognised at all. */
+    var askWords0 = /\b(words?|vocab(ulary)?)\b/.test(s) || /சொற்கள்|வார்த்தை|शब्द/.test(s);
+    /* "I am learning to cook" is a sentence to practise, not a request for
+       a lesson: a statement about oneself that names no language. */
+    var statement = !lang && /^(i am|i'm|im|i was|i have|i've|we|he|she|they|my|it|you are|you're)\b/.test(s);
+    var teachy = !statement && (TEACH.test(s) || TEACH_IN.test(raw) || (lang && WANT.test(s)));
+    var chatty = CHAT.test(s) || CHAT_IN.test(raw);
+    var hasPhrase = /\b(say|tell|write|translate)\s+(?!it\b|that\b|this\b)\S/.test(s)
+      || /"[^"]+"|“[^”]+”/.test(raw);
+    if (chatty && !askWords0 && !hasPhrase) return { kind: 'converse', lang: lang, theme: themeIn(raw) };
+    if (teachy && !askWords0 && !hasPhrase) return { kind: 'teach', lang: lang, theme: themeIn(raw) };
+
     /* how do I say X / X in Hindi / what is X in Hindi */
     if ((m = raw.match(/how (?:do|can|would|to)\s+(?:i|you|we)?\s*(?:say|tell|speak|write)\s+(.+?)(?:\s+in\s+(hindi|english|tamil))?\s*\??$/i))) {
+      /* "how to speak English" is asking to learn English */
+      if (namedLang(m[1]) && strip(m[1]).split(/\s+/).length <= 2) return { kind: 'teach', lang: namedLang(m[1]), theme: '' };
       return { kind: 'howsay', phrase: strip(m[1]), lang: m[2] ? namedLang(m[2]) : lang };
     }
     if ((m = raw.match(/^(?:what(?:'s| is)|whats)\s+(.+?)\s+in\s+(hindi|english|tamil)\s*\??$/i))) {
@@ -346,15 +381,12 @@ TB.Converse = (function () {
     if (askWords) return { kind: 'words', lang: lang, theme: themeIn(raw) };
 
     /* teach me */
-    if (/\b(teach|learn|lesson|lessons|tutor|study)\b/.test(s) || /கற்று|சொல்லிக்கொடு|சொல்லி கொடு|கத்து|பாடம்|सिखा|सीख|पढ़ा/.test(s)) {
-      return { kind: 'teach', lang: lang, theme: themeIn(raw) };
-    }
+    if (teachy) return { kind: 'teach', lang: lang, theme: themeIn(raw) };
 
     if (/^(hi+|hello|hey|hai|helo|vanakkam|namaste|namaskar|good (morning|afternoon|evening|night))\b/.test(s)
         || /^(வணக்கம்|नमस्ते|नमस्कार)/.test(raw)) {
       return { kind: 'greet' };
     }
-    if (/\b(thank|thanks|thx)\b/.test(s) || /நன்றி|धन्यवाद|शुक्रिया/.test(raw)) return { kind: 'thanks' };
     if (/^(bye|goodbye|good bye|see you|cya|tata)\b/.test(s) || /^(போய் வருகிறேன்|பை|அப்புறம் பார்ப்போம்|अलविदा|फिर मिलेंगे)/.test(raw)) {
       return { kind: 'bye' };
     }

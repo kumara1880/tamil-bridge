@@ -99,8 +99,15 @@
   var watcher = null;
   var waiting = [];
 
+  /* Every card is let go of here as well as shown. A card that was never
+     scrolled to stayed watched after its page was left, and the watcher
+     kept the whole detached page alive with it — one more page held in
+     memory for every page visited. */
   function showAll() {
-    waiting.forEach(function (el) { el.classList.add('in'); });
+    waiting.forEach(function (el) {
+      el.classList.add('in');
+      if (watcher) watcher.unobserve(el);
+    });
     waiting.length = 0;
   }
 
@@ -121,6 +128,8 @@
 
   function reveal(scope) {
     if (!watcher) return;
+    /* a new page: whatever the last one left waiting is finished with */
+    showAll();
     var cards = (scope || document).querySelectorAll('.view > .card, .view > .dept, .view > .hero, .view > .grid');
     if (!cards.length) return;
     for (var i = 0; i < cards.length; i++) {

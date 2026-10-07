@@ -181,8 +181,10 @@ async function checkMail() {
     ]);
     MAIL_STATE = { ready: true, how: 'smtp', reason: '' };
   } catch (e) {
+    /* The raw error stays in the log. It can name hosts and accounts, and
+       this reason is shown to anybody who asks /api/health. */
     MAIL_STATE = { ready: false, how: 'smtp',
-      reason: 'Could not reach the SMTP server (' + e.message + '). Many hosts, including '
+      reason: 'Could not reach the SMTP server. Many hosts, including '
             + "Render's free tier, block outbound SMTP entirely. Use BREVO_API_KEY instead \u2014 "
             + 'it sends over HTTPS, which is never blocked.' };
     console.warn('[warn] SMTP is not usable here:', e.message);
@@ -320,20 +322,41 @@ function publicUser(u) {
   return { id: u._id, name: u.name, email: u.email || '', phone: u.phone || '', createdAt: u.createdAt };
 }
 
+/* Every token carries the account's token version, `tv`. Resetting the
+   password moves the version on, so every session signed in before the
+   reset stops working — including one on a device somebody else is holding,
+   which is usually why the password was reset. Accounts made before this
+   have no version, read as 0, and their existing sessions carry on. */
 function sign(user) {
-  return jwt.sign({ sub: user._id }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+  return jwt.sign({ sub: user._id, tv: user.tv || 0 }, JWT_SECRET, { expiresIn: TOKEN_TTL });
 }
 
-function auth(req, res, next) {
+/* A signature alone only says the token was once valid. The account is
+   looked up as well: a token for an account that has been deleted used to
+   pass, and its next sync recreated the deleted learning data under an
+   account that no longer existed. */
+async function auth(req, res, next) {
   const h = req.headers.authorization || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : '';
   if (!token) return res.status(401).json({ error: 'Not signed in.' });
+  let claims;
   try {
-    req.userId = jwt.verify(token, JWT_SECRET).sub;
-    next();
+    claims = jwt.verify(token, JWT_SECRET);
   } catch (e) {
-    res.status(401).json({ error: 'Session expired. Please sign in again.' });
+    return res.status(401).json({ error: 'Session expired. Please sign in again.' });
   }
+  try {
+    const user = await users.findOne({ _id: claims.sub });
+    if (!user || (claims.tv || 0) !== (user.tv || 0)) {
+      return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+    }
+    req.userId = user._id;
+    req.user = user;
+  } catch (e) {
+    console.error('auth', e);
+    return res.status(500).json({ error: 'Could not check your sign-in. Please try again shortly.' });
+  }
+  next();
 }
 
 /* Very small in-process rate limit — enough to stop casual abuse of a free
@@ -548,37 +571,44 @@ app.post('/api/auth/forgot', rateLimit(6, 15 * 60 * 1000, 'forgot'), async (req,
       });
     }
 
-    const user = await users.findOne({ email });
-    if (user) {
-      /* Only the hash is stored, so a stolen database cannot be used to
-         reset anybody's password. */
-      const raw = crypto.randomBytes(32).toString('hex');
-      const hash = crypto.createHash('sha256').update(raw).digest('hex');
-      await users.updateOne({ _id: user._id }, {
-        $set: { resetHash: hash, resetAt: Date.now() + 60 * 60 * 1000 }
-      });
-
-      const link = base + '/?reset=' + raw;
-      await sendMail(
-        email,
-        'Reset your Tamil Bridge password',
-        'Somebody asked to reset the password for this Tamil Bridge account.\n\n'
-          + 'Open this link within one hour to choose a new one:\n' + link
-          + '\n\nIf it was not you, ignore this email. Nothing has changed.\n',
-        '<p>Somebody asked to reset the password for this Tamil Bridge account.</p>'
-          + '<p><a href="' + link + '">Choose a new password</a></p>'
-          + '<p>The link works for one hour. If it was not you, ignore this email '
-          + '\u2014 nothing has changed.</p>'
-      );
-    }
-
-    /* Same answer whether or not the account exists. */
+    /* Same answer whether or not the account exists \u2014 and at the same
+       moment. The reply used to wait for the token to be written and the
+       email to go out, which only happens for a real account: a registered
+       address took a second or two longer, and a failed send answered 500,
+       so anyone with a stopwatch could tell who had an account. The answer
+       goes first; the work happens after. */
     res.json({ ok: true, sent: true });
+    sendReset(email, base).catch(e => console.error('forgot', e));
   } catch (e) {
     console.error('forgot', e);
     res.status(500).json({ error: 'Could not send the reset link. Please try again later.' });
   }
 });
+
+async function sendReset(email, base) {
+  const user = await users.findOne({ email });
+  if (!user) return;
+  /* Only the hash is stored, so a stolen database cannot be used to
+     reset anybody's password. */
+  const raw = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(raw).digest('hex');
+  await users.updateOne({ _id: user._id }, {
+    $set: { resetHash: hash, resetAt: Date.now() + 60 * 60 * 1000 }
+  });
+
+  const link = base + '/?reset=' + raw;
+  await sendMail(
+    email,
+    'Reset your Tamil Bridge password',
+    'Somebody asked to reset the password for this Tamil Bridge account.\n\n'
+      + 'Open this link within one hour to choose a new one:\n' + link
+      + '\n\nIf it was not you, ignore this email. Nothing has changed.\n',
+    '<p>Somebody asked to reset the password for this Tamil Bridge account.</p>'
+      + '<p><a href="' + link + '">Choose a new password</a></p>'
+      + '<p>The link works for one hour. If it was not you, ignore this email '
+      + '\u2014 nothing has changed.</p>'
+  );
+}
 
 app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000, 'reset'), async (req, res) => {
   try {
@@ -596,10 +626,20 @@ app.post('/api/auth/reset', rateLimit(10, 15 * 60 * 1000, 'reset'), async (req, 
         error: 'This reset link has expired or has already been used. Please ask for a new one.'
       });
     }
-    await users.updateOne({ _id: user._id }, {
-      $set: { hash: await bcrypt.hash(pw, BCRYPT_COST), resetHash: null, resetAt: null }
+    /* The version moves on, so every older session is signed out. The
+       person resetting gets a fresh token at the new version. */
+    const tv = (user.tv || 0) + 1;
+    /* Matched on the reset hash too, so the link works once: two requests
+       racing with the same link cannot both set a password. */
+    const done = await users.updateOne({ _id: user._id, resetHash: hash }, {
+      $set: { hash: await bcrypt.hash(pw, BCRYPT_COST), resetHash: null, resetAt: null, tv }
     });
-    res.json({ token: sign(user), user: publicUser(user) });
+    if (!done || !done.matchedCount) {
+      return res.status(400).json({
+        error: 'This reset link has expired or has already been used. Please ask for a new one.'
+      });
+    }
+    res.json({ token: sign({ ...user, tv }), user: publicUser(user) });
   } catch (e) {
     console.error('reset', e);
     res.status(500).json({ error: 'Could not reset the password.' });
@@ -745,6 +785,11 @@ function tutorSystem(learn, level) {
     `- Keep each ${L} line short and natural — the way a native speaker really says it.`,
     '- If the student wrote a sentence in the language they are learning and it has a mistake, correct it'
       + ' gently and say why in one short Tamil sentence. Never "correct" something that is right.',
+    '- If they ask to talk, chat or role-play (a shop, a doctor, an interview, a phone call…), do it like a'
+      + ' real person in that situation: one short natural line at a time, wait for their reply, then help'
+      + ` them with it and carry the scene on. If they answer in Tamil, show them how to say it in ${L}.`,
+    '- If they ask to be taught, teach a little at a time: one useful sentence or pattern, its meaning,'
+      + ' and ask them to say or use it — never just a translation of their request.',
     '- End with one short question or prompt that keeps them talking, unless they said goodbye.',
     learn === 'hi' ? '- Write Hindi in Devanagari only.' : '- Write English in plain, modern English.',
     '- Tamil must be correct standard Tamil in Tamil script. If unsure of a Tamil word, use a simpler one.',
@@ -873,8 +918,11 @@ connect()
     console.error('Starting anyway with an in-memory store so the service stays up.');
     users = memoryCollection();
     blobs = memoryCollection();
+    /* The database's own message can carry the cluster's host name and the
+       user name from the connection string, and /api/health is public. It is
+       in the log above; the public reason says only what happened. */
     STORE = { kind: 'memory', durable: false,
-              reason: 'MONGODB_URI is set but the database refused the connection: '
-                      + err.message };
+              reason: 'MONGODB_URI is set but the database refused the connection. '
+                      + 'The service log has the details.' };
     app.listen(PORT, () => console.log(`Tamil Bridge API listening on ${PORT} (store: memory/fallback)`));
   });

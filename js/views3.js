@@ -381,11 +381,16 @@
         say();
         root.querySelector('#sHear').addEventListener('click', say);
 
+        /* Right once is right once: Enter pressed twice used to score twice
+           and set two timers, which skipped the next word. */
+        var solved = false;
         function check() {
+          if (solved) return;
           var got = input.value.trim();
           if (!got) return;
           var feed = root.querySelector('#sFeed');
           if (got.toLowerCase() === target.toLowerCase()) {
+            solved = true;
             feed.innerHTML = '<div class="msg msg-ok">✓ Correct — ' + esc(target) + '</div>';
             var d = D();
             d.stats.xp = (d.stats.xp || 0) + (tries === 0 ? 3 : 1);
@@ -395,7 +400,14 @@
             TB.Store.addHistory(TB.Auth.userId(), {
               type: 'write', from: lang, to: lang, src: target, out: 'correct'
             });
-            setTimeout(function () { sIdx++; drawSpell(); }, 900);
+            /* Moved on only if this word is still the one on screen. Leaving
+               the page, or switching to tracing, inside that 0.9 s used to
+               draw the next word over whatever was there — or throw, on a
+               page with no spelling area — and say it aloud. */
+            setTimeout(function () {
+              if (!input.isConnected || mode !== 'spell') return;
+              sIdx++; drawSpell();
+            }, 900);
           } else {
             tries++;
             /* letter by letter, so a child can see exactly where it went wrong */
