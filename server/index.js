@@ -442,6 +442,8 @@ app.get('/api/health', (_req, res) => {
        key or Google's own message */
     tutorModel: TUTOR_STATE.model,
     tutorProblem: TUTOR_STATE.problem,
+    /* how long the last answer took, so slowness can be seen without logs */
+    tutorMs: TUTOR_STATE.ms || 0,
     canReset: MAIL_STATE.ready && STORE.durable && !!appUrl(),
     time: new Date().toISOString()
   });
@@ -994,10 +996,12 @@ async function askGemini(learn, level, history, retried, voice) {
   let last = { status: 0, problem: 'unreachable' };
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
-    /* A tutor's turn normally comes back in a few seconds. Waiting twenty
-       for a stalled model, then twenty for the next, made a voice
-       conversation stand silent for forty. */
-    const wait = i === 0 ? 12000 : 15000;
+    /* Measured live, a Flash model's full answer takes about twelve
+       seconds. A twelve-second limit therefore cut off good answers and
+       sent them down the line to models that were no faster. The limit is
+       for a model that has stalled, not one that is thinking. */
+    const wait = i === 0 ? 25000 : 20000;
+    const t0 = Date.now();
     let r = await callGemini(model, payload(model, true), wait);
     let p = r.ok ? '' : (r.status ? tutorProblem(r.status, r.body) : (r.timeout ? 'timeout' : 'network'));
     /* a model that does not take the thinking setting: same model, without it */
@@ -1017,6 +1021,7 @@ async function askGemini(learn, level, history, retried, voice) {
           console.log('[tutor] now using ' + model);
         }
         TUTOR_STATE.problem = '';
+        TUTOR_STATE.ms = Date.now() - t0;
         return out;
       }
       p = 'unreadable';

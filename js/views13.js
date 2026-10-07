@@ -414,10 +414,32 @@
         return o;
       }
 
+      /* A teacher thinking aloud. In a voice conversation the answer takes
+         several seconds, and silence that long sounds like the line has gone
+         dead — so after a moment the tutor says something small, the way a
+         person does, varied so it is not the same words every time. A
+         beginner hears it in Tamil. */
+      var FILL = {
+        ta: ['ம்ம்… ஒரு நொடி.', 'சரி… யோசிக்கிறேன்.', 'நல்லது, ஒரு நொடி.', 'ம்ம், பார்க்கலாம்.'],
+        en: ['Hmm, let me see.', 'Okay, one moment.', 'Good. Let me think.', 'Right, just a second.'],
+        hi: ['हम्म, एक पल।', 'अच्छा, एक सेकंड।', 'ठीक है, सोचती हूँ।', 'बढ़िया, एक पल।']
+      };
+      var fillN = 0;
+
       function askAi(b, my) {
+        var answered = false;
+        if (live) {
+          setTimeout(function () {
+            if (answered || !live || !alive(my)) return;
+            var lang = level <= 2 ? 'ta' : learn;
+            say(FILL[lang][fillN++ % FILL[lang].length], lang);
+          }, 3000);
+        }
         return TB.Sync.tutor({ learn: learn, level: level, voice: !!live, history: talkLog.slice(-10) }).then(function (r) {
+          answered = true;
           if (alive(my)) showAi(b, r, my);
         }, function (e) {
+          answered = true;
           if (/not switched on/i.test((e && e.message) || '')) aiState = false;
           throw e;
         });

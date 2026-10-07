@@ -4174,13 +4174,15 @@ section('DICTIONARY (offline)');
       /var tamilVoice = live && level <= 2 && r\.reply_ta;/.test(v13) && /live && level <= 3\]/.test(v13));
     t('free talk picks a level from beginner to native-like', /id="frLevels"/.test(v13) && /if \(tab === 'free'\)/.test(v13));
     t('the AI is told when it is a spoken conversation', /voice: !!live/.test(v13));
+    t('a long wait in a voice conversation is filled the way a person would, not with silence',
+      /if \(answered \|\| !live \|\| !alive\(my\)\) return;/.test(v13) && /FILL\[lang\]\[fillN\+\+ % FILL\[lang\]\.length\]/.test(v13));
     t('Hindi from the AI carries its English meaning and a reading under corrections',
       /learn === 'hi' && r\.reply_en/.test(v13) && /readAid\(fix\.corrected, learn, true\)/.test(v13));
     t('leaving the page ends a voice conversation', /function stopAll\(\) \{ gen\+\+; busy = false; live = false; liveGen\+\+;/.test(v13));
 
     const srv = require('fs').readFileSync(__dirname + '/server/index.js', 'utf8');
     t('a slow model is given up on quickly, and sent to the back of the line',
-      /const wait = i === 0 \? 12000 : 15000;/.test(srv) && /callGemini\(model, payload\(model, true\), wait\)/.test(srv)
+      /const wait = i === 0 \? 25000 : 20000;/.test(srv) && /callGemini\(model, payload\(model, true\), wait\)/.test(srv)
       && /TUTOR_STATE\.models\.filter\(m => m !== model\)\.concat\(\[model\]\)/.test(srv));
     t('the AI teaches to the level, beginner to native-like', /function levelWay\(level, L\)/.test(srv) && /Level C2/.test(srv) && /levelWay\(level, L\),/.test(srv));
     t('spoken replies are kept short and speakable', /This is a SPOKEN conversation/.test(srv) && /b\.voice === true/.test(srv));
