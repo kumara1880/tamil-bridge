@@ -710,6 +710,8 @@ TB.App = (function () {
     if (f) f.focus();
   }
 
+  var syncWired = false;
+
   function enter() {
     /* set before the page was painted, when a reset link was in the address */
     document.documentElement.classList.remove('authfirst');
@@ -731,8 +733,10 @@ TB.App = (function () {
     else render();
     refreshChips();
 
-    /* push local changes up periodically when sync is on */
-    if (TB.Sync.configured() && TB.Sync.hasToken()) {
+    /* push local changes up periodically when sync is on — once, however
+       many times enter() runs, or each run added another timer */
+    if (!syncWired && TB.Sync.configured() && TB.Sync.hasToken()) {
+      syncWired = true;
       setInterval(function () {
         TB.Sync.push(TB.Store.data(TB.Auth.userId())).catch(function () {});
       }, 120000);

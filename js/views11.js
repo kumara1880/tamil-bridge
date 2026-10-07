@@ -495,7 +495,9 @@
 
       root.querySelector('#cGo').addEventListener('click', applyRange);
       root.querySelector('#cFindGo').addEventListener('click', findOne);
-      root.addEventListener('keydown', function (e) {
+      /* On the view's own element: #viewRoot outlives the visit, and a
+         listener there piled up once per visit, each holding a whole chart. */
+      (root.firstElementChild || root).addEventListener('keydown', function (e) {
         if (e.key !== 'Enter') return;
         if (e.target.id === 'cFrom' || e.target.id === 'cTo') { e.preventDefault(); applyRange(); }
         if (e.target.id === 'cFind') { e.preventDefault(); findOne(); }

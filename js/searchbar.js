@@ -160,7 +160,13 @@ TB.SearchBar = (function () {
   }
 
   /* --------------------------------------------------------------- wiring */
+  /* Once only. enter() runs again after "Keep looking" and after signing
+     in, and every run mounted this again — doubling every listener on the
+     box and on document each time. */
+  var mounted = false;
   function mount() {
+    if (mounted) return;
+    mounted = true;
     form = document.getElementById('searchForm');
     input = document.getElementById('searchInput');
     out = document.getElementById('searchOut');

@@ -1093,8 +1093,13 @@
       /* The letter, slowly, and then a word that has it in — which is what
          a teacher does, and what a speech engine needs: one character on
          its own has no context to set its length or stress by, and several
-         engines read the character's name instead of its sound. */
-      root.addEventListener('click', function (e) {
+         engines read the character's name instead of its sound.
+
+         On the view's own element, not on #viewRoot. #viewRoot lives for the
+         whole session and mount() runs on every visit, so a listener there
+         was added once per visit and never removed: after three visits one
+         tap started three readings, each cutting off the one before. */
+      (root.firstElementChild || root).addEventListener('click', function (e) {
         var cell = e.target.closest('[data-letter]');
         if (!cell) return;
         if (e.target.closest('[data-speak]')) return;   /* the word, on its own */
