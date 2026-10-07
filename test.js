@@ -4275,6 +4275,21 @@ section('DICTIONARY (offline)');
         run('TUTOR_STATE.models.join()') === 'gemini-3.6-flash,gemini-3.5-flash,gemini-3.8-flash'
         && run('TUTOR_STATE.warm["gemini-3.8-flash"]') === 'timeout', run('TUTOR_STATE.models.join()'));
       t('a message waits a moment for the model list at start', /if \(TUTOR_LISTED\) await Promise\.race\(\[TUTOR_LISTED/.test(srcAll));
+
+      /* the first to answer goes first at once, before the stalled one gives up */
+      run(ORDER);
+      behaviour['gemini-3.8-flash'] = { ms: 10000, status: 200 };
+      behaviour['gemini-3.6-flash'] = { ms: 5, status: 503 };
+      behaviour['gemini-3.5-flash'] = { ms: 10, status: 200 };
+      const warming = run('warmTutor()');
+      await new Promise(function (r) { setTimeout(r, 40); });
+      t('the warm-up acts on each answer as it comes, not after the slowest',
+        run('TUTOR_STATE.models[0]') === 'gemini-3.5-flash' && run('TUTOR_STATE.models[2]') === 'gemini-3.6-flash',
+        run('TUTOR_STATE.models.join()'));
+      await warming;
+      t('and ends with the stalled model last', run('TUTOR_STATE.models[TUTOR_STATE.models.length - 1]') === 'gemini-3.8-flash'
+        || run('TUTOR_STATE.models[TUTOR_STATE.models.length - 1]') === 'gemini-3.6-flash', run('TUTOR_STATE.models.join()'));
+      run(ORDER);
       run(ORDER);
 
       /* the two newest stall, the oldest answers at once */

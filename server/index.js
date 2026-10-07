@@ -861,10 +861,22 @@ async function warmTutor() {
     contents: [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }],
     generationConfig: { maxOutputTokens: 256 }
   });
+  /* Acted on as each answer arrives, not when the slowest is done. Live,
+     one model answered in 4 s and another took its whole 45 s to fail; a
+     learner's first message in between still went to the failing one. */
+  let firstOk = '';
   await Promise.all(list.map(async m => {
     const t0 = Date.now();
     const r = await callGemini(m, ping, 45000);
     warm[m] = r.ok ? Date.now() - t0 : (r.timeout ? 'timeout' : String(r.status || 'failed'));
+    TUTOR_STATE.warm = Object.assign({}, warm);
+    if (r.ok && !firstOk) {
+      firstOk = m;
+      TUTOR_STATE.models = [m].concat(TUTOR_STATE.models.filter(x => x !== m));
+    } else if (!r.ok && TUTOR_STATE.models.length > 1) {
+      TUTOR_STATE.models = TUTOR_STATE.models.filter(x => x !== m).concat([m]);
+    }
+    TUTOR_STATE.model = TUTOR_STATE.models[0];
   }));
   TUTOR_STATE.warm = warm;
   const rank = m => (typeof warm[m] === 'number' ? warm[m] : Infinity);
