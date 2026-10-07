@@ -4124,6 +4124,28 @@ section('DICTIONARY (offline)');
     t('turns sent to the model start with the student and alternate',
       /if \(!contents\.length && role !== 'user'\) return;/.test(srv) && /last\.role === role/.test(srv));
     t('the health check says whether the tutor is on', /tutor: TUTOR_STATE\.ready/.test(srv));
+
+    /* Google retired gemini-2.5-flash for new keys, and a fixed name made
+       every message fail. The model is now chosen from what the key can use. */
+    const box2 = {};
+    vm.runInNewContext(grab('rankModel') + grab('tutorProblem') + ';this.rankModel=rankModel;this.tutorProblem=tutorProblem;', box2);
+    const pick = function (list) {
+      return list.map(function (n) { return [n, box2.rankModel(n)]; })
+        .filter(function (x) { return x[1] >= 0; }).sort(function (a, b) { return b[1] - a[1]; })[0][0];
+    };
+    t('the newest Flash model is chosen',
+      pick(['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.8-pro', 'gemini-3.8-flash-lite', 'gemini-3.9-flash-preview-09-2026', 'gemini-3.8-flash-image', 'text-embedding-004']) === 'gemini-3.8-flash');
+    t('a newer Flash is chosen when there is one', pick(['gemini-3.8-flash', 'gemini-4.0-flash']) === 'gemini-4.0-flash');
+    t('image, speech and embedding models are never chosen',
+      box2.rankModel('gemini-3.8-flash-image') < 0 && box2.rankModel('gemini-3.8-flash-tts') < 0 && box2.rankModel('gemini-embedding-001') < 0);
+    t('a retired model is recognised and the model chosen again',
+      box2.tutorProblem(404, '{"error":{"code":404,"message":"This model models/gemini-2.5-flash is no longer available"}}') === 'model-missing'
+      && /p === 'model-missing' && !retried/.test(srv) && /await setupTutor\(\);/.test(srv));
+    t('a bad key is named as such, without the key',
+      box2.tutorProblem(400, '{"error":{"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}') === 'key-invalid');
+    t('no fixed model name is required any more', !/'gemini-2\.5-flash'/.test(srv) && /setupTutor\(\)\.catch/.test(srv));
+    t('health names the model and the problem, never the key',
+      /tutorModel: TUTOR_STATE\.model/.test(srv) && /tutorProblem: TUTOR_STATE\.problem/.test(srv) && !/GEMINI_KEY,/.test(srv.slice(srv.indexOf("app.get('/api/health'"), srv.indexOf("app.post('/api/auth/signup'"))));
     t('the tutor has its own rate limit', /rateLimit\(40, 15 \* 60 \* 1000, 'tutor'\)/.test(srv));
 
     const sync = require('fs').readFileSync(__dirname + '/js/sync.js', 'utf8');

@@ -438,6 +438,10 @@ app.get('/api/health', (_req, res) => {
        done when it cannot sends people to a dead end. */
     appUrl: !!appUrl(),
     tutor: TUTOR_STATE.ready,
+    /* which model, and what is wrong if anything: a category, never the
+       key or Google's own message */
+    tutorModel: TUTOR_STATE.model,
+    tutorProblem: TUTOR_STATE.problem,
     canReset: MAIL_STATE.ready && STORE.durable && !!appUrl(),
     time: new Date().toISOString()
   });
@@ -765,8 +769,89 @@ app.put('/api/data', auth, async (req, res) => {
    endpoint says so and the browser falls back to its own tutor. Nothing
    breaks. */
 const GEMINI_KEY = (process.env.GEMINI_API_KEY || '').trim();
-const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
-let TUTOR_STATE = { ready: !!GEMINI_KEY, reason: GEMINI_KEY ? '' : 'GEMINI_API_KEY is not set.' };
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+/* A model named here is used if this key can use it. Otherwise one is
+   chosen from what Google says the key can use — a fixed name stops working
+   the day Google retires it, and the tutor went quiet for exactly that. */
+const GEMINI_MODEL_ENV = (process.env.GEMINI_MODEL || '').trim();
+/* Used only when Google cannot be asked which models there are. It is the
+   one Google named when it retired gemini-2.5-flash for new keys. */
+const GEMINI_FALLBACK = 'gemini-3.8-flash';
+/* `problem` is a short category, safe to show on /api/health — never the
+   key and never Google's own message, which goes to the log. */
+let TUTOR_STATE = { ready: !!GEMINI_KEY, model: GEMINI_MODEL_ENV || GEMINI_FALLBACK, problem: GEMINI_KEY ? 'starting' : 'no-key' };
+
+function tutorProblem(status, body) {
+  const b = String(body || '');
+  if (status === 429) return 'quota';
+  if (/API_KEY_INVALID|API key not valid|API key expired/i.test(b)) return 'key-invalid';
+  if (/SERVICE_DISABLED|has not been used in project|is disabled/i.test(b)) return 'api-disabled';
+  if (/location is not supported|User location/i.test(b)) return 'region';
+  if (status === 403) return 'key-not-allowed';
+  if (status === 404) return 'model-missing';
+  if (status === 400) return 'bad-request';
+  if (status >= 500) return 'google-down';
+  return 'http-' + status;
+}
+/* Problems only the operator can fix: the tutor stays off until they do
+   (which restarts the service) instead of failing on every message. */
+const TUTOR_FATAL = ['key-invalid', 'api-disabled', 'region', 'key-not-allowed'];
+
+/* Higher is better. A current Flash model: quick, and the most generous
+   free quota. Preview, experimental and special-purpose models are last. */
+function rankModel(name) {
+  const n = String(name || '').replace(/^models\//, '');
+  if (!/^gemini-/.test(n)) return -1;
+  if (/image|tts|audio|live|embedding|vision|robotics|computer-use|native|thinking/i.test(n)) return -1;
+  const v = parseFloat((n.match(/^gemini-(\d+(?:\.\d+)?)/) || [])[1] || '0');
+  let s = v * 100;
+  if (/-flash-lite/.test(n)) s += 20;
+  else if (/-flash/.test(n)) s += 50;
+  else if (/-pro/.test(n)) s += 5;
+  else return -1;
+  if (/preview|exp/.test(n)) s -= 60;
+  return s;
+}
+
+async function chooseModel() {
+  const names = [];
+  let page = '';
+  for (let i = 0; i < 5; i++) {
+    const r = await fetch(GEMINI_BASE + '/models?pageSize=200' + (page ? '&pageToken=' + encodeURIComponent(page) : ''),
+      { headers: { 'x-goog-api-key': GEMINI_KEY } });
+    const body = await r.text();
+    if (!r.ok) { const e = new Error('list models'); e.status = r.status; e.body = body; throw e; }
+    const j = JSON.parse(body);
+    (j.models || []).forEach(m => {
+      if ((m.supportedGenerationMethods || []).includes('generateContent')) names.push(String(m.name).replace(/^models\//, ''));
+    });
+    if (!j.nextPageToken) break;
+    page = j.nextPageToken;
+  }
+  if (GEMINI_MODEL_ENV && names.includes(GEMINI_MODEL_ENV)) return GEMINI_MODEL_ENV;
+  const best = names.map(n => [n, rankModel(n)]).filter(x => x[1] >= 0).sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0] : '';
+}
+
+async function setupTutor() {
+  if (!GEMINI_KEY) return;
+  try {
+    const m = await chooseModel();
+    if (!m) {
+      TUTOR_STATE = { ready: false, model: '', problem: 'no-model' };
+      console.warn('[tutor] this key can use no suitable Gemini model');
+      return;
+    }
+    TUTOR_STATE = { ready: true, model: m, problem: '' };
+    console.log('[tutor] using ' + m);
+  } catch (e) {
+    const p = e.status ? tutorProblem(e.status, e.body) : 'network';
+    console.warn('[tutor] could not list models (' + p + '): ' + String(e.body || e.message).slice(0, 300));
+    /* a passing problem keeps the tutor on with a sensible model; a key
+       problem turns it off until it is fixed */
+    TUTOR_STATE = { ready: TUTOR_FATAL.indexOf(p) < 0, model: TUTOR_STATE.model || GEMINI_FALLBACK, problem: p };
+  }
+}
 
 const TUTOR_LANG = { en: 'English', hi: 'Hindi' };
 const TUTOR_LEVEL = ['', 'A1 beginner', 'A2 elementary', 'B1 intermediate', 'B2 upper intermediate', 'C1 advanced', 'C2 near-native'];
@@ -829,7 +914,7 @@ function shapeTutor(j) {
   return out.reply_ta || out.reply_target || out.teach.length ? out : null;
 }
 
-async function askGemini(learn, level, history) {
+async function askGemini(learn, level, history, retried) {
   /* Turns must start with the student and alternate; two in a row from the
      same side are joined into one. */
   const contents = [];
@@ -841,18 +926,20 @@ async function askGemini(learn, level, history) {
     else contents.push({ role, parts: [{ text: clip(m.text, 600) }] });
   });
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 25000);
+  const timer = setTimeout(() => ctl.abort(), 35000);
   try {
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'
-      + encodeURIComponent(GEMINI_MODEL) + ':generateContent', {
+    const r = await fetch(GEMINI_BASE + '/models/'
+      + encodeURIComponent(TUTOR_STATE.model || GEMINI_FALLBACK) + ':generateContent', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: tutorSystem(learn, level) }] },
         contents,
-        /* room for the model to think as well as answer — its thinking
-           counts against this, and a cut-off reply is unreadable JSON */
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4096 }
+        /* Room for the model to think as well as answer — its thinking
+           counts against this, and a cut-off reply is unreadable JSON. No
+           temperature: Gemini 3 models are meant to run at their default,
+           and lower settings can make them repeat themselves. */
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 }
       }),
       signal: ctl.signal
     });
@@ -860,11 +947,21 @@ async function askGemini(learn, level, history) {
     if (!r.ok) {
       /* Reported to the operator in the logs; the caller only learns that
          the tutor is unavailable, never Google's raw message. */
-      console.warn('[tutor] Gemini ' + r.status + ': ' + body.slice(0, 300));
+      const p = tutorProblem(r.status, body);
+      console.warn('[tutor] Gemini ' + r.status + ' (' + p + ') on ' + TUTOR_STATE.model + ': ' + body.slice(0, 300));
+      TUTOR_STATE.problem = p;
+      if (TUTOR_FATAL.indexOf(p) >= 0) TUTOR_STATE.ready = false;
+      /* the model has gone: choose again from what is there, and try once more */
+      if (p === 'model-missing' && !retried) {
+        clearTimeout(timer);
+        await setupTutor();
+        if (TUTOR_STATE.ready) return askGemini(learn, level, history, true);
+      }
       const e = new Error(r.status === 429 ? 'busy' : 'unavailable');
       e.status = r.status;
       throw e;
     }
+    if (TUTOR_STATE.problem && TUTOR_STATE.problem !== 'starting') TUTOR_STATE.problem = '';
     let j; try { j = JSON.parse(body); } catch (e) { j = null; }
     const text = j && j.candidates && j.candidates[0] && j.candidates[0].content
       && j.candidates[0].content.parts && j.candidates[0].content.parts.map(p => p.text || '').join('');
@@ -906,6 +1003,8 @@ app.use((_req, res) => res.status(404).json({ error: 'Not found.' }));
 
 /* Find out whether mail really works, without holding up the boot. */
 checkMail().catch(() => {});
+/* and which model the tutor can use */
+setupTutor().catch(() => {});
 
 connect()
   .then(kind => {
