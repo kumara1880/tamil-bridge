@@ -535,6 +535,13 @@ TB.Speech = (function () {
     },
     /* Exposed so the suite can prove that starting one voice stops the other. */
     silence: silence,
+    /* Is anything being said right now — the device's voice or the online
+       one? A microphone opened while it is would hear it. */
+    isSpeaking: function () {
+      var s = false;
+      try { s = !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)); } catch (e) {}
+      return s || !!netStop || !!(netAudio && !netAudio.paused);
+    },
     pause: function () { if (api.supported()) { try { window.speechSynthesis.pause(); } catch (e) {} } },
     resume: function () { if (api.supported()) { try { window.speechSynthesis.resume(); } catch (e) {} } },
 

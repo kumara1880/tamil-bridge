@@ -111,7 +111,15 @@
         return h;
       }
 
-      function stopAll() { gen++; busy = false; live = false; liveGen++; TB.Speech.stop(); }
+      function stopAll() { gen++; busy = false; live = false; liveGen++; liveAbort(); hush(); }
+      /* Each answer the tutor gives is a turn. A long answer is said in
+         parts, one after another; stopping only the part being spoken let the
+         next part start anyway — the tutor talked on after End, and the rest
+         of an old answer cut off a new one. Every part now checks it still
+         belongs to the latest turn. */
+      var talkId = 0;
+      function hush() { talkId++; TB.Speech.stop(); }
+      function on(my, t) { return alive(my) && t === talkId; }
       var live = false, liveGen = 0, liveMiss = 0;   /* the voice conversation */
 
       /* Still on the page? A voice or a microphone can finish after the
@@ -426,18 +434,19 @@
       };
       var fillN = 0;
 
-      function askAi(b, my) {
+      function askAi(b, my, t) {
         var answered = false;
         if (live) {
           setTimeout(function () {
-            if (answered || !live || !alive(my)) return;
+            /* never over anything else, and never for a turn already passed */
+            if (answered || !live || !on(my, t) || speaking > 0) return;
             var lang = level <= 2 ? 'ta' : learn;
             say(FILL[lang][fillN++ % FILL[lang].length], lang);
           }, 3000);
         }
         return TB.Sync.tutor({ learn: learn, level: level, voice: !!live, history: talkLog.slice(-10) }).then(function (r) {
           answered = true;
-          if (alive(my)) showAi(b, r, my);
+          if (alive(my)) showAi(b, r, my, t);
         }, function (e) {
           answered = true;
           if (/not switched on/i.test((e && e.message) || '')) aiState = false;
@@ -445,7 +454,7 @@
         });
       }
 
-      function showAi(b, r, my) {
+      function showAi(b, r, my, t) {
         var teach = (r.teach || []).map(function (x) { return asItem(x.target, x.ta, x.en); });
         var nxt = r.next && r.next.target ? asItem(r.next.target, r.next.ta, r.next.en) : null;
         var fix = r.correction && r.correction.corrected ? r.correction : null;
@@ -492,7 +501,7 @@
         if (r.reply_target && !tamilVoice) spoken.push([r.reply_target, learn]);
         if (nxt) spoken.push([nxt[learn], learn, live && level <= 3]);
         spoken.reduce(function (p, s) {
-          return p.then(function () { if (alive(my)) return say(s[0], s[1], s[2]); });
+          return p.then(function () { if (on(my, t)) return say(s[0], s[1], s[2]); });
         }, Promise.resolve());
       }
 
@@ -628,6 +637,11 @@
         }
         var b = frBubble('<span class="spin"></span>', 'A');
         if (!b) return;
+        /* a new turn: whatever the tutor was still saying stops, and an open
+           microphone of the voice conversation is closed before the tutor
+           answers — or it would hear the tutor and answer itself */
+        var t = ++talkId;
+        if (live) { liveAbort(); afterTurn(liveGen); }
         freeTurns++;
         var dd = D(); dd.stats.xp = (dd.stats.xp || 0) + 1; saveD(dd);
         TB.App.refreshChips();
@@ -639,14 +653,14 @@
         var here = (it.kind === 'next' && queue.length) || (it.kind === 'repeat' && lastItem);
         if (aiState && !here && TB.Sync && TB.Sync.tutor) {
           if (it.kind === 'teach' || it.kind === 'words' || it.kind === 'howsay') switchTo(it.lang);
-          askAi(b, my).catch(function () { if (alive(my)) answerHere(text, it, b, my); });
+          askAi(b, my, t).catch(function () { if (alive(my)) answerHere(text, it, b, my, t); });
           return;
         }
-        answerHere(text, it, b, my);
+        answerHere(text, it, b, my, t);
       }
 
       /* The browser's own tutor. */
-      function answerHere(text, it, b, my) {
+      function answerHere(text, it, b, my, t) {
         if (it.kind === 'next') { nextItem(b); return; }
 
         if (it.kind === 'repeat') {
@@ -678,7 +692,7 @@
             + '<div class="mt">' + itemHtml(q0) + '</div>'
             + chips(learn === 'hi' ? ['मैं ठीक हूँ', 'मैं चेन्नई से हूँ', 'நான் நன்றாக இருக்கிறேன்']
                                    : ['I am fine, thank you', 'I am from Chennai', 'நான் நன்றாக இருக்கிறேன்']);
-          say(hiTalk, learn).then(function () { if (alive(my)) say(q0[learn], learn); });
+          say(hiTalk, learn).then(function () { if (on(my, t)) say(q0[learn], learn); });
           return;
         }
 
@@ -702,7 +716,7 @@
              may have started something else */
           var total = queue.length;
           say(learn === 'hi' ? 'ज़रूर! चलिए हिंदी सीखते हैं।' : 'Sure! Let’s learn English.', learn).then(function () {
-            if (alive(my)) present(b, first, intro + '<div class="tiny muted mt">1 / ' + total + '</div>');
+            if (on(my, t)) present(b, first, intro + '<div class="tiny muted mt">1 / ' + total + '</div>');
           });
           b.innerHTML = '<div class="tk-who">Tutor</div>' + intro;
           return;
@@ -806,7 +820,7 @@
             + (meaning ? '<div class="tk-mean"><span class="tiny muted">தமிழ்</span> <span class="ta">' + esc(meaning) + '</span></div>' : '')
             + '<div class="mt">' + itemHtml(q) + '</div>';
           (fixed && issues.length ? say(fixed, 'en') : Promise.resolve()).then(function () {
-            if (alive(my)) say(q[learn], learn);
+            if (on(my, t)) say(q[learn], learn);
           });
         });
       }
@@ -827,6 +841,18 @@
         if (s) s.textContent = t;
       }
 
+      /* The open microphone of the voice conversation, so it can be closed
+         the moment the conversation ends, the page is left, or something
+         else is about to make a sound the microphone would hear. */
+      var liveRec = null, waitId = 0;
+      function liveAbort() {
+        if (!liveRec) return;
+        var r = liveRec;
+        liveRec = null;
+        busy = false;
+        try { r.abort(); } catch (e) {}
+      }
+
       function liveSet(on) {
         live = on; liveGen++; liveMiss = 0;
         var btn = root.querySelector('#frLive');
@@ -835,7 +861,9 @@
           btn.classList.toggle('btn-primary', !on);
           btn.classList.toggle('btn-live', on);
         }
-        if (!on) { liveStatus(''); TB.Speech.stop(); }
+        /* ending stops the microphone and the rest of whatever the tutor was
+           saying — not only the sentence it was in the middle of */
+        if (!on) { liveStatus(''); liveAbort(); hush(); }
       }
 
       function speakIn(lang) {
@@ -862,11 +890,16 @@
          spoken — then open the microphone. */
       function afterTurn(my) {
         var t0 = Date.now();
+        /* one wait at a time: a newer one replaces any still going, so two
+           microphones are never opened for one turn */
+        var w = ++waitId;
         (function wait() {
-          if (!live || my !== liveGen || !body.isConnected) return;
+          if (!live || my !== liveGen || w !== waitId || !body.isConnected) return;
           var chat = root.querySelector('#frChat');
           var thinking = !!(chat && chat.querySelector('.spin'));
-          var talking = speaking > 0 || Date.now() - lastSpoke < 700;
+          /* anything playing counts — a 🔊 button too, not only the tutor */
+          var talking = speaking > 0 || Date.now() - lastSpoke < 700
+            || !!(TB.Speech.isSpeaking && TB.Speech.isSpeaking());
           if ((thinking || talking) && Date.now() - t0 < 90000) {
             liveStatus(thinking ? '\u{1F4AD} Thinking…' : '\u{1F50A} Tutor is speaking…');
             setTimeout(wait, 250);
@@ -879,25 +912,29 @@
       var STOP_WORDS = /^(stop|end|quit|finish|that'?s all|நிறுத்து|நிறுத்துங்கள்|போதும்|बंद करो|बस|रुको)[\s.!]*$/i;
 
       function liveListen(my) {
-        if (!live || my !== liveGen) return;
+        if (!live || my !== liveGen || !body.isConnected) return;
         if (busy) { setTimeout(function () { afterTurn(my); }, 500); return; }
         busy = true;
         liveStatus('\u{1F3A4} Your turn — speak in ' + LANG_NAME[freeSpeak] + '…');
+        var rec = null;
         TB.Speech.listen(freeSpeak, {
           maxMs: 12000,
+          onStart: function (r) { rec = r; liveRec = r; },
           onInterim: function (t) { if (live && my === liveGen) liveStatus('\u{1F3A4} ' + t); }
         }).then(function (h) {
-          busy = false;
-          if (!live || my !== liveGen || !body.isConnected) return;
+          /* only a listen that is still this conversation's, on this page,
+             touches anything — one from before End or from another visit
+             must not reopen a microphone wherever the learner is now */
+          if (!live || my !== liveGen || !body.isConnected || (rec && liveRec !== rec)) return;
+          liveRec = null; busy = false;
           var said = String(h.text || '').trim();
           if (!said) return missed(my);
           liveMiss = 0;
           if (STOP_WORDS.test(said)) { liveSet(false); liveStatus('Voice conversation ended.'); return; }
-          respond(said);
-          afterTurn(my);
+          respond(said);                       /* and respond() waits for the next turn */
         }, function (e) {
-          busy = false;
-          if (!live || my !== liveGen) return;
+          if (!live || my !== liveGen || !body.isConnected || (rec && liveRec !== rec)) return;
+          liveRec = null; busy = false;
           /* silence is a missed turn, not the end of the conversation */
           if (/no speech/i.test(e.message || '')) return missed(my);
           liveSet(false);
@@ -906,6 +943,7 @@
       }
 
       function missed(my) {
+        if (!live || my !== liveGen || !body.isConnected) return;
         liveMiss++;
         if (liveMiss >= 3) {
           liveSet(false);
@@ -916,12 +954,13 @@
            not the microphone */
         if (liveMiss === 2 && freeSpeak !== 'ta') {
           liveStatus('Not sure what to say? Tap தமிழ் and say it in Tamil — I will teach you.');
-          say(learn === 'hi' ? 'कोई बात नहीं। आप तमिल में भी बोल सकते हैं।' : 'No problem. You can say it in Tamil too.', learn)
-            .then(function () { if (live && my === liveGen) liveListen(my); });
-          return;
+          say(learn === 'hi' ? 'कोई बात नहीं। आप तमिल में भी बोल सकते हैं।' : 'No problem. You can say it in Tamil too.', learn);
+        } else {
+          liveStatus('I didn’t catch that — please say it again.');
         }
-        liveStatus('I didn’t catch that — please say it again.');
-        liveListen(my);
+        /* through the same wait as every turn: the microphone opens only
+           once nothing is being said and nothing is being thought */
+        afterTurn(my);
       }
 
       function listenFree() {
@@ -1012,6 +1051,10 @@
           scenes(); return;
         }
         if (e.target.closest('#frLive')) { liveToggle(); return; }
+        /* A sound started in the middle of a voice conversation — a 🔊, or
+           "Slowly" — closes the open microphone first, or it would hear it
+           and take it for the learner; the next turn waits for it to end. */
+        if (live && e.target.closest('[data-speak], [data-frslow]')) { liveAbort(); afterTurn(liveGen); }
         if (e.target.closest('#tkFind')) { findScenes(); return; }
         if ((t = e.target.closest('[data-scene]'))) { start(t.getAttribute('data-scene')); return; }
         if ((t = e.target.closest('[data-next]'))) { start(t.getAttribute('data-next')); return; }

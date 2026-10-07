@@ -799,8 +799,11 @@ function tutorProblem(status, body) {
   return 'http-' + status;
 }
 /* Problems only the operator can fix: the tutor stays off until they do
-   (which restarts the service) instead of failing on every message. */
+   (which restarts the service) instead of failing on every message. While
+   listing models a 403 is about the key; while asking one model it may be
+   about that model alone, so in a race only these three end everything. */
 const TUTOR_FATAL = ['key-invalid', 'api-disabled', 'region', 'key-not-allowed'];
+const KEY_FATAL = ['key-invalid', 'api-disabled', 'region'];
 
 /* Higher is better. A current Flash model: quick, and the most generous
    free quota. Preview, experimental and special-purpose models are last. */
@@ -818,17 +821,24 @@ function rankModel(name) {
   return s;
 }
 
+/* Models Google still lists but that refuse this key — retired for new
+   keys (404) or not allowed (403). Listing again would bring them straight
+   back, so they are remembered and left out for the life of the process. */
+const DEAD_MODELS = new Set();
+
 async function chooseModel() {
   const names = [];
   let page = '';
   for (let i = 0; i < 5; i++) {
+    /* bounded: a stalled listing must not hang whatever is waiting on it */
     const r = await fetch(GEMINI_BASE + '/models?pageSize=200' + (page ? '&pageToken=' + encodeURIComponent(page) : ''),
-      { headers: { 'x-goog-api-key': GEMINI_KEY } });
+      { headers: { 'x-goog-api-key': GEMINI_KEY }, signal: AbortSignal.timeout(10000) });
     const body = await r.text();
     if (!r.ok) { const e = new Error('list models'); e.status = r.status; e.body = body; throw e; }
     const j = JSON.parse(body);
     (j.models || []).forEach(m => {
-      if ((m.supportedGenerationMethods || []).includes('generateContent')) names.push(String(m.name).replace(/^models\//, ''));
+      const n = String(m.name).replace(/^models\//, '');
+      if ((m.supportedGenerationMethods || []).includes('generateContent') && !DEAD_MODELS.has(n)) names.push(n);
     });
     if (!j.nextPageToken) break;
     page = j.nextPageToken;
@@ -845,6 +855,21 @@ async function chooseModel() {
 
 /* Settles once the models have been listed at start. */
 let TUTOR_LISTED = null;
+
+/* Listing again, in the background — never inside a learner's request,
+   which would keep them waiting on it. One at a time. */
+let relistTimer = null, relisting = null, relistDelay = 60000;
+function relist(delay) {
+  if (relistTimer || relisting || !GEMINI_KEY) return;
+  relistTimer = setTimeout(() => {
+    relistTimer = null;
+    relisting = setupTutor()
+      .then(() => (TUTOR_STATE.ready && !TUTOR_STATE.problem ? warmTutor() : null))
+      .catch(() => {})
+      .then(() => { relisting = null; });
+  }, delay || 0);
+  if (relistTimer.unref) relistTimer.unref();
+}
 
 /* Wake the models up before a learner needs them. Measured live, the first
    message after the server started stalled until its time limit while the
@@ -896,14 +921,20 @@ async function setupTutor() {
       return;
     }
     TUTOR_STATE = { ready: true, model: list[0], models: list, problem: '' };
+    relistDelay = 60000;
     console.log('[tutor] using ' + list.join(', then '));
   } catch (e) {
     const p = e.status ? tutorProblem(e.status, e.body) : 'network';
     console.warn('[tutor] could not list models (' + p + '): ' + String(e.body || e.message).slice(0, 300));
-    /* a passing problem keeps the tutor on with a sensible model; a key
-       problem turns it off until it is fixed */
-    const m = TUTOR_STATE.model || GEMINI_FALLBACK;
-    TUTOR_STATE = { ready: TUTOR_FATAL.indexOf(p) < 0, model: m, models: [m], problem: p };
+    /* A key problem turns the tutor off until it is fixed. A passing one
+       keeps whatever list there was — collapsing to a single model meant
+       no hedging and no other model's quota for the rest of the process —
+       and the listing is tried again, later each time. */
+    const keep = (TUTOR_STATE.models || []).filter(x => !DEAD_MODELS.has(x));
+    const models = keep.length ? keep : [GEMINI_MODEL_ENV || GEMINI_FALLBACK];
+    const fatal = TUTOR_FATAL.indexOf(p) >= 0;
+    TUTOR_STATE = { ready: !fatal, model: models[0], models, problem: p };
+    if (!fatal) { relist(relistDelay); relistDelay = Math.min(relistDelay * 2, 15 * 60 * 1000); }
   }
 }
 
@@ -1073,7 +1104,14 @@ async function askGemini(learn, level, history, retried, voice) {
      model named as a fallback — which was the one that stalled. */
   if (TUTOR_LISTED) await Promise.race([TUTOR_LISTED, new Promise(r => setTimeout(r, 5000))]);
   const models = (TUTOR_STATE.models && TUTOR_STATE.models.length
-    ? TUTOR_STATE.models : [TUTOR_STATE.model || GEMINI_FALLBACK]).slice(0, 3);
+    ? TUTOR_STATE.models : [TUTOR_STATE.model || GEMINI_FALLBACK]).filter(m => m && !DEAD_MODELS.has(m)).slice(0, 3);
+  /* every model gone: the list is being made again in the background */
+  if (!models.length) {
+    relist(0);
+    const e = new Error('unavailable');
+    e.status = 0;
+    throw e;
+  }
 
   const result = await new Promise(resolve => {
     let next = 0, running = 0, done = false, hedge = null;
@@ -1102,7 +1140,10 @@ async function askGemini(learn, level, history, retried, voice) {
         if (res.out) return finish(res);
         fails.push(res.fail);
         const p = res.fail.problem;
-        if (TUTOR_FATAL.indexOf(p) >= 0 || p === 'model-missing') return finish({ fails, stop: p });
+        /* Only a problem with the key itself ends the race. One model being
+           gone (404) or not allowed (403) is that model's failure: the race
+           used to stop there and call off a model that was about to answer. */
+        if (KEY_FATAL.indexOf(p) >= 0) return finish({ fails, stop: p });
         if (next < models.length) launch();          /* failed outright: no need to wait */
         else if (running === 0) finish({ fails });
       }, () => {
@@ -1126,6 +1167,15 @@ async function askGemini(learn, level, history, retried, voice) {
     }
   });
 
+  /* Gone (404) or refused (403) for this key: out of the list for good, so
+     no later message and no later listing tries it again. */
+  result.fails.forEach(f => {
+    if (f.problem === 'model-missing' || f.problem === 'key-not-allowed') {
+      DEAD_MODELS.add(f.model);
+      TUTOR_STATE.models = TUTOR_STATE.models.filter(m => m !== f.model);
+    }
+  });
+
   if (result.out) {
     if (TUTOR_STATE.models[0] !== result.model) console.log('[tutor] now using ' + result.model);
     TUTOR_STATE.models = [result.model].concat(TUTOR_STATE.models.filter(m => m !== result.model));
@@ -1135,14 +1185,20 @@ async function askGemini(learn, level, history, retried, voice) {
     return result.out;
   }
 
-  TUTOR_STATE.model = TUTOR_STATE.models[0];
+  TUTOR_STATE.model = TUTOR_STATE.models[0] || '';
   const last = result.fails[result.fails.length - 1] || { status: 0, problem: 'timeout' };
   TUTOR_STATE.problem = result.timedOut ? 'timeout' : last.problem;
-  if (result.stop && TUTOR_FATAL.indexOf(result.stop) >= 0) TUTOR_STATE.ready = false;
-  /* the model has gone: choose again from what is there, and start over */
-  if (result.stop === 'model-missing' && !retried) {
-    await setupTutor();
-    if (TUTOR_STATE.ready) return askGemini(learn, level, history, true, voice);
+  if (result.stop) TUTOR_STATE.ready = false;            /* the key itself is refused */
+  if (!TUTOR_STATE.models.length) {
+    /* Every model refused this key with 403: that is the key, not the
+       models. Otherwise the gone ones are replaced by listing again — in
+       the background, so this learner is not kept waiting for it. */
+    if (result.fails.length && result.fails.every(f => f.problem === 'key-not-allowed')) {
+      TUTOR_STATE.ready = false;
+      TUTOR_STATE.problem = 'key-not-allowed';
+    } else {
+      relist(0);
+    }
   }
   if (!result.timedOut && result.fails.length && result.fails.every(f => f.problem === 'unreadable')) return null;
   const quota = result.fails.some(f => f.status === 429) && !result.fails.some(f => f.problem === 'timeout');

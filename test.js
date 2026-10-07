@@ -4140,7 +4140,7 @@ section('DICTIONARY (offline)');
       box2.rankModel('gemini-3.8-flash-image') < 0 && box2.rankModel('gemini-3.8-flash-tts') < 0 && box2.rankModel('gemini-embedding-001') < 0);
     t('a retired model is recognised and the model chosen again',
       box2.tutorProblem(404, '{"error":{"code":404,"message":"This model models/gemini-2.5-flash is no longer available"}}') === 'model-missing'
-      && /p === 'model-missing' && !retried/.test(srv) && /await setupTutor\(\);/.test(srv));
+      && /DEAD_MODELS\.add\(f\.model\)/.test(srv) && /if \(KEY_FATAL\.indexOf\(p\) >= 0\) return finish/.test(srv));
     t('a bad key is named as such, without the key',
       box2.tutorProblem(400, '{"error":{"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}') === 'key-invalid');
     t('no fixed model name is required any more', !/'gemini-2\.5-flash'/.test(srv) && /setupTutor\(\)\.catch/.test(srv));
@@ -4153,7 +4153,7 @@ section('DICTIONARY (offline)');
 
     const v13t = require('fs').readFileSync(__dirname + '/js/views13.js', 'utf8');
     t('free talk asks the AI only when it is on', /if \(aiState && !here && TB\.Sync && TB\.Sync\.tutor\)/.test(v13t));
-    t('and answers by itself if the AI fails', /askAi\(b, my\)\.catch\(function \(\) \{ if \(alive\(my\)\) answerHere\(text, it, b, my\); \}\)/.test(v13t));
+    t('and answers by itself if the AI fails', /askAi\(b, my, t\)\.catch\(function \(\) \{ if \(alive\(my\)\) answerHere\(text, it, b, my, t\); \}\)/.test(v13t));
     t('a tutor that is switched off is not asked again', /not switched on/.test(v13t) && /aiState = false/.test(v13t));
     t('the conversation so far goes with each message', /history: talkLog\.slice\(-10\)/.test(v13t));
     t('every AI line is escaped before it is shown',
@@ -4166,7 +4166,7 @@ section('DICTIONARY (offline)');
     const v13 = require('fs').readFileSync(__dirname + '/js/views13.js', 'utf8');
     t('free talk has a hands-free voice conversation', /id="frLive"/.test(v13) && /function liveToggle\(\)/.test(v13));
     t('the microphone opens only once the tutor has finished speaking',
-      /var talking = speaking > 0 \|\| Date\.now\(\) - lastSpoke < 700;/.test(v13) && /liveListen\(my\);\s*\}\)\(\);/.test(v13));
+      /var talking = speaking > 0 \|\| Date\.now\(\) - lastSpoke < 700\s*\|\| !!\(TB\.Speech\.isSpeaking && TB\.Speech\.isSpeaking\(\)\);/.test(v13) && /liveListen\(my\);\s*\}\)\(\);/.test(v13));
     t('everything the tutor says is counted', /function say\(text, lang, slow\) \{\s*return track\(/.test(v13) && /track\(TB\.Speech\.sequence/.test(v13));
     t('silence is a missed turn, "stop" ends it, three misses pause it',
       /no speech/.test(v13) && /STOP_WORDS\.test\(said\)/.test(v13) && /liveMiss >= 3/.test(v13));
@@ -4175,7 +4175,7 @@ section('DICTIONARY (offline)');
     t('free talk picks a level from beginner to native-like', /id="frLevels"/.test(v13) && /if \(tab === 'free'\)/.test(v13));
     t('the AI is told when it is a spoken conversation', /voice: !!live/.test(v13));
     t('a long wait in a voice conversation is filled the way a person would, not with silence',
-      /if \(answered \|\| !live \|\| !alive\(my\)\) return;/.test(v13) && /FILL\[lang\]\[fillN\+\+ % FILL\[lang\]\.length\]/.test(v13));
+      /if \(answered \|\| !live \|\| !on\(my, t\) \|\| speaking > 0\) return;/.test(v13) && /FILL\[lang\]\[fillN\+\+ % FILL\[lang\]\.length\]/.test(v13));
     t('Hindi from the AI carries its English meaning and a reading under corrections',
       /learn === 'hi' && r\.reply_en/.test(v13) && /readAid\(fix\.corrected, learn, true\)/.test(v13));
     t('leaving the page ends a voice conversation', /function stopAll\(\) \{ gen\+\+; busy = false; live = false; liveGen\+\+;/.test(v13));
@@ -4249,7 +4249,7 @@ section('DICTIONARY (offline)');
       },
       process: { env: { GEMINI_API_KEY: 'test-key', PORT: '0' }, on: noop, exit: noop },
       console: { log: noop, warn: noop, error: noop },
-      fetch: fakeFetch, AbortController: AbortController, setTimeout: setTimeout, clearTimeout: clearTimeout,
+      fetch: fakeFetch, AbortController: AbortController, AbortSignal: AbortSignal, setTimeout: setTimeout, clearTimeout: clearTimeout,
       Promise: Promise, URLSearchParams: URLSearchParams, Buffer: Buffer
     };
     vm.createContext(sandbox);
