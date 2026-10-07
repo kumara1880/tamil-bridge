@@ -4179,6 +4179,9 @@ section('DICTIONARY (offline)');
     t('leaving the page ends a voice conversation', /function stopAll\(\) \{ gen\+\+; busy = false; live = false; liveGen\+\+;/.test(v13));
 
     const srv = require('fs').readFileSync(__dirname + '/server/index.js', 'utf8');
+    t('a slow model is given up on quickly, and sent to the back of the line',
+      /const wait = i === 0 \? 12000 : 15000;/.test(srv) && /callGemini\(model, payload\(model, true\), wait\)/.test(srv)
+      && /TUTOR_STATE\.models\.filter\(m => m !== model\)\.concat\(\[model\]\)/.test(srv));
     t('the AI teaches to the level, beginner to native-like', /function levelWay\(level, L\)/.test(srv) && /Level C2/.test(srv) && /levelWay\(level, L\),/.test(srv));
     t('spoken replies are kept short and speakable', /This is a SPOKEN conversation/.test(srv) && /b\.voice === true/.test(srv));
     t('Hindi replies come with English too', /"reply_en": string/.test(srv) && /reply_en: clip\(j\.reply_en, 800\)/.test(srv));

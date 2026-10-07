@@ -994,11 +994,15 @@ async function askGemini(learn, level, history, retried, voice) {
   let last = { status: 0, problem: 'unreachable' };
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
-    let r = await callGemini(model, payload(model, true));
+    /* A tutor's turn normally comes back in a few seconds. Waiting twenty
+       for a stalled model, then twenty for the next, made a voice
+       conversation stand silent for forty. */
+    const wait = i === 0 ? 12000 : 15000;
+    let r = await callGemini(model, payload(model, true), wait);
     let p = r.ok ? '' : (r.status ? tutorProblem(r.status, r.body) : (r.timeout ? 'timeout' : 'network'));
     /* a model that does not take the thinking setting: same model, without it */
     if (p === 'bad-request' && /thinking/i.test(r.body)) {
-      r = await callGemini(model, payload(model, false));
+      r = await callGemini(model, payload(model, false), wait);
       p = r.ok ? '' : (r.status ? tutorProblem(r.status, r.body) : (r.timeout ? 'timeout' : 'network'));
     }
     if (r.ok) {
@@ -1008,7 +1012,7 @@ async function askGemini(learn, level, history, retried, voice) {
       const out = shapeTutor(parseTutor(text));
       if (out) {
         if (i > 0) {
-          TUTOR_STATE.models = [model].concat(models.filter(m => m !== model));
+          TUTOR_STATE.models = [model].concat(TUTOR_STATE.models.filter(m => m !== model));
           TUTOR_STATE.model = model;
           console.log('[tutor] now using ' + model);
         }
@@ -1022,6 +1026,13 @@ async function askGemini(learn, level, history, retried, voice) {
     console.warn('[tutor] ' + model + ': ' + (r.status || '-') + ' (' + p + ') ' + String(r.body || '').slice(0, 300));
     TUTOR_STATE.problem = p;
     last = { status: r.status, problem: p };
+    /* Slow, overloaded or out of quota: to the back of the line at once,
+       so the next message goes straight to a model that is answering
+       instead of waiting on this one again. */
+    if (['timeout', 'google-down', 'quota', 'network', 'unreadable'].indexOf(p) >= 0 && TUTOR_STATE.models.length > 1) {
+      TUTOR_STATE.models = TUTOR_STATE.models.filter(m => m !== model).concat([model]);
+      TUTOR_STATE.model = TUTOR_STATE.models[0];
+    }
     if (TUTOR_FATAL.indexOf(p) >= 0) { TUTOR_STATE.ready = false; break; }
     /* the model has gone: choose again from what is there, and start over */
     if (p === 'model-missing' && !retried) {
@@ -1038,9 +1049,9 @@ async function askGemini(learn, level, history, retried, voice) {
 
 /* One request to one model. Never throws: a timeout or a dropped
    connection comes back as a result like any other. */
-async function callGemini(model, body) {
+async function callGemini(model, body, waitMs) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 20000);
+  const timer = setTimeout(() => ctl.abort(), waitMs || 15000);
   try {
     const r = await fetch(GEMINI_BASE + '/models/' + encodeURIComponent(model) + ':generateContent', {
       method: 'POST',
